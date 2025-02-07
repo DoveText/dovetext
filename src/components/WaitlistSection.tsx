@@ -56,13 +56,7 @@ export default function WaitlistSection() {
         throw new Error(`Server error: ${response.status}`);
       }
 
-      const text = await response.text();
-
-      if (!text) {
-        throw new Error('Empty response from server');
-      }
-
-      const data = JSON.parse(text);
+      const data = await response.json();
       
       if (data.exists) {
         setStatus('exists');

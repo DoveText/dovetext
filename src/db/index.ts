@@ -13,28 +13,49 @@ dotenv.config({ path: localEnvPath, override: true });
 
 console.log(`[Database] Using ${NODE_ENV} environment`);
 
-const pgp = pgPromise();
+// Singleton instance of pg-promise
+const pgp = pgPromise({
+  // Initialization Options
+  noWarnings: true // Disable duplicate instantiation warning
+});
 
-// Use Vercel's connection URL if available, otherwise use individual params
-const connection = process.env.POSTGRES_URL
-  ? { connectionString: process.env.POSTGRES_URL }
-  : {
-      host: process.env.POSTGRES_HOST || 'localhost',
-      port: parseInt(process.env.POSTGRES_PORT || '5432'),
-      database: process.env.POSTGRES_DB || 'dovetext',
-      user: process.env.POSTGRES_USER || 'postgres',
-      password: process.env.POSTGRES_PASSWORD || 'postgres',
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    };
+// Database connection configuration
+const getConnectionConfig = () => {
+  return process.env.POSTGRES_URL
+    ? { connectionString: process.env.POSTGRES_URL }
+    : {
+        host: process.env.POSTGRES_HOST || 'localhost',
+        port: parseInt(process.env.POSTGRES_PORT || '5432'),
+        database: process.env.POSTGRES_DB || 'dovetext',
+        user: process.env.POSTGRES_USER || 'postgres',
+        password: process.env.POSTGRES_PASSWORD || 'postgres',
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      };
+};
 
-export const db = pgp(connection);
+// Global database instance using a singleton pattern
+let dbInstance: ReturnType<typeof pgp> | null = null;
 
-// Test the connection
-db.connect()
-  .then(obj => {
-    console.log(`Database connection successful (${NODE_ENV} environment)`);
-    obj.done(); // success, release the connection;
-  })
-  .catch(error => {
-    console.error('ERROR:', error.message || error);
-  });
+export const db = (() => {
+  if (!dbInstance) {
+    dbInstance = pgp(getConnectionConfig());
+    // Test the connection
+    dbInstance.connect()
+      .then(obj => {
+        console.log(`Database connection successful (${NODE_ENV} environment)`);
+        obj.done(); // success, release the connection
+      })
+      .catch(error => {
+        console.error('ERROR:', error.message || error);
+      });
+  }
+  return dbInstance;
+})();
+
+// Cleanup function for testing environments
+export const closeDatabase = async () => {
+  if (dbInstance) {
+    await dbInstance.$pool.end();
+    dbInstance = null;
+  }
+};
