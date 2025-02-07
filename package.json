@@ -9,9 +9,9 @@
     "lint": "next lint",
     "build:server": "tsc --project tsconfig.server.json",
     "start:prod": "NODE_ENV=production node dist/server.js",
-    "db:init": "NODE_ENV=development ts-node scripts/init-db.ts",
-    "db:create": "NODE_ENV=development ts-node scripts/create-db.ts",
-    "db:init:vercel": "NODE_ENV=production ts-node scripts/init-vercel-db.ts"
+    "db:init": "NODE_ENV=development ts-node --project scripts/tsconfig.json scripts/init-db.ts",
+    "db:create": "NODE_ENV=development ts-node --project scripts/tsconfig.json scripts/create-db.ts",
+    "db:init:vercel": "NODE_ENV=production ts-node --project scripts/tsconfig.json scripts/init-vercel-db.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
