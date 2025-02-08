@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { validateInvitationCode, recordInvitationCodeUsage } from '@/lib/firebase/invitation';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [invitationCode, setInvitationCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
@@ -16,7 +18,6 @@ export default function SignUp() {
   const router = useRouter();
 
   useEffect(() => {
-    // If user is authenticated, redirect to dashboard
     if (user) {
       router.push('/dashboard');
     }
@@ -44,7 +45,20 @@ export default function SignUp() {
     try {
       setError('');
       setLoading(true);
+
+      // Validate invitation code first
+      const isValidCode = await validateInvitationCode(invitationCode);
+      if (!isValidCode) {
+        setError('Invalid invitation code');
+        return;
+      }
+
+      // Create user account
       await signUp(email, password);
+      
+      // Record invitation code usage
+      await recordInvitationCodeUsage(invitationCode, email);
+      
       setVerificationSent(true);
     } catch (err) {
       console.error('Sign up error:', err);
@@ -55,11 +69,28 @@ export default function SignUp() {
   };
 
   const handleGoogleSignUp = async () => {
+    if (!invitationCode) {
+      setError('Please enter an invitation code');
+      return;
+    }
+
     try {
       setError('');
       setLoading(true);
-      await signInWithGoogle();
-      // No need to redirect here as useEffect will handle it
+
+      // Validate invitation code first
+      const isValidCode = await validateInvitationCode(invitationCode);
+      if (!isValidCode) {
+        setError('Invalid invitation code');
+        return;
+      }
+
+      // Sign in with Google
+      const result = await signInWithGoogle();
+      if (result?.user) {
+        // Record invitation code usage
+        await recordInvitationCodeUsage(invitationCode, result.user.email || '');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
     } finally {
@@ -89,6 +120,20 @@ export default function SignUp() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="invitationCode" className="block text-gray-700 text-sm font-bold mb-2">
+            Invitation Code
+          </label>
+          <input
+            id="invitationCode"
+            type="text"
+            value={invitationCode}
+            onChange={(e) => setInvitationCode(e.target.value.trim())}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            required
+          />
+        </div>
+
         <div>
           <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">
             Email Address
