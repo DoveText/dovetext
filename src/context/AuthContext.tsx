@@ -2,15 +2,16 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import {
-  Auth,
   User,
-  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
   sendEmailVerification,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  confirmPasswordReset as firebaseConfirmPasswordReset,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 
@@ -22,6 +23,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<any>;
   logout: () => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
+  sendPasswordResetEmail: (email: string) => Promise<void>;
+  confirmPasswordReset: (oobCode: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -106,18 +109,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const sendPasswordResetEmail = async (email: string) => {
+    await firebaseSendPasswordResetEmail(auth, email, {
+      url: `${window.location.origin}/auth/reset-password`,
+    });
+  };
+
+  const confirmPasswordReset = async (oobCode: string, newPassword: string) => {
+    await firebaseConfirmPasswordReset(auth, oobCode, newPassword);
+    
+    // After successful reset, update the password in local DB
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('No user found');
+
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firebaseUid: user.uid,
+          newPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update local password');
+      }
+    } catch (error) {
+      console.error('Error updating local password:', error);
+      throw error;
+    }
+  };
+
+  const value = {
+    user,
+    loading,
+    signUp,
+    signIn,
+    logout,
+    signInWithGoogle,
+    sendVerificationEmail,
+    sendPasswordResetEmail,
+    confirmPasswordReset,
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        signIn,
-        signUp,
-        signInWithGoogle,
-        logout,
-        sendVerificationEmail,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {!loading && children}
     </AuthContext.Provider>
   );

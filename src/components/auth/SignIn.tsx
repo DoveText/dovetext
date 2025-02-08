@@ -85,6 +85,14 @@ export function SignIn() {
             disabled={isSigningIn || isSigningInWithGoogle}
             required
           />
+          <div className="mt-2 text-right">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-blue-500 hover:text-blue-700"
+            >
+              Forgot password?
+            </Link>
+          </div>
         </div>
 
         {error && (
