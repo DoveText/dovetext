@@ -45,8 +45,6 @@ export default function SignUp() {
 
   const completeSignup = async (email: string, firebaseUid: string, password: string | null, provider: 'email' | 'google') => {
     try {
-      console.log('Starting completeSignup:', { email, firebaseUid, hasPassword: !!password, provider });
-      
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
@@ -62,7 +60,6 @@ export default function SignUp() {
       });
 
       const data = await response.json();
-      console.log('Signup API response:', { status: response.status, data });
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to complete signup');
@@ -182,39 +179,30 @@ export default function SignUp() {
     }
 
     try {
-      console.log('Starting Google signup flow');
       setError('');
       setIsSigningUpWithGoogle(true);
 
       // Check invitation code first
-      console.log('Validating invitation code');
       const isValidCode = await handleInvitationBlur();
       if (!isValidCode) {
-        console.log('Invalid invitation code');
         setError('Please fix the invitation code error before continuing');
         setIsSigningUpWithGoogle(false);
         return;
       }
 
       // Sign in with Google
-      console.log('Starting Google sign-in');
       const result = await signInWithGoogle().catch(error => {
         console.error('Google sign-in error:', error);
         throw error;
       });
       
       if (!result?.user?.email) {
-        console.error('No user email from Google sign-in');
         throw new Error('Failed to get email from Google account');
       }
-      
-      console.log('Google sign-in successful:', { email: result.user.email });
 
       // Complete signup in local database (no password for Google sign-in)
-      console.log('Completing signup in local database');
       await completeSignup(result.user.email, result.user.uid, null, 'google');
       
-      console.log('Signup completed successfully, redirecting to dashboard');
       router.push('/dashboard');
     } catch (err) {
       console.error('Google sign up error:', err);

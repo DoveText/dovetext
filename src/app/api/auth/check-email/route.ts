@@ -23,7 +23,9 @@ export async function GET(request: Request) {
       available: !result
     });
   } catch (error) {
-    console.error('Error checking email:', error);
+    if (error instanceof Error) {
+      console.error('Error checking email:', error.message);
+    }
     return NextResponse.json(
       { error: 'Failed to check email availability' },
       { status: 500 }
@@ -52,7 +54,9 @@ export async function POST(request: Request) {
       available: !result
     });
   } catch (error) {
-    console.error('Error checking email:', error);
+    if (error instanceof Error) {
+      console.error('Error checking email:', error.message);
+    }
     return NextResponse.json(
       { error: 'Failed to check email availability' },
       { status: 500 }
