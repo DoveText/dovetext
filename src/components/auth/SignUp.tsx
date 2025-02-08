@@ -7,23 +7,38 @@ import Link from 'next/link';
 export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const { signUp, signInWithGoogle } = useAuth();
 
+  const validatePassword = () => {
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Attempting to sign up with:', email); // Debug log
     
+    if (!validatePassword()) {
+      return;
+    }
+
     try {
       setError('');
       setLoading(true);
-      console.log('SignUp function available:', !!signUp); // Debug log
       await signUp(email, password);
       setVerificationSent(true);
     } catch (err) {
-      console.error('Sign up error:', err); // Debug log
+      console.error('Sign up error:', err);
       setError(err instanceof Error ? err.message : 'Failed to create an account');
     } finally {
       setLoading(false);
@@ -89,6 +104,23 @@ export default function SignUp() {
             onChange={(e) => setPassword(e.target.value)}
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             required
+            minLength={6}
+          />
+          <p className="text-xs text-gray-500 mt-1">Password must be at least 6 characters long</p>
+        </div>
+
+        <div>
+          <label htmlFor="confirmPassword" className="block text-gray-700 text-sm font-bold mb-2">
+            Confirm Password
+          </label>
+          <input
+            id="confirmPassword"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            required
+            minLength={6}
           />
         </div>
 

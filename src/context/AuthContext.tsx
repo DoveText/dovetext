@@ -51,8 +51,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      const provider = new GoogleAuthProvider();
+      // Add scopes if needed
+      provider.addScope('https://www.googleapis.com/auth/userinfo.email');
+      provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+      
+      // Set custom parameters
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      
+      console.log('Initiating Google sign-in...');
+      const result = await signInWithPopup(auth, provider);
+      console.log('Google sign-in successful:', result.user.email);
+      
+      return result;
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      throw error;
+    }
   };
 
   const logout = async () => {
