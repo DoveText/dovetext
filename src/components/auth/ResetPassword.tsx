@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { checkActionCode, confirmPasswordReset } from 'firebase/auth';
+import { Spinner } from '@/components/ui/Spinner';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -13,6 +14,7 @@ export default function ResetPassword() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [email, setEmail] = useState('');
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(true);
   
   const { auth } = useAuth();
   const router = useRouter();
@@ -24,6 +26,7 @@ export default function ResetPassword() {
     const verifyCode = async () => {
       if (!oobCode || mode !== 'resetPassword') {
         setError('Invalid or expired password reset link');
+        setIsVerifyingEmail(false);
         return;
       }
 
@@ -32,11 +35,14 @@ export default function ResetPassword() {
         const email = info.data.email;
         if (!email) {
           setError('Invalid or expired password reset link');
+          setIsVerifyingEmail(false);
           return;
         }
         setEmail(email);
       } catch (error) {
         setError('Invalid or expired password reset link');
+      } finally {
+        setIsVerifyingEmail(false);
       }
     };
 
@@ -71,10 +77,8 @@ export default function ResetPassword() {
       setError('');
       setIsLoading(true);
       
-      // First reset password with Firebase
       await confirmPasswordReset(auth, oobCode, password);
-
-      // Then update local DB
+      
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: {
@@ -143,30 +147,55 @@ export default function ResetPassword() {
               </div>
             )}
             
-            <div className="rounded-md shadow-sm -space-y-px">
+            <div className="space-y-4">
               <div>
-                <label htmlFor="password" className="sr-only">New password</label>
+                <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-500 bg-gray-50 leading-tight focus:outline-none focus:shadow-outline border-gray-300"
+                    readOnly
+                  />
+                  {isVerifyingEmail && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <Spinner className="h-5 w-5 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">
+                  New Password
+                </label>
                 <input
                   id="password"
                   name="password"
                   type="password"
                   required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="New password"
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline border-gray-300"
+                  placeholder="Enter your new password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                 />
               </div>
+
               <div>
-                <label htmlFor="confirmPassword" className="sr-only">Confirm new password</label>
+                <label htmlFor="confirmPassword" className="block text-gray-700 text-sm font-bold mb-2">
+                  Confirm New Password
+                </label>
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
                   type="password"
                   required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="Confirm new password"
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline border-gray-300"
+                  placeholder="Confirm your new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isLoading}
@@ -177,11 +206,21 @@ export default function ResetPassword() {
             <div>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || isVerifyingEmail}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
               >
                 {isLoading ? 'Resetting...' : 'Reset password'}
               </button>
+            </div>
+
+            <div className="mt-4 text-center text-sm">
+              <Link href="/signin" className="text-indigo-600 hover:text-indigo-500">
+                Back to sign in
+              </Link>
+              <span className="mx-2 text-gray-500">•</span>
+              <Link href="/signup" className="text-indigo-600 hover:text-indigo-500">
+                Create an account
+              </Link>
             </div>
           </form>
         )}
