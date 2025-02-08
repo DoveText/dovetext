@@ -12,9 +12,9 @@ export async function fetchWithAuth(
   const idToken = await getIdToken();
 
   // Prepare headers with auth token
-  const authHeaders = {
+  const authHeaders: Record<string, string> = {
     'Authorization': `Bearer ${idToken}`,
-    ...headers,
+    ...(headers as Record<string, string>),
   };
 
   // Add Content-Type for requests with body

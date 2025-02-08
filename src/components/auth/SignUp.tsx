@@ -72,19 +72,15 @@ export default function SignUp() {
     }
   };
 
-  const handleEmailBlur = async (emailToCheck?: string) => {
-    const emailToValidate = emailToCheck || email;
+  const validateEmail = async (emailToValidate: string) => {
     if (!emailToValidate) return false;
 
     try {
-      setEmailChecking(true);
-      setEmailError('');
-
       const response = await fetch(`/api/auth/check-email?email=${encodeURIComponent(emailToValidate)}`);
       const data = await response.json();
-
+      
       if (!response.ok) {
-        setEmailError(data.error || 'Failed to check email');
+        setEmailError(data.error || 'Failed to validate email');
         return false;
       }
 
@@ -93,14 +89,18 @@ export default function SignUp() {
         return false;
       }
 
+      setEmailError('');
       return true;
-    } catch (err) {
-      console.error('Error checking email:', err);
-      setEmailError('Failed to check email availability');
+    } catch (error) {
+      console.error('Error validating email:', error);
+      setEmailError('Failed to validate email');
       return false;
-    } finally {
-      setEmailChecking(false);
     }
+  };
+
+  const handleEmailBlur = async (event: React.FocusEvent<HTMLInputElement>) => {
+    const emailToValidate = event.target.value;
+    await validateEmail(emailToValidate);
   };
 
   const handleInvitationBlur = async () => {
@@ -282,9 +282,6 @@ export default function SignUp() {
             }`}
             required
           />
-          {emailChecking && (
-            <p className="text-sm text-gray-500">Checking email...</p>
-          )}
           {emailError && (
             <p className="text-sm text-red-600">{emailError}</p>
           )}
