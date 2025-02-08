@@ -24,7 +24,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
-  confirmPasswordReset: (oobCode: string, newPassword: string) => Promise<void>;
+  confirmPasswordReset: (oobCode: string, newPassword: string, email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -111,25 +111,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const sendPasswordResetEmail = async (email: string) => {
     await firebaseSendPasswordResetEmail(auth, email, {
-      url: `${window.location.origin}/auth/reset-password`,
+      url: `${window.location.origin}/dashboard`, // After reset, redirect to dashboard
     });
   };
 
-  const confirmPasswordReset = async (oobCode: string, newPassword: string) => {
+  const confirmPasswordReset = async (oobCode: string, newPassword: string, email: string) => {
     await firebaseConfirmPasswordReset(auth, oobCode, newPassword);
     
-    // After successful reset, update the password in local DB
+    // After successful reset, update the password in local DB using email
     try {
-      const user = auth.currentUser;
-      if (!user) throw new Error('No user found');
-
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          firebaseUid: user.uid,
+          email,
           newPassword,
         }),
       });

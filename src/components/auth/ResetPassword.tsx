@@ -17,12 +17,19 @@ export default function ResetPassword() {
   const searchParams = useSearchParams();
   const oobCode = searchParams?.get('oobCode') || '';
   const mode = searchParams?.get('mode');
+  const email = searchParams?.get('email') || '';
+  const urlError = searchParams?.get('error');
 
   useEffect(() => {
-    if (!oobCode || mode !== 'resetPassword') {
+    if (urlError === 'invalid_code') {
+      setError('Invalid or expired password reset link');
+      return;
+    }
+    
+    if (!oobCode || mode !== 'resetPassword' || !email) {
       setError('Invalid or expired password reset link');
     }
-  }, [oobCode, mode]);
+  }, [oobCode, mode, email, urlError]);
 
   const validatePassword = () => {
     if (password.length < 8) {
@@ -39,7 +46,7 @@ export default function ResetPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!oobCode || mode !== 'resetPassword') {
+    if (!oobCode || mode !== 'resetPassword' || !email) {
       setError('Invalid or expired password reset link');
       return;
     }
@@ -52,7 +59,7 @@ export default function ResetPassword() {
       setError('');
       setIsLoading(true);
       
-      await confirmPasswordReset(oobCode, password);
+      await confirmPasswordReset(oobCode, password, email);
       setIsSuccess(true);
       
       // Redirect to sign in after 3 seconds
@@ -116,7 +123,7 @@ export default function ResetPassword() {
               placeholder="New password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading || !oobCode || mode !== 'resetPassword'}
+              disabled={isLoading || !oobCode || mode !== 'resetPassword' || !email}
             />
           </div>
           <div>
@@ -133,14 +140,14 @@ export default function ResetPassword() {
               placeholder="Confirm new password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={isLoading || !oobCode || mode !== 'resetPassword'}
+              disabled={isLoading || !oobCode || mode !== 'resetPassword' || !email}
             />
           </div>
         </div>
         <div>
           <button
             type="submit"
-            disabled={isLoading || !oobCode || mode !== 'resetPassword'}
+            disabled={isLoading || !oobCode || mode !== 'resetPassword' || !email}
             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
             {isLoading ? 'Resetting...' : 'Reset password'}

@@ -4,11 +4,11 @@ import { hashPassword } from '@/lib/auth/password';
 
 export async function POST(request: Request) {
   try {
-    const { firebaseUid, newPassword } = await request.json();
+    const { email, newPassword } = await request.json();
 
-    if (!firebaseUid || !newPassword) {
+    if (!email || !newPassword) {
       return NextResponse.json(
-        { error: 'Firebase UID and new password are required' },
+        { error: 'Email and new password are required' },
         { status: 400 }
       );
     }
@@ -18,9 +18,9 @@ export async function POST(request: Request) {
     const result = await db.oneOrNone(
       `UPDATE users 
        SET encrypted_password = $1
-       WHERE firebase_uid = $2
+       WHERE email = $2
        RETURNING id`,
-      [encryptedPassword, firebaseUid]
+      [encryptedPassword, email]
     );
 
     if (!result) {
@@ -32,11 +32,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    if (error instanceof Error) {
-      console.error('Error resetting password:', error.message);
-    }
+    console.error('Error updating password:', error);
     return NextResponse.json(
-      { error: 'Failed to reset password' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
