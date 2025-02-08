@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { validateInvitationCode, recordInvitationCodeUsage } from '@/lib/firebase/invitation';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -14,6 +13,13 @@ export default function SignUp() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  
+  // Field-specific states
+  const [emailError, setEmailError] = useState('');
+  const [emailChecking, setEmailChecking] = useState(false);
+  const [invitationError, setInvitationError] = useState('');
+  const [invitationChecking, setInvitationChecking] = useState(false);
+  
   const { signUp, signInWithGoogle, user } = useAuth();
   const router = useRouter();
 
@@ -35,7 +41,12 @@ export default function SignUp() {
     return true;
   };
 
-  const checkEmailAvailability = async (email: string) => {
+  const handleEmailBlur = async () => {
+    if (!email) return;
+    
+    setEmailChecking(true);
+    setEmailError('');
+    
     try {
       const response = await fetch('/api/auth/check-email', {
         method: 'POST',
@@ -45,35 +56,36 @@ export default function SignUp() {
       const data = await response.json();
       
       if (!data.available) {
-        setError('This email is already registered');
-        return false;
+        setEmailError('This email is already registered');
       }
-      return true;
     } catch (err) {
-      console.error('Error checking email:', err);
-      setError('Failed to verify email availability');
-      return false;
+      setEmailError('Failed to verify email availability');
+    } finally {
+      setEmailChecking(false);
     }
   };
 
-  const checkInvitationCode = async (code: string) => {
+  const handleInvitationBlur = async () => {
+    if (!invitationCode) return;
+    
+    setInvitationChecking(true);
+    setInvitationError('');
+    
     try {
       const response = await fetch('/api/auth/check-invitation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ code: invitationCode })
       });
       const data = await response.json();
       
       if (!response.ok) {
-        setError(data.error || 'Invalid invitation code');
-        return false;
+        setInvitationError(data.error || 'Invalid invitation code');
       }
-      return true;
     } catch (err) {
-      console.error('Error checking invitation code:', err);
-      setError('Failed to verify invitation code');
-      return false;
+      setInvitationError('Failed to verify invitation code');
+    } finally {
+      setInvitationChecking(false);
     }
   };
 
@@ -103,6 +115,12 @@ export default function SignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Check for validation errors
+    if (emailError || invitationError) {
+      setError('Please fix the errors before submitting');
+      return;
+    }
+    
     if (!validatePassword()) {
       return;
     }
@@ -110,14 +128,6 @@ export default function SignUp() {
     try {
       setError('');
       setLoading(true);
-
-      // Check email availability
-      const isEmailAvailable = await checkEmailAvailability(email);
-      if (!isEmailAvailable) return;
-
-      // Check invitation code
-      const isValidCode = await checkInvitationCode(invitationCode);
-      if (!isValidCode) return;
 
       // Create Firebase user
       const userCredential = await signUp(email, password);
@@ -146,7 +156,7 @@ export default function SignUp() {
       setLoading(true);
 
       // Check invitation code
-      const isValidCode = await checkInvitationCode(invitationCode);
+      const isValidCode = await handleInvitationBlur();
       if (!isValidCode) return;
 
       // Sign in with Google
@@ -154,7 +164,7 @@ export default function SignUp() {
       if (!result?.user) throw new Error('Failed to sign in with Google');
 
       // Check email availability
-      const isEmailAvailable = await checkEmailAvailability(result.user.email || '');
+      const isEmailAvailable = await handleEmailBlur();
       if (!isEmailAvailable) return;
 
       // Complete signup in local database
@@ -196,10 +206,22 @@ export default function SignUp() {
             id="invitationCode"
             type="text"
             value={invitationCode}
-            onChange={(e) => setInvitationCode(e.target.value.trim())}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            onChange={(e) => {
+              setInvitationCode(e.target.value.trim());
+              setInvitationError('');
+            }}
+            onBlur={handleInvitationBlur}
+            className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
+              invitationError ? 'border-red-300' : 'border-gray-300'
+            }`}
             required
           />
+          {invitationChecking && (
+            <p className="text-sm text-gray-500">Checking invitation code...</p>
+          )}
+          {invitationError && (
+            <p className="text-sm text-red-600">{invitationError}</p>
+          )}
         </div>
 
         <div>
@@ -210,10 +232,22 @@ export default function SignUp() {
             id="email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setEmailError('');
+            }}
+            onBlur={handleEmailBlur}
+            className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
+              emailError ? 'border-red-300' : 'border-gray-300'
+            }`}
             required
           />
+          {emailChecking && (
+            <p className="text-sm text-gray-500">Checking email...</p>
+          )}
+          {emailError && (
+            <p className="text-sm text-red-600">{emailError}</p>
+          )}
         </div>
 
         <div>

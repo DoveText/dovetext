@@ -1,54 +1,83 @@
-import * as admin from 'firebase-admin';
-import * as dotenv from 'dotenv';
-import { Timestamp } from 'firebase-admin/firestore';
+const pg = require('pg');
+const dotenv = require('dotenv');
+const path = require('path');
 
 // Load environment variables
-dotenv.config({ path: '.env.local' });
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const envPath = path.resolve(process.cwd(), `.env.${NODE_ENV}`);
+const localEnvPath = path.resolve(process.cwd(), '.env');
 
-// Initialize Firebase Admin
-const serviceAccount = {
-  "type": "service_account",
-  "project_id": process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  "private_key_id": process.env.FIREBASE_PRIVATE_KEY_ID,
-  "private_key": process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  "client_email": process.env.FIREBASE_CLIENT_EMAIL,
-  "client_id": process.env.FIREBASE_CLIENT_ID,
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": process.env.FIREBASE_CLIENT_CERT_URL
-};
+dotenv.config({ path: envPath });
+dotenv.config({ path: localEnvPath, override: true });
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount)
-  });
+interface InvitationCodeInput {
+  code: string;
+  maxUses: number;
+  platform?: string;
+  description?: string;
 }
 
-async function createInvitationCode() {
+async function createInvitationCode(input: InvitationCodeInput) {
+  const client = new pg.Client({
+    host: process.env.POSTGRES_HOST || 'localhost',
+    port: parseInt(process.env.POSTGRES_PORT || '5432'),
+    database: process.env.POSTGRES_DB || 'dovetext',
+    user: process.env.POSTGRES_USER || 'postgres',
+    password: process.env.POSTGRES_PASSWORD || 'postgres'
+  });
+
   try {
-    const db = admin.firestore();
+    await client.connect();
 
-    const codeData = {
-      code: "BETA2024",
-      platform: "twitter",
-      distributedBy: "admin",
-      maxUses: 50,
-      usedCount: 0,
-      isActive: true,
-      createdAt: Timestamp.now(),
-      usageHistory: []
-    };
+    const result = await client.query(`
+      INSERT INTO invitation_codes (
+        code,
+        max_uses,
+        platform,
+        description,
+        is_active,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, true, NOW())
+      RETURNING *
+    `, [
+      input.code,
+      input.maxUses,
+      input.platform || null,
+      input.description || null
+    ]);
 
-    // Use the code as the document ID
-    await db.collection('invitation_codes').doc(codeData.code).set(codeData);
-    console.log('Successfully created invitation code:', codeData.code);
-    process.exit(0);
+    console.log('Successfully created invitation code:', result.rows[0]);
   } catch (error) {
     console.error('Error creating invitation code:', error);
     process.exit(1);
+  } finally {
+    await client.end();
   }
 }
 
-// Execute the function
-createInvitationCode();
+// Parse command line arguments
+const args = process.argv.slice(2);
+const usage = `
+Usage: npm run create:code -- <code> <maxUses> [platform] [description]
+Example: npm run create:code -- BETA2024 50 twitter "Beta testing invitation"
+`;
+
+if (args.length < 1) {
+  console.error('Error: Missing required arguments');
+  console.log(usage);
+  process.exit(1);
+}
+
+const [code, maxUses = "10", platform, ...descriptionParts] = args;
+const description = descriptionParts.join(' ');
+
+// Run if this file is executed directly
+if (require.main === module) {
+  createInvitationCode({
+    code,
+    maxUses: parseInt(maxUses, 10),
+    platform,
+    description: description || undefined
+  });
+}
