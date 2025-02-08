@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
+import { hashPassword } from '@/lib/auth/password';
 
 export async function POST(request: Request) {
   try {
-    const { email, firebaseUid, invitationCode } = await request.json();
+    const { email, password, firebaseUid, invitationCode } = await request.json();
 
     // Start a transaction
     return await db.tx(async t => {
@@ -38,12 +39,15 @@ export async function POST(request: Request) {
         );
       }
 
-      // Create user
+      // Hash the password
+      const encryptedPassword = await hashPassword(password);
+
+      // Create user with encrypted password
       const user = await t.one(`
-        INSERT INTO users (email, firebase_uid, settings)
-        VALUES ($1, $2, $3)
+        INSERT INTO users (email, firebase_uid, encrypted_password, settings)
+        VALUES ($1, $2, $3, $4)
         RETURNING id
-      `, [email, firebaseUid, {}]);
+      `, [email, firebaseUid, encryptedPassword, {}]);
 
       // Record invitation code use
       await t.none(`

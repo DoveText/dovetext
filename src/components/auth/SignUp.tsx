@@ -77,13 +77,14 @@ export default function SignUp() {
     }
   };
 
-  const completeSignup = async (email: string, firebaseUid: string) => {
+  const completeSignup = async (email: string, firebaseUid: string, password: string) => {
     try {
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
+          password,
           firebaseUid,
           invitationCode
         })
@@ -123,7 +124,7 @@ export default function SignUp() {
       if (!userCredential.user) throw new Error('Failed to create user account');
 
       // Complete signup in local database
-      await completeSignup(email, userCredential.user.uid);
+      await completeSignup(email, userCredential.user.uid, password);
       
       setVerificationSent(true);
     } catch (err) {
@@ -157,7 +158,7 @@ export default function SignUp() {
       if (!isEmailAvailable) return;
 
       // Complete signup in local database
-      await completeSignup(result.user.email || '', result.user.uid);
+      await completeSignup(result.user.email || '', result.user.uid, '');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
     } finally {
