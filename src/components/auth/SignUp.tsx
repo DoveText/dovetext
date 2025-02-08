@@ -35,6 +35,70 @@ export default function SignUp() {
     return true;
   };
 
+  const checkEmailAvailability = async (email: string) => {
+    try {
+      const response = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await response.json();
+      
+      if (!data.available) {
+        setError('This email is already registered');
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('Error checking email:', err);
+      setError('Failed to verify email availability');
+      return false;
+    }
+  };
+
+  const checkInvitationCode = async (code: string) => {
+    try {
+      const response = await fetch('/api/auth/check-invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setError(data.error || 'Invalid invitation code');
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('Error checking invitation code:', err);
+      setError('Failed to verify invitation code');
+      return false;
+    }
+  };
+
+  const completeSignup = async (email: string, firebaseUid: string) => {
+    try {
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          firebaseUid,
+          invitationCode
+        })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to complete signup');
+      }
+    } catch (err) {
+      console.error('Error completing signup:', err);
+      throw err;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -46,18 +110,20 @@ export default function SignUp() {
       setError('');
       setLoading(true);
 
-      // Validate invitation code first
-      const isValidCode = await validateInvitationCode(invitationCode);
-      if (!isValidCode) {
-        setError('Invalid invitation code');
-        return;
-      }
+      // Check email availability
+      const isEmailAvailable = await checkEmailAvailability(email);
+      if (!isEmailAvailable) return;
 
-      // Create user account
-      await signUp(email, password);
-      
-      // Record invitation code usage
-      await recordInvitationCodeUsage(invitationCode, email);
+      // Check invitation code
+      const isValidCode = await checkInvitationCode(invitationCode);
+      if (!isValidCode) return;
+
+      // Create Firebase user
+      const userCredential = await signUp(email, password);
+      if (!userCredential.user) throw new Error('Failed to create user account');
+
+      // Complete signup in local database
+      await completeSignup(email, userCredential.user.uid);
       
       setVerificationSent(true);
     } catch (err) {
@@ -78,19 +144,20 @@ export default function SignUp() {
       setError('');
       setLoading(true);
 
-      // Validate invitation code first
-      const isValidCode = await validateInvitationCode(invitationCode);
-      if (!isValidCode) {
-        setError('Invalid invitation code');
-        return;
-      }
+      // Check invitation code
+      const isValidCode = await checkInvitationCode(invitationCode);
+      if (!isValidCode) return;
 
       // Sign in with Google
       const result = await signInWithGoogle();
-      if (result?.user) {
-        // Record invitation code usage
-        await recordInvitationCodeUsage(invitationCode, result.user.email || '');
-      }
+      if (!result?.user) throw new Error('Failed to sign in with Google');
+
+      // Check email availability
+      const isEmailAvailable = await checkEmailAvailability(result.user.email || '');
+      if (!isEmailAvailable) return;
+
+      // Complete signup in local database
+      await completeSignup(result.user.email || '', result.user.uid);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
     } finally {
