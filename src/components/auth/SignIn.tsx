@@ -4,33 +4,21 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Icons } from '@/components/ui/icons';
+import { Spinner } from '@/components/ui/Spinner';
 
 export function SignIn() {
   const router = useRouter();
   const { signIn, signInWithGoogle } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isSigningInWithGoogle, setIsSigningInWithGoogle] = useState(false);
   const [error, setError] = useState('');
 
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setIsLoading(true);
+    setIsSigningIn(true);
     setError('');
-
-    const formData = new FormData(event.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
 
     try {
       await signIn(email, password);
@@ -39,12 +27,12 @@ export function SignIn() {
       console.error('Signin error:', error);
       setError(error.message);
     } finally {
-      setIsLoading(false);
+      setIsSigningIn(false);
     }
   }
 
   async function handleGoogleSignIn() {
-    setIsLoading(true);
+    setIsSigningInWithGoogle(true);
     setError('');
 
     try {
@@ -54,85 +42,94 @@ export function SignIn() {
       console.error('Google signin error:', error);
       setError('Failed to sign in with Google. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSigningInWithGoogle(false);
     }
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
-        <CardDescription>
+    <div className="w-full max-w-md bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold mb-2">Sign in</h2>
+        <p className="text-gray-600">
           Enter your email and password to sign in to your account
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={onSubmit}>
-        <CardContent className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="name@example.com"
-              autoComplete="email"
-              disabled={isLoading}
-              required
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              disabled={isLoading}
-              required
-            />
-          </div>
-          {error && (
-            <div className="text-sm font-medium text-red-500">{error}</div>
-          )}
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@example.com"
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            disabled={isSigningIn || isSigningInWithGoogle}
+            required
+          />
+        </div>
+
+        <div className="mb-6">
+          <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            disabled={isSigningIn || isSigningInWithGoogle}
+            required
+          />
+        </div>
+
+        {error && (
+          <div className="mb-4 text-sm text-red-600">{error}</div>
+        )}
+
+        <div className="flex flex-col gap-4">
+          <button
+            type="submit"
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full disabled:opacity-50 flex items-center justify-center"
+            disabled={isSigningIn || isSigningInWithGoogle}
+          >
+            {isSigningIn && <Spinner />}
+            {isSigningIn ? 'Signing in...' : 'Sign in'}
+          </button>
+
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
+              <div className="w-full border-t border-gray-300"></div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">
                 Or continue with
               </span>
             </div>
           </div>
-          <Button
+
+          <button
             type="button"
-            variant="outline"
-            disabled={isLoading}
             onClick={handleGoogleSignIn}
+            className="bg-white hover:bg-gray-50 text-gray-700 font-bold py-2 px-4 border border-gray-300 rounded focus:outline-none focus:shadow-outline w-full disabled:opacity-50 flex items-center justify-center"
+            disabled={isSigningIn || isSigningInWithGoogle}
           >
-            {isLoading ? (
-              <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Icons.google className="mr-2 h-4 w-4" />
-            )}
-            Google
-          </Button>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <Button className="w-full" type="submit" disabled={isLoading}>
-            {isLoading && (
-              <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Sign in
-          </Button>
-          <div className="text-sm text-center text-gray-500">
+            {isSigningInWithGoogle && <Spinner className="text-gray-700" />}
+            {isSigningInWithGoogle ? 'Signing in...' : 'Sign in with Google'}
+          </button>
+
+          <div className="text-center text-sm text-gray-500">
             Don't have an account?{' '}
-            <Link href="/signup" className="text-primary hover:underline">
+            <Link href="/signup" className="text-blue-500 hover:text-blue-700">
               Sign up
             </Link>
           </div>
-        </CardFooter>
+        </div>
       </form>
-    </Card>
+    </div>
   );
 }
