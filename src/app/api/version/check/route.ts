@@ -25,7 +25,9 @@ export async function GET(request: Request) {
       latestVersion: LATEST_VERSION,
       needsUpdate,
       isSupported,
-      updateUrl: needsUpdate ? 'https://dove.app/download' : null
+      updateUrl: needsUpdate ? 'https://dove.app/download' : null,
+      // Include auth status in response
+      authenticated: request.session.signedIn
     });
   } catch (error) {
     console.error('Error checking version:', error);
@@ -34,4 +36,12 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function GET_public() {
+  return NextResponse.json({
+    version: '1.0.0',
+    environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
+  });
 }
