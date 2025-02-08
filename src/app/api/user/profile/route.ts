@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { withAuth, type NextRequestWithAuth } from '@/lib/api/withAuth';
 
+export const dynamic = 'force-dynamic';
+
 export const GET = withAuth(async (request: NextRequestWithAuth) => {
   try {
     const user = await db.oneOrNone(
