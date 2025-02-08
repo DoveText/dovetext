@@ -1,18 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
   reactStrictMode: true,
   swcMinify: true,
-  // Allow WebSocket connections
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        ws: false,
-      };
-    }
-    return config;
-  },
   // Custom server settings
   typescript: {
     ignoreBuildErrors: false,
@@ -71,9 +60,9 @@ const nextConfig = {
             value: '1; mode=block'
           }
         ],
-      },
+      }
     ];
-  },
-}
+  }
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
