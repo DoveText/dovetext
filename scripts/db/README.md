@@ -32,8 +32,14 @@ npm run db:init
 
 This will:
 - Create all tables defined in `schema.sql`
-- Record today's date in the migrations table as 'init'
+- Record all migrations up to and including today's date
+- If no migrations exist for today, create a dummy 'init' record
 - Set up all necessary indexes and triggers
+
+The initialization process ensures that:
+- Fresh installations won't run old migrations
+- Current day's migrations are properly recorded
+- Future migrations will work correctly
 
 ### Database Migrations
 
@@ -58,6 +64,11 @@ The migration system uses a date-based approach:
    - Multiple migrations can exist for the same date
    - Each migration must have a unique name part after the date
    - Already executed migrations (same date and name) are skipped
+
+3. **Fresh Installations**:
+   - All migrations up to today's date are marked as executed
+   - This prevents running old migrations on new installations
+   - Future migrations will still be executed
 
 #### Creating New Migrations
 
@@ -117,6 +128,7 @@ The schema is maintained in `schema.sql` and includes:
    - Keep migrations atomic and focused
    - Include both up and down migrations when possible
    - Document complex migrations in the script
+   - Use today's date for the migration file
 
 3. **Naming Conventions**:
    - Tables: plural, snake_case

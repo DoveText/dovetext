@@ -1,51 +1,61 @@
-const pg = require('pg');
-const dotenv = require('dotenv');
-const path = require('path');
-const fs = require('fs');
+import { Pool } from 'pg';
+import * as fs from 'fs';
+import * as path from 'path';
+import { config } from './db/config';
 
-// Load environment variables
-const NODE_ENV = process.env.NODE_ENV || 'development';
-const envPath = path.resolve(process.cwd(), `.env.${NODE_ENV}`);
-const localEnvPath = path.resolve(process.cwd(), '.env');
-
-dotenv.config({ path: envPath });
-dotenv.config({ path: localEnvPath, override: true });
-
-async function initializeDatabase() {
-  const client = new pg.Client({
-    host: process.env.POSTGRES_HOST || 'localhost',
-    port: parseInt(process.env.POSTGRES_PORT || '5432'),
-    database: process.env.POSTGRES_DB || 'dovetext',
-    user: process.env.POSTGRES_USER || 'postgres',
-    password: process.env.POSTGRES_PASSWORD || 'postgres'
-  });
-
+async function initDb() {
+  const pool = new Pool(config);
+  
   try {
-    await client.connect();
-    
-    // Drop existing table and related objects
-    await client.query('DROP TABLE IF EXISTS waitlist CASCADE');
-    
-    // Read the schema file
-    const schema = fs.readFileSync(
-      path.join(__dirname, 'db/schema.sql'),
-      'utf8'
-    );
+    // Read and execute schema.sql
+    const schemaPath = path.join(__dirname, 'db', 'schema.sql');
+    const schema = fs.readFileSync(schemaPath, 'utf8');
+    await pool.query(schema);
+    console.log('Schema initialized successfully');
 
-    // Execute the schema
-    await client.query(schema);
-    console.log('Database schema initialized successfully');
+    // Get today's date in YYYYMMDD format
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    
+    // Get all migration files for today or before
+    const migrationsDir = path.join(__dirname, 'db', 'migrations');
+    const migrationFiles = fs.readdirSync(migrationsDir)
+      .filter(file => file.endsWith('.ts'))
+      .filter(file => {
+        const fileDate = file.split('_')[0];
+        return fileDate <= today;
+      })
+      .sort();
+
+    // If we have migrations for today, record them
+    if (migrationFiles.some(file => file.startsWith(today))) {
+      for (const file of migrationFiles) {
+        const [date, ...nameParts] = file.replace('.ts', '').split('_');
+        const name = nameParts.join('_');
+        await pool.query(
+          'INSERT INTO migrations (date, name) VALUES ($1, $2) ON CONFLICT (date, name) DO NOTHING',
+          [date, name || 'init']
+        );
+      }
+    } else {
+      // No migrations for today, create a dummy record
+      await pool.query(
+        'INSERT INTO migrations (date, name) VALUES ($1, $2) ON CONFLICT (date, name) DO NOTHING',
+        [today, 'init']
+      );
+    }
+    
+    console.log('Migration history initialized');
   } catch (error) {
-    console.error('Error initializing database schema:', error);
-    process.exit(1);
+    console.error('Failed to initialize database:', error);
+    throw error;
   } finally {
-    await client.end();
+    await pool.end();
   }
 }
 
-// Run if this file is executed directly
+// Run initialization if this script is run directly
 if (require.main === module) {
-  initializeDatabase();
+  initDb().catch(console.error);
 }
 
-module.exports = initializeDatabase;
+export { initDb };
