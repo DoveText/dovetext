@@ -24,7 +24,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
-  confirmPasswordReset: (oobCode: string, newPassword: string, email: string) => Promise<void>;
+  auth: any;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -146,11 +146,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loading,
     signUp,
     signIn,
-    logout,
     signInWithGoogle,
+    logout,
     sendVerificationEmail,
     sendPasswordResetEmail,
-    confirmPasswordReset,
+    auth,
   };
 
   return (
