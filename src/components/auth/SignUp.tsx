@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -11,7 +12,15 @@ export default function SignUp() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp, signInWithGoogle, user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    // If user is authenticated, redirect to dashboard
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   const validatePassword = () => {
     if (password.length < 6) {
@@ -50,6 +59,7 @@ export default function SignUp() {
       setError('');
       setLoading(true);
       await signInWithGoogle();
+      // No need to redirect here as useEffect will handle it
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
     } finally {
