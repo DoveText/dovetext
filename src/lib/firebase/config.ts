@@ -14,6 +14,15 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
+
+// Configure auth action URL
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+auth.config.authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+auth.config.actionCodeSettings = {
+  url: `${baseUrl}/auth/action`,
+  handleCodeInApp: true,
+};
+
 const db = getFirestore(app);
 
 export { app, auth, db };
