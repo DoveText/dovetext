@@ -24,7 +24,9 @@ interface AuthContextType {
   logout: () => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
+  confirmPasswordReset: (oobCode: string, newPassword: string, email: string) => Promise<void>;
   auth: any;
+  getIdToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -141,6 +143,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const getIdToken = async () => {
+    if (!user) return null;
+    return user.getIdToken(true);  // Force refresh to ensure token is fresh
+  };
+
   const value = {
     user,
     loading,
@@ -150,7 +157,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     logout,
     sendVerificationEmail,
     sendPasswordResetEmail,
+    confirmPasswordReset,
     auth,
+    getIdToken,
   };
 
   return (
