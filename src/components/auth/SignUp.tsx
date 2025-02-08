@@ -221,7 +221,7 @@ export default function SignUp() {
       <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">Verify Your Email</h2>
         <p className="text-gray-600 text-center">
-          We've sent a verification link to {email}. Please check your email and verify your account.
+          We&apos;ve sent a verification link to {email}. Please check your email and verify your account.
         </p>
       </div>
     );

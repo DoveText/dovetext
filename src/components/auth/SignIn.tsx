@@ -131,7 +131,7 @@ export function SignIn() {
           </button>
 
           <div className="text-center text-sm text-gray-500">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/signup" className="text-blue-500 hover:text-blue-700">
               Sign up
             </Link>

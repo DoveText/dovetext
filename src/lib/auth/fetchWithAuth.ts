@@ -6,9 +6,9 @@ type FetchOptions = RequestInit & {
 
 export async function fetchWithAuth(
   url: string,
-  { body, headers, ...options }: FetchOptions = {}
+  { body, headers, ...options }: FetchOptions = {},
+  getIdToken: () => Promise<string | null>
 ) {
-  const { getIdToken } = useAuth();
   const idToken = await getIdToken();
 
   // Prepare headers with auth token
@@ -29,20 +29,24 @@ export async function fetchWithAuth(
   });
 }
 
-// Helper methods for common HTTP methods
-export const authFetch = {
-  get: (url: string, options?: Omit<FetchOptions, 'body'>) => 
-    fetchWithAuth(url, { ...options, method: 'GET' }),
+// Custom hook for using auth fetch in components
+export function useAuthFetch() {
+  const { getIdToken } = useAuth();
 
-  post: (url: string, body: any, options?: FetchOptions) => 
-    fetchWithAuth(url, { ...options, method: 'POST', body }),
+  return {
+    get: (url: string, options?: Omit<FetchOptions, 'body'>) => 
+      fetchWithAuth(url, { method: 'GET', ...options }, getIdToken),
 
-  put: (url: string, body: any, options?: FetchOptions) => 
-    fetchWithAuth(url, { ...options, method: 'PUT', body }),
+    post: (url: string, body: any, options?: FetchOptions) => 
+      fetchWithAuth(url, { method: 'POST', body, ...options }, getIdToken),
 
-  patch: (url: string, body: any, options?: FetchOptions) => 
-    fetchWithAuth(url, { ...options, method: 'PATCH', body }),
+    put: (url: string, body: any, options?: FetchOptions) => 
+      fetchWithAuth(url, { method: 'PUT', body, ...options }, getIdToken),
 
-  delete: (url: string, options?: FetchOptions) => 
-    fetchWithAuth(url, { ...options, method: 'DELETE' }),
-};
+    patch: (url: string, body: any, options?: FetchOptions) => 
+      fetchWithAuth(url, { method: 'PATCH', body, ...options }, getIdToken),
+
+    delete: (url: string, options?: FetchOptions) => 
+      fetchWithAuth(url, { method: 'DELETE', ...options }, getIdToken),
+  };
+}

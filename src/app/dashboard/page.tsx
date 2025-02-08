@@ -41,7 +41,7 @@ export default function Dashboard() {
       
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-xl font-semibold mb-4">Your Dashboard</h2>
-        <p>You're successfully logged in!</p>
+        <p>You&apos;re successfully logged in!</p>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ export default function Terms() {
 
         <section className="mb-8">
           <h2 className="text-xl font-semibold mb-4">1. Agreement to Terms</h2>
-          <p>By accessing or using DoveText's services, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using or accessing our service.</p>
+          <p>By accessing or using DoveText&apos;s services, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using or accessing our service.</p>
         </section>
 
         <section className="mb-8">
