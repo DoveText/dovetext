@@ -71,7 +71,25 @@ export default function ResetPassword() {
       setError('');
       setIsLoading(true);
       
+      // First reset password with Firebase
       await confirmPasswordReset(auth, oobCode, password);
+
+      // Then update local DB
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          newPassword: password,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update local password');
+      }
+
       setIsSuccess(true);
       
       setTimeout(() => {
