@@ -31,7 +31,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          // Update last_login_at in our database
+          const response = await fetch('/api/auth/signin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user.email,
+              firebaseUid: user.uid,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('Failed to update user login time');
+          }
+        } catch (error) {
+          console.error('Error updating user login time:', error);
+        }
+      }
       setUser(user);
       setLoading(false);
     });
@@ -40,7 +59,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+      throw new Error(getAuthErrorMessage(error.code));
+    }
   };
 
   const signUp = async (email: string, password: string) => {
@@ -52,26 +75,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signInWithGoogle = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      // Add scopes if needed
-      provider.addScope('https://www.googleapis.com/auth/userinfo.email');
-      provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
-      
-      // Set custom parameters
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
-      
-      console.log('Initiating Google sign-in...');
-      const result = await signInWithPopup(auth, provider);
-      console.log('Google sign-in successful:', result.user.email);
-      
-      return result;
-    } catch (error) {
-      console.error('Google sign-in error:', error);
-      throw error;
-    }
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
   };
 
   const logout = async () => {
@@ -79,23 +84,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const sendVerificationEmail = async () => {
-    if (user && !user.emailVerified) {
+    if (user) {
       await sendEmailVerification(user);
     }
   };
 
-  const value = {
-    user,
-    loading,
-    signIn,
-    signUp,
-    signInWithGoogle,
-    logout,
-    sendVerificationEmail,
-  };
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signIn,
+        signUp,
+        signInWithGoogle,
+        logout,
+        sendVerificationEmail,
+      }}
+    >
       {!loading && children}
     </AuthContext.Provider>
   );
@@ -108,3 +113,25 @@ export const useAuth = () => {
   }
   return context;
 };
+
+function getAuthErrorMessage(code: string): string {
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'This email is already registered.';
+    case 'auth/invalid-email':
+      return 'Invalid email address.';
+    case 'auth/operation-not-allowed':
+      return 'Email/password accounts are not enabled.';
+    case 'auth/weak-password':
+      return 'Password is too weak.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+      return 'Invalid email or password.';
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Please try again later.';
+    default:
+      return 'An error occurred. Please try again.';
+  }
+}
