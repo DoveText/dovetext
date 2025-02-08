@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { verifyToken } from '@/lib/auth/verifyToken';
+import { withAuth, type NextRequestWithAuth } from '@/lib/api/withAuth';
 
-export async function GET(request: Request) {
+export const GET = withAuth(async (request: NextRequestWithAuth) => {
   try {
-    const decodedToken = await verifyToken(request);
-    if (!decodedToken) {
-      return NextResponse.json({}, { status: 401 });
-    }
-
-    // Get user info from our database
     const user = await db.oneOrNone(
       `SELECT 
         id,
@@ -23,19 +17,17 @@ export async function GET(request: Request) {
         email_verified
        FROM users 
        WHERE firebase_uid = $1`,
-      [decodedToken.uid]
+      [request.session!.uid]
     );
 
     if (!user) {
       return NextResponse.json({
-        // Return Firebase user info if not in our DB
-        email: decodedToken.email,
-        firebaseUid: decodedToken.uid,
-        emailVerified: decodedToken.email_verified,
+        email: request.session!.email,
+        firebaseUid: request.session!.uid,
+        emailVerified: request.session!.emailVerified,
       });
     }
 
-    // Return combined info
     return NextResponse.json({
       id: user.id,
       email: user.email,
@@ -55,4 +47,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+});

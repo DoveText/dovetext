@@ -1,32 +1,27 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import type { AuthenticatedSession } from '@/types/session';
-
-// Type guard for authenticated session
-function isAuthenticated(session: Request['session']): session is AuthenticatedSession {
-  return session.signedIn;
-}
+import { withAuth, type NextRequestWithAuth } from '@/lib/api/withAuth';
 
 // Get user settings
-export async function GET(request: Request) {
-  if (!isAuthenticated(request.session)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const GET = withAuth(async (request: NextRequestWithAuth) => {
+  try {
+    const settings = await db.oneOrNone(
+      'SELECT settings FROM users WHERE firebase_uid = $1',
+      [request.session!.uid]
+    );
+
+    return NextResponse.json(settings?.settings || {});
+  } catch (error) {
+    console.error('Settings fetch error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
-
-  const settings = await db.oneOrNone(
-    'SELECT settings FROM users WHERE firebase_uid = $1',
-    [request.session.uid]
-  );
-
-  return NextResponse.json(settings?.settings || {});
-}
+});
 
 // Update user settings
-export async function PUT(request: Request) {
-  if (!isAuthenticated(request.session)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export const PUT = withAuth(async (request: NextRequestWithAuth) => {
   try {
     const body = await request.json();
     
@@ -35,7 +30,7 @@ export async function PUT(request: Request) {
        SET settings = $1 
        WHERE firebase_uid = $2 
        RETURNING settings`,
-      [body, request.session.uid]
+      [body, request.session!.uid]
     );
 
     return NextResponse.json(result.settings);
@@ -46,4 +41,4 @@ export async function PUT(request: Request) {
       { status: 500 }
     );
   }
-}
+});
