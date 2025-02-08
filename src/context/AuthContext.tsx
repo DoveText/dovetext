@@ -19,7 +19,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<any>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<any>;
   logout: () => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
 }
@@ -29,12 +29,13 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+      if (user && !isSigningUp) {
         try {
-          // Update last_login_at in our database
+          // Only update last_login_at if not in signup process
           const response = await fetch('/api/auth/signin', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -56,7 +57,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [isSigningUp]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -67,16 +68,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string) => {
-    const result = await createUserWithEmailAndPassword(auth, email, password);
-    if (result.user) {
-      await sendEmailVerification(result.user);
+    setIsSigningUp(true);
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      if (result.user) {
+        await sendEmailVerification(result.user);
+      }
+      return result;
+    } catch (error: any) {
+      throw new Error(getAuthErrorMessage(error.code));
+    } finally {
+      setIsSigningUp(false);
     }
-    return result;
   };
 
   const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      setIsSigningUp(true);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      return result;
+    } catch (error: any) {
+      console.error('Google sign-in error:', error);
+      throw new Error(getAuthErrorMessage(error.code) || 'Failed to sign in with Google');
+    } finally {
+      setIsSigningUp(false);
+    }
   };
 
   const logout = async () => {
