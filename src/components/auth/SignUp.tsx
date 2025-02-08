@@ -43,9 +43,9 @@ export default function SignUp() {
     return true;
   };
 
-  const completeSignup = async (email: string, firebaseUid: string, password: string | null) => {
+  const completeSignup = async (email: string, firebaseUid: string, password: string | null, provider: 'email' | 'google') => {
     try {
-      console.log('Starting completeSignup:', { email, firebaseUid, hasPassword: !!password });
+      console.log('Starting completeSignup:', { email, firebaseUid, hasPassword: !!password, provider });
       
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -56,7 +56,8 @@ export default function SignUp() {
           email,
           firebaseUid,
           password,
-          invitationCode
+          invitationCode,
+          provider
         })
       });
 
@@ -158,12 +159,16 @@ export default function SignUp() {
       if (!userCredential.user) throw new Error('Failed to create user account');
 
       // Complete signup in local database
-      await completeSignup(email, userCredential.user.uid, password);
+      await completeSignup(email, userCredential.user.uid, password, 'email');
       
       setVerificationSent(true);
     } catch (err) {
       console.error('Sign up error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create an account');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to create an account');
+      }
     } finally {
       setIsSigningUp(false);
     }
@@ -207,7 +212,7 @@ export default function SignUp() {
 
       // Complete signup in local database (no password for Google sign-in)
       console.log('Completing signup in local database');
-      await completeSignup(result.user.email, result.user.uid, null);
+      await completeSignup(result.user.email, result.user.uid, null, 'google');
       
       console.log('Signup completed successfully, redirecting to dashboard');
       router.push('/dashboard');

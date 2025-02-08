@@ -2,12 +2,30 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { hashPassword } from '@/lib/auth/password';
 
+interface UserSettings {
+  provider: 'email' | 'google' | 'github';
+  [key: string]: any;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, firebaseUid, invitationCode } = body;
+    const { email, password, firebaseUid, invitationCode, provider } = body;
     
-    console.log('Signup request received:', { email, firebaseUid, invitationCode, hasPassword: !!password });
+    if (!provider || !['email', 'google', 'github'].includes(provider)) {
+      return NextResponse.json(
+        { error: 'Invalid authentication provider' },
+        { status: 400 }
+      );
+    }
+
+    console.log('Signup request received:', { 
+      email, 
+      firebaseUid, 
+      invitationCode, 
+      hasPassword: !!password,
+      provider 
+    });
 
     // Start a transaction
     return await db.tx(async t => {
@@ -55,14 +73,25 @@ export async function POST(request: Request) {
 
       // For Google sign-in, we don't need to store a password
       const encryptedPassword = password ? await hashPassword(password) : null;
-      console.log('Creating user with', { email, firebaseUid, hasPassword: !!encryptedPassword });
+      
+      // Use the provided provider in settings
+      const settings: UserSettings = {
+        provider,
+      };
+      
+      console.log('Creating user with', { 
+        email, 
+        firebaseUid, 
+        hasPassword: !!encryptedPassword,
+        provider 
+      });
 
       // Create user with encrypted password (null for Google sign-in)
       const user = await t.one(`
         INSERT INTO users (email, firebase_uid, encrypted_password, settings)
         VALUES ($1, $2, $3, $4)
         RETURNING id, email, display_name, avatar_url, settings
-      `, [email, firebaseUid, encryptedPassword, {}]);
+      `, [email, firebaseUid, encryptedPassword, settings]);
 
       console.log('User created:', user);
 
