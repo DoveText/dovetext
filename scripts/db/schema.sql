@@ -5,8 +5,10 @@
 -- Migrations table for tracking database migrations
 CREATE TABLE migrations (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE,
-    executed_at TIMESTAMP NOT NULL DEFAULT NOW()
+    date VARCHAR(8) NOT NULL,  -- YYYYMMDD format
+    name VARCHAR(255),         -- optional name part after YYYYMMDD_
+    executed_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE(date, name)
 );
 
 -- Waitlist table
@@ -25,21 +27,6 @@ CREATE INDEX IF NOT EXISTS waitlist_email_idx ON waitlist(email);
 
 -- Index on status and processed_at for efficient querying of unprocessed entries
 CREATE INDEX IF NOT EXISTS waitlist_status_processed_idx ON waitlist(status, processed_at);
-
--- Create updated_at trigger function
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Add triggers for updated_at
-CREATE TRIGGER update_users_updated_at
-    BEFORE UPDATE ON users
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
 
 -- Users table for managing user information
 CREATE TABLE users (
@@ -77,6 +64,21 @@ CREATE TABLE invitation_code_uses (
     user_email VARCHAR(255) NOT NULL,
     used_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Create updated_at trigger function
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Add triggers for updated_at
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
 -- Add indexes for performance
 CREATE INDEX idx_users_email ON users(email);
