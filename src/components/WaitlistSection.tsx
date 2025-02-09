@@ -164,12 +164,12 @@ export default function WaitlistSection() {
                   {isUpdate ? (
                     <>
                       Thank you, {email}!<br/>
-                      We've received your updates and will be working on them. We will keep you updated on the progress and inform you when your desired features are ready.
+                      We&apos;ve received your updates and will be working on them. We will keep you updated on the progress and inform you when your desired features are ready.
                     </>
                   ) : (
                     <>
                       Thank you, {email}!<br/>
-                      We're excited to have you join us on this journey. We are working hard to provide you with the best experience possible and we will keep you updated on our progress.
+                      We&apos;re excited to have you join us on this journey. We are working hard to provide you with the best experience possible and we will keep you updated on our progress.
                     </>
                   )}
                 </p>

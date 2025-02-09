@@ -8,7 +8,7 @@ export default function Privacy() {
 
         <section className="mb-8">
           <h2 className="text-xl font-semibold mb-4">1. Introduction</h2>
-          <p>DoveText ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our AI-powered notification services.</p>
+          <p>DoveText (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our AI-powered notification services.</p>
         </section>
 
         <section className="mb-8">
@@ -76,7 +76,7 @@ export default function Privacy() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">8. Children's Privacy</h2>
+          <h2 className="text-xl font-semibold mb-4">8. Children&apos;s Privacy</h2>
           <p>Our services are not intended for children under 13. We do not knowingly collect information from children under 13.</p>
         </section>
 

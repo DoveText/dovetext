@@ -200,26 +200,23 @@ export default function DemoSection() {
 
   // Demo timer effect - starts/stops based on highlighted item
   useEffect(() => {
-    const highlightedItem = getHighlightedItem();
+    const currentItem = demoItems[queueIndex];
     
-    // Start demo for highlighted item
-    if (highlightedItem) {
-      // Reset state for new demo
-      setCurrentDemo(highlightedItem.dialog);
-      setDemoSetup(true);
-      setDialogVisible(true);
-      
-      // Schedule switch to result after 3s
-      const timer = setTimeout(() => {
-        setDialogVisible(false);
-        setTimeout(() => {
-          setDemoSetup(false);  // Switch to result
-          setDialogVisible(true);
-        }, 500);
-      }, 3000);
+    // Reset state for new demo
+    setCurrentDemo(currentItem.dialog);
+    setDemoSetup(true);
+    setDialogVisible(true);
+    
+    // Schedule switch to result after 3s
+    const timer = setTimeout(() => {
+      setDialogVisible(false);
+      setTimeout(() => {
+        setDemoSetup(false);  // Switch to result
+        setDialogVisible(true);
+      }, 500);
+    }, 3000);
 
-      return () => clearTimeout(timer);
-    }
+    return () => clearTimeout(timer);
   }, [queueIndex]);
 
   return (
@@ -230,7 +227,7 @@ export default function DemoSection() {
             Everything you need to stay on top
           </p>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-400">
-            From tracking prices to managing your schedule, Dove helps you stay organized and never miss what's important.
+            From tracking prices to managing your schedule, Dove helps you stay organized and never miss what&apos;s important.
           </p>
         </div>
 

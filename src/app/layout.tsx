@@ -4,6 +4,7 @@ import './globals.css';
 import Footer from '@/components/Footer';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { AuthProvider } from '@/context/AuthContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,10 +22,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <main className="min-h-screen flex flex-col">
-          {children}
-        </main>
-        <Footer />
+        <AuthProvider>
+          <main className="min-h-screen flex flex-col">
+            {children}
+          </main>
+          <Footer />
+        </AuthProvider>
         <Analytics />
         <SpeedInsights />
       </body>
