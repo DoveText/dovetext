@@ -2,54 +2,58 @@ import { CheckIcon } from '@heroicons/react/20/solid';
 
 const tiers = [
   {
-    name: 'Free',
-    id: 'tier-free',
+    name: 'Lite',
+    id: 'tier-lite',
     href: '/signup',
-    price: { monthly: '$0' },
-    description: 'Perfect for getting started with basic notification needs.',
+    price: { monthly: '$5' },
+    description: 'Perfect for getting started with smart notifications.',
     features: [
       'Up to 50 notifications per month',
-      'Basic text analysis',
+      'Unlimited DoveApp notifications',
       'Email notifications',
+      'Basic text analysis',
       'Standard support',
-      '1 connected service',
     ],
-    mostPopular: false,
+    mostPopular: true,
+    beta: true,
+    betaPrice: 'Free during beta',
   },
   {
     name: 'Pro',
     id: 'tier-pro',
-    href: '/signup',
+    href: '#',
     price: { monthly: '$15' },
     description: 'Ideal for power users who need more advanced features.',
     features: [
       'Up to 500 notifications per month',
-      'Advanced text analysis',
-      'Email and SMS notifications',
-      'Priority support',
-      'Up to 5 connected services',
+      'Unlimited DoveApp notifications',
+      'SMS and Voice notifications',
+      'Plugin and / or Webhook notifications',
       'Custom notification rules',
+      'Advanced text analysis',
       'API access',
+      'Priority support',
     ],
-    mostPopular: true,
+    mostPopular: false,
+    comingSoon: true,
   },
   {
     name: 'Enterprise',
     id: 'tier-enterprise',
-    href: '/signup',
+    href: '#',
     price: { monthly: 'Custom' },
     description: 'Dedicated support and infrastructure for your company.',
     features: [
       'Unlimited notifications',
-      'Enterprise-grade text analysis',
-      'All notification channels',
-      '24/7 dedicated support',
-      'Unlimited connected services',
+      'Advanced notification rules with escalation chains',
       'Custom integrations',
-      'SLA guarantee',
+      'Enterprise-grade text analysis',
+      '24/7 dedicated support',
       'Dedicated account manager',
+      'SLA guarantee',
     ],
     mostPopular: false,
+    comingSoon: true,
   },
 ];
 
@@ -73,6 +77,9 @@ export default function PricingPage() {
               <p className="text-2xl font-semibold text-blue-600">
                 Simple, transparent pricing that grows with you
               </p>
+              <p className="mt-2 text-sm text-gray-600">
+                Pay only for what you need, cancel anytime
+              </p>
             </div>
           </div>
 
@@ -84,7 +91,8 @@ export default function PricingPage() {
                   tier.mostPopular 
                     ? 'ring-2 ring-blue-600 bg-white' 
                     : 'ring-1 ring-gray-200 bg-white/60 hover:bg-white',
-                  'rounded-3xl p-8 xl:p-10 transition-all duration-200'
+                  'rounded-3xl p-8 xl:p-10 transition-all duration-200',
+                  tier.comingSoon ? 'opacity-50' : ''
                 )}
               >
                 <div className="flex items-center justify-between gap-x-4">
@@ -102,24 +110,46 @@ export default function PricingPage() {
                       Most popular
                     </p>
                   )}
+                  {tier.beta && (
+                    <p className="rounded-full bg-green-600/10 px-2.5 py-1 text-xs font-semibold leading-5 text-green-600">
+                      Beta
+                    </p>
+                  )}
                 </div>
                 <p className="mt-4 text-sm leading-6 text-gray-600">{tier.description}</p>
-                <p className="mt-6 flex items-baseline gap-x-1">
-                  <span className="text-4xl font-bold tracking-tight text-gray-900">{tier.price.monthly}</span>
-                  {tier.price.monthly !== 'Custom' && <span className="text-sm font-semibold leading-6 text-gray-600">/month</span>}
-                </p>
-                <a
-                  href={tier.href}
-                  aria-describedby={tier.id}
-                  className={classNames(
-                    tier.mostPopular
-                      ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-500'
-                      : 'text-blue-600 ring-1 ring-inset ring-blue-200 hover:ring-blue-300',
-                    'mt-6 block rounded-md py-2 px-3 text-center text-sm font-semibold leading-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
-                  )}
-                >
-                  {tier.price.monthly === 'Custom' ? 'Contact sales' : 'Get started'}
-                </a>
+                {tier.beta ? (
+                  <div className="mt-6 space-y-2">
+                    <p className="text-sm font-medium text-red-500 line-through italic">
+                      Free for first 30 days, $5/month
+                    </p>
+                    <p className="flex items-baseline gap-x-1">
+                      <span className="text-lg font-semibold tracking-tight text-green-600">Free In Beta</span>
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-6 flex items-baseline gap-x-1">
+                    <span className="text-4xl font-bold tracking-tight text-gray-900">{tier.price.monthly}</span>
+                    {tier.price.monthly !== 'Custom' && <span className="text-sm font-semibold leading-6 text-gray-600">/month</span>}
+                  </p>
+                )}
+                {!tier.comingSoon ? (
+                  <a
+                    href={tier.href}
+                    aria-describedby={tier.id}
+                    className={classNames(
+                      tier.mostPopular
+                        ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-500'
+                        : 'text-blue-600 ring-1 ring-inset ring-blue-200 hover:ring-blue-300',
+                      'mt-6 block rounded-md py-2 px-3 text-center text-sm font-semibold leading-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                    )}
+                  >
+                    Start free!
+                  </a>
+                ) : (
+                  <p className="mt-6 block rounded-md py-2 px-3 text-center text-sm font-semibold leading-6 text-gray-400 bg-gray-100">
+                    Coming Soon
+                  </p>
+                )}
                 <ul role="list" className="mt-8 space-y-3 text-sm leading-6 text-gray-600">
                   {tier.features.map((feature) => (
                     <li key={feature} className="flex gap-x-3">
