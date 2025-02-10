@@ -59,17 +59,21 @@ function classNames(...classes: string[]) {
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-blue-50">
+    <div className="min-h-screen">
       <div className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-4xl text-center">
-            <h1 className="text-base font-semibold leading-7 text-blue-600">Pricing</h1>
-            <p className="mt-2 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-              Choose the right plan for&nbsp;you
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+              DoveText: AI Intelligence Meets Smart Notifications
+            </h1>
+            <p className="mt-6 text-2xl leading-8 text-gray-600">
+              Enjoy the power of AI without the noise - stay focused on what matters most
             </p>
-            <p className="mt-6 text-lg leading-8 text-gray-600">
-              Simple, transparent pricing that grows with you. Try any plan free for 30 days.
-            </p>
+            <div className="mt-20">
+              <p className="text-2xl font-semibold text-blue-600">
+                Simple, transparent pricing that grows with you
+              </p>
+            </div>
           </div>
 
           <div className="isolate mx-auto mt-16 grid max-w-md grid-cols-1 gap-y-8 sm:mt-20 lg:mx-0 lg:max-w-none lg:grid-cols-3 lg:gap-x-8 xl:gap-x-12">
