@@ -7,6 +7,7 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     firebase_uid VARCHAR(128) UNIQUE,
+    encrypted_password VARCHAR(255),
     display_name VARCHAR(255),
     avatar_url TEXT,
     settings JSONB DEFAULT '{}'::jsonb,
