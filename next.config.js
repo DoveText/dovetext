@@ -9,34 +9,51 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: false,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        pathname: '/a/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+        pathname: '/**',
+      }
+    ],
+    unoptimized: true, // Skip image optimization to avoid timeout issues
+  },
+  experimental: {
+    serverActions: true,
+  },
+  webpack: (config) => {
+    config.externals = [...config.externals, { canvas: 'canvas' }];  // required for konva
+    return config;
+  },
   // Security headers configuration
   async headers() {
     const isDev = process.env.NODE_ENV === 'development';
-    
-    // Define allowed domains
     const allowedDomains = isDev 
       ? ['localhost:3000', 'localhost:*'] 
-      : ['dovetext.com', '*.dovetext.com'];
+      : ['api.dovetext.com', 'dovetext.com', '*.dovetext.com'];
 
-    // Base CSP directives that are safe for both dev and prod
     const baseDirectives = [
       "default-src 'self'",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https:",
+      "img-src 'self' data: blob: https: https://lh3.googleusercontent.com https://firebasestorage.googleapis.com",
       "font-src 'self'",
       `connect-src 'self' https://*.googleapis.com https://*.google.com https://va.vercel-scripts.com https://*.vercel.app https://*.vercel.com ${allowedDomains.map(domain => `https://${domain}`).join(' ')}`,
       "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleapis.com https://*.google.com https://*.gstatic.com https://va.vercel-scripts.com https://*.vercel-scripts.com https://*.vercel.app https://*.vercel.com",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://va.vercel-scripts.com https://*.vercel-scripts.com https://*.vercel.app https://*.vercel.com",
       "media-src 'self'",
       "worker-src 'self' blob:"
     ];
 
-    // Development-only directives
     const devDirectives = [
       ...baseDirectives,
     ];
 
-    // Production-only directives
     const prodDirectives = [
       ...baseDirectives,
       "upgrade-insecure-requests",

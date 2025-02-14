@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@firebase/auth": "^1.9.0",
-    "@heroicons/react": "^2.2.0",
+    "@headlessui/react": "^1.7.17",
+    "@heroicons/react": "^2.0.18",
     "@microsoft/clarity": "^1.0.0",
     "@vercel/analytics": "^1.4.1",
     "@vercel/postgres": "^0.7.2",
