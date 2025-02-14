@@ -1,89 +1,70 @@
-import { CreateDeliveryMethodRequest, DeliveryMethod, UpdateDeliveryMethodRequest } from '@/types/delivery-method';
+import { apiClient } from './client';
+import { 
+  DeliveryMethod, 
+  CreateDeliveryMethodRequest, 
+  UpdateDeliveryMethodRequest,
+  DeliveryMethodType 
+} from '@/types/delivery-method';
 
-const API_BASE = '/api/v1/delivery-methods';
+export const deliveryMethodsApi = {
+  /**
+   * Get all delivery methods for the current user
+   */
+  async getAll(): Promise<DeliveryMethod[]> {
+    const { data } = await apiClient.get<DeliveryMethod[]>('/api/v1/methods');
+    return data;
+  },
 
-export async function getDeliveryMethods(): Promise<DeliveryMethod[]> {
-  const response = await fetch(API_BASE, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  /**
+   * Get a specific delivery method by ID
+   */
+  async getById(id: string): Promise<DeliveryMethod> {
+    const { data } = await apiClient.get<DeliveryMethod>(`/api/v1/methods/${id}`);
+    return data;
+  },
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch delivery methods');
+  /**
+   * Create a new delivery method
+   */
+  async create(request: CreateDeliveryMethodRequest): Promise<DeliveryMethod> {
+    const { data } = await apiClient.post<DeliveryMethod>('/api/v1/methods', request);
+    return data;
+  },
+
+  /**
+   * Update an existing delivery method
+   */
+  async update(id: string, request: UpdateDeliveryMethodRequest): Promise<DeliveryMethod> {
+    const { data } = await apiClient.put<DeliveryMethod>(`/api/v1/methods/${id}`, request);
+    return data;
+  },
+
+  /**
+   * Delete a delivery method
+   */
+  async delete(id: string): Promise<void> {
+    await apiClient.delete(`/api/v1/methods/${id}`);
+  },
+
+  /**
+   * Test a delivery method configuration
+   */
+  async verify(id: string): Promise<void> {
+    await apiClient.post(`/api/v1/methods/${id}/verify`);
+  },
+
+  /**
+   * Set a delivery method as default
+   */
+  async setDefault(id: string): Promise<void> {
+    await apiClient.post(`/api/v1/methods/${id}/default`);
+  },
+
+  /**
+   * Get all available delivery method types
+   */
+  async getTypes(): Promise<DeliveryMethodType[]> {
+    const { data } = await apiClient.get<DeliveryMethodType[]>('/api/v1/methods/types');
+    return data;
   }
-
-  return response.json();
-}
-
-export async function createDeliveryMethod(data: CreateDeliveryMethodRequest): Promise<DeliveryMethod> {
-  const response = await fetch(API_BASE, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to create delivery method');
-  }
-
-  return response.json();
-}
-
-export async function updateDeliveryMethod(id: string, data: UpdateDeliveryMethodRequest): Promise<DeliveryMethod> {
-  const response = await fetch(`${API_BASE}/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to update delivery method');
-  }
-
-  return response.json();
-}
-
-export async function deleteDeliveryMethod(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to delete delivery method');
-  }
-}
-
-export async function verifyDeliveryMethod(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/${id}/verify`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to verify delivery method');
-  }
-}
-
-export async function setDefaultDeliveryMethod(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/${id}/default`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to set default delivery method');
-  }
-}
+};

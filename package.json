@@ -25,6 +25,7 @@
     "@vercel/postgres": "^0.7.2",
     "@vercel/speed-insights": "^1.1.0",
     "autoprefixer": "10.4.17",
+    "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
     "compression": "^1.7.4",
     "dotenv": "^16.4.7",

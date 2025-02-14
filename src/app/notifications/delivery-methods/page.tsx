@@ -4,14 +4,7 @@ import { useState, useEffect } from 'react';
 import { DeliveryMethod, CreateDeliveryMethodRequest } from '@/types/delivery-method';
 import DeliveryMethodList from '@/components/notifications/DeliveryMethodList';
 import DeliveryMethodModal from '@/components/notifications/DeliveryMethodModal';
-import { 
-  getDeliveryMethods, 
-  createDeliveryMethod, 
-  updateDeliveryMethod, 
-  deleteDeliveryMethod,
-  verifyDeliveryMethod,
-  setDefaultDeliveryMethod
-} from '@/api/delivery-methods';
+import { deliveryMethodsApi } from '@/api/delivery-methods';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { PlusIcon } from '@heroicons/react/24/outline';
@@ -30,7 +23,7 @@ export default function DeliveryMethodsPage() {
   const loadDeliveryMethods = async () => {
     try {
       setIsLoading(true);
-      const data = await getDeliveryMethods();
+      const data = await deliveryMethodsApi.getAll();
       setMethods(data);
       setError(null);
     } catch (err) {
@@ -43,7 +36,7 @@ export default function DeliveryMethodsPage() {
 
   const handleAdd = async (data: CreateDeliveryMethodRequest) => {
     try {
-      const newMethod = await createDeliveryMethod(data);
+      const newMethod = await deliveryMethodsApi.create(data);
       setMethods(prev => [...prev, newMethod]);
       setIsAddModalOpen(false);
     } catch (err) {
@@ -63,7 +56,7 @@ export default function DeliveryMethodsPage() {
     }
 
     try {
-      await deleteDeliveryMethod(method.id);
+      await deliveryMethodsApi.delete(method.id);
       setMethods(prev => prev.filter(m => m.id !== method.id));
     } catch (err) {
       setError('Failed to delete delivery method');
@@ -73,7 +66,7 @@ export default function DeliveryMethodsPage() {
 
   const handleVerify = async (method: DeliveryMethod) => {
     try {
-      await verifyDeliveryMethod(method.id);
+      await deliveryMethodsApi.verify(method.id);
       await loadDeliveryMethods(); // Reload to get updated status
     } catch (err) {
       setError('Failed to verify delivery method');
@@ -83,7 +76,7 @@ export default function DeliveryMethodsPage() {
 
   const handleSetDefault = async (method: DeliveryMethod) => {
     try {
-      await setDefaultDeliveryMethod(method.id);
+      await deliveryMethodsApi.setDefault(method.id);
       setMethods(prev => prev.map(m => ({
         ...m,
         isDefault: m.id === method.id
@@ -179,7 +172,7 @@ export default function DeliveryMethodsPage() {
         }}
         onSubmit={async (data) => {
           if (editingMethod) {
-            await updateDeliveryMethod(editingMethod.id, data);
+            await deliveryMethodsApi.update(editingMethod.id, data);
             await loadDeliveryMethods();
           } else {
             await handleAdd(data);
