@@ -10,7 +10,9 @@ import {
   ExclamationCircleIcon,
   TrashIcon,
   PencilIcon,
-  StarIcon as StarIconOutline
+  StarIcon as StarIconOutline,
+  ClipboardIcon,
+  ClipboardDocumentCheckIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -23,7 +25,7 @@ interface DeliveryMethodListProps {
 }
 
 const methodIcons: Record<DeliveryMethodType, React.ComponentType<any>> = {
-  DOVE_APP: BellIcon,
+  DOVEAPP: BellIcon,
   EMAIL: EnvelopeIcon,
   SMS: PhoneIcon,
   VOICE: PhoneIcon,
@@ -39,6 +41,7 @@ export default function DeliveryMethodList({
   onSetDefault,
 }: DeliveryMethodListProps) {
   const [hoveredMethod, setHoveredMethod] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const getMethodStatusColor = (status: string) => {
     switch (status) {
@@ -55,11 +58,50 @@ export default function DeliveryMethodList({
     }
   };
 
+  const getMethodConfig = (method: DeliveryMethod) => {
+    try {
+      return JSON.parse(method.config);
+    } catch (e) {
+      console.error('Failed to parse method config:', e);
+      return {};
+    }
+  };
+
+  const copyToClipboard = async (text: string, methodId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(methodId);
+      setTimeout(() => setCopiedId(null), 2000); // Reset after 2 seconds
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  const CopyButton = ({ text, methodId }: { text: string; methodId: string }) => (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        copyToClipboard(text, methodId);
+      }}
+      className="inline-flex items-center justify-center p-1 ml-1 rounded hover:bg-gray-100 cursor-pointer group"
+      title="Copy to clipboard"
+    >
+      {copiedId === methodId ? (
+        <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 text-green-500" />
+      ) : (
+        <ClipboardIcon className="h-3.5 w-3.5 text-gray-400 group-hover:text-gray-600" />
+      )}
+    </button>
+  );
+
   return (
     <ul role="list" className="divide-y divide-gray-100">
       {methods.map((method) => {
         const Icon = methodIcons[method.type as DeliveryMethodType];
         const isHovered = hoveredMethod === method.id;
+        const config = getMethodConfig(method);
 
         return (
           <li
@@ -80,13 +122,50 @@ export default function DeliveryMethodList({
                     <StarIconSolid className="inline-block h-4 w-4 ml-1 text-yellow-400" aria-hidden="true" />
                   )}
                 </p>
-                <p className="mt-1 flex text-xs leading-5 text-gray-500">
-                  {method.type === 'EMAIL' && method.config.email}
-                  {method.type === 'SMS' && method.config.phoneNumber}
-                  {method.type === 'VOICE' && method.config.phoneNumber}
-                  {method.type === 'WEBHOOK' && method.config.webhookUrl}
-                  {method.type === 'PLUGIN' && `Plugin ID: ${method.config.pluginId}`}
-                </p>
+                <div className="mt-1 flex items-center text-xs leading-5 text-gray-500">
+                  {method.type === 'EMAIL' && (
+                    <>
+                      <EnvelopeIcon className="inline-block h-3 w-3 mr-1 flex-shrink-0" />
+                      <span className="truncate">{config.email}</span>
+                      <CopyButton text={config.email} methodId={method.id} />
+                    </>
+                  )}
+                  {method.type === 'DOVEAPP' && config.doveNumber && (
+                    <>
+                      <BellIcon className="inline-block h-3 w-3 mr-1 flex-shrink-0" />
+                      <span className="truncate">Dove #: {config.doveNumber}</span>
+                      <CopyButton text={config.doveNumber} methodId={method.id} />
+                    </>
+                  )}
+                  {method.type === 'SMS' && (
+                    <>
+                      <PhoneIcon className="inline-block h-3 w-3 mr-1 flex-shrink-0" />
+                      <span className="truncate">{config.phoneNumber}</span>
+                      <CopyButton text={config.phoneNumber} methodId={method.id} />
+                    </>
+                  )}
+                  {method.type === 'VOICE' && (
+                    <>
+                      <PhoneIcon className="inline-block h-3 w-3 mr-1 flex-shrink-0" />
+                      <span className="truncate">{config.phoneNumber}</span>
+                      <CopyButton text={config.phoneNumber} methodId={method.id} />
+                    </>
+                  )}
+                  {method.type === 'WEBHOOK' && (
+                    <>
+                      <GlobeAltIcon className="inline-block h-3 w-3 mr-1 flex-shrink-0" />
+                      <span className="truncate">{config.webhookUrl}</span>
+                      <CopyButton text={config.webhookUrl} methodId={method.id} />
+                    </>
+                  )}
+                  {method.type === 'PLUGIN' && (
+                    <>
+                      <PuzzlePieceIcon className="inline-block h-3 w-3 mr-1 flex-shrink-0" />
+                      <span className="truncate">Plugin ID: {config.pluginId}</span>
+                      <CopyButton text={config.pluginId} methodId={method.id} />
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-x-4">
