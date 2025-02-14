@@ -60,41 +60,74 @@ export default function DeliveryMethodList({
 
   const getMethodConfig = (method: DeliveryMethod) => {
     try {
-      return JSON.parse(method.config);
+      console.log('Raw config:', method.config);
+      const parsed = JSON.parse(method.config);
+      console.log('Parsed config:', parsed);
+      return parsed;
     } catch (e) {
       console.error('Failed to parse method config:', e);
+      console.error('Raw config that failed:', method.config);
       return {};
     }
   };
 
-  const copyToClipboard = async (text: string, methodId: string) => {
+  const copyToClipboard = (text: string, methodId: string) => {
+    console.log('Attempting to copy text:', text);
+    
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    
+    // Make the textarea out of viewport
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    
     try {
-      await navigator.clipboard.writeText(text);
+      textArea.select();
+      document.execCommand('copy');
+      console.log('Successfully copied to clipboard');
       setCopiedId(methodId);
-      setTimeout(() => setCopiedId(null), 2000); // Reset after 2 seconds
+      setTimeout(() => {
+        console.log('Resetting copied state');
+        setCopiedId(null);
+      }, 2000);
     } catch (err) {
-      console.error('Failed to copy text: ', err);
+      console.error('Failed to copy text:', err);
+    } finally {
+      textArea.remove();
     }
   };
 
-  const CopyButton = ({ text, methodId }: { text: string; methodId: string }) => (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        copyToClipboard(text, methodId);
-      }}
-      className="inline-flex items-center justify-center p-1 ml-1 rounded hover:bg-gray-100 cursor-pointer group"
-      title="Copy to clipboard"
-    >
-      {copiedId === methodId ? (
-        <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 text-green-500" />
-      ) : (
-        <ClipboardIcon className="h-3.5 w-3.5 text-gray-400 group-hover:text-gray-600" />
-      )}
-    </button>
-  );
+  const CopyButton = ({ text, methodId }: { text: string; methodId: string }) => {
+    console.log('Rendering copy button for:', text);
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          console.log('Copy button clicked');
+          e.preventDefault();
+          e.stopPropagation();
+          copyToClipboard(text, methodId);
+        }}
+        className="relative inline-flex items-center justify-center p-1.5 ml-1 rounded-md 
+          hover:bg-gray-100 active:bg-gray-200 
+          cursor-pointer transition-all duration-200 
+          ring-1 ring-transparent hover:ring-gray-200
+          z-10"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
+        title="Copy to clipboard"
+      >
+        <div className="relative">
+          {copiedId === methodId ? (
+            <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 text-green-500" />
+          ) : (
+            <ClipboardIcon className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
+          )}
+        </div>
+      </button>
+    );
+  };
 
   return (
     <ul role="list" className="divide-y divide-gray-100">
@@ -122,7 +155,7 @@ export default function DeliveryMethodList({
                     <StarIconSolid className="inline-block h-4 w-4 ml-1 text-yellow-400" aria-hidden="true" />
                   )}
                 </p>
-                <div className="mt-1 flex items-center text-xs leading-5 text-gray-500">
+                <div className="mt-1 flex items-center text-xs leading-5 text-gray-500 relative">
                   {method.type === 'EMAIL' && (
                     <>
                       <EnvelopeIcon className="inline-block h-3 w-3 mr-1 flex-shrink-0" />
@@ -133,7 +166,9 @@ export default function DeliveryMethodList({
                   {method.type === 'DOVEAPP' && config.doveNumber && (
                     <>
                       <BellIcon className="inline-block h-3 w-3 mr-1 flex-shrink-0" />
-                      <span className="truncate">Dove #: {config.doveNumber}</span>
+                      <span className="truncate">
+                        Dove #: {config.doveNumber}
+                      </span>
                       <CopyButton text={config.doveNumber} methodId={method.id} />
                     </>
                   )}
