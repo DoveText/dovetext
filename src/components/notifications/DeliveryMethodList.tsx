@@ -23,7 +23,7 @@ interface DeliveryMethodListProps {
 }
 
 const methodIcons: Record<DeliveryMethodType, React.ComponentType<any>> = {
-  DOVEAPP: BellIcon,
+  DOVE_APP: BellIcon,
   EMAIL: EnvelopeIcon,
   SMS: PhoneIcon,
   VOICE: PhoneIcon,
@@ -58,7 +58,7 @@ export default function DeliveryMethodList({
   return (
     <ul role="list" className="divide-y divide-gray-100">
       {methods.map((method) => {
-        const Icon = methodIcons[method.type];
+        const Icon = methodIcons[method.type as DeliveryMethodType];
         const isHovered = hoveredMethod === method.id;
 
         return (
@@ -82,8 +82,8 @@ export default function DeliveryMethodList({
                 </p>
                 <p className="mt-1 flex text-xs leading-5 text-gray-500">
                   {method.type === 'EMAIL' && method.config.email}
-                  {method.type === 'SMS' && method.config.phone}
-                  {method.type === 'VOICE' && method.config.phone}
+                  {method.type === 'SMS' && method.config.phoneNumber}
+                  {method.type === 'VOICE' && method.config.phoneNumber}
                   {method.type === 'WEBHOOK' && method.config.webhookUrl}
                   {method.type === 'PLUGIN' && `Plugin ID: ${method.config.pluginId}`}
                 </p>
@@ -91,48 +91,42 @@ export default function DeliveryMethodList({
             </div>
             <div className="flex items-center gap-x-4">
               <div className="hidden sm:flex sm:flex-col sm:items-end">
-                <p className="flex items-center text-sm leading-6 text-gray-900">
-                  {method.isVerified ? (
-                    <CheckCircleIcon className="h-5 w-5 text-green-400 mr-1" />
-                  ) : (
-                    <ExclamationCircleIcon className="h-5 w-5 text-yellow-400 mr-1" />
-                  )}
-                  {method.isVerified ? 'Verified' : 'Unverified'}
-                </p>
                 <p className={`mt-1 text-xs leading-5 ${getMethodStatusColor(method.status)}`}>
                   {method.status}
                 </p>
               </div>
-              
-              {/* Action buttons */}
-              <div className={`flex gap-x-2 transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="flex gap-x-2">
                 {!method.isVerified && (
                   <button
+                    type="button"
                     onClick={() => onVerify(method)}
-                    className="rounded-md bg-blue-50 p-2 text-blue-600 hover:bg-blue-100"
+                    className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                   >
-                    <CheckCircleIcon className="h-5 w-5" />
+                    Verify
                   </button>
                 )}
                 {!method.isDefault && (
                   <button
+                    type="button"
                     onClick={() => onSetDefault(method)}
-                    className="rounded-md bg-yellow-50 p-2 text-yellow-600 hover:bg-yellow-100"
+                    className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                   >
-                    <StarIconOutline className="h-5 w-5" />
+                    Set Default
                   </button>
                 )}
                 <button
+                  type="button"
                   onClick={() => onEdit(method)}
-                  className="rounded-md bg-gray-50 p-2 text-gray-600 hover:bg-gray-100"
+                  className="rounded-full bg-white p-1 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 >
-                  <PencilIcon className="h-5 w-5" />
+                  <PencilIcon className="h-4 w-4" />
                 </button>
                 <button
+                  type="button"
                   onClick={() => onDelete(method)}
-                  className="rounded-md bg-red-50 p-2 text-red-600 hover:bg-red-100"
+                  className="rounded-full bg-white p-1 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 >
-                  <TrashIcon className="h-5 w-5" />
+                  <TrashIcon className="h-4 w-4" />
                 </button>
               </div>
             </div>

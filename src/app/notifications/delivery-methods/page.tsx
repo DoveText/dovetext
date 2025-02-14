@@ -8,6 +8,8 @@ import { deliveryMethodsApi } from '@/api/delivery-methods';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { PlusIcon } from '@heroicons/react/24/outline';
+import { auth } from '@/lib/firebase/config';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function DeliveryMethodsPage() {
   const [methods, setMethods] = useState<DeliveryMethod[]>([]);
@@ -17,7 +19,14 @@ export default function DeliveryMethodsPage() {
   const [editingMethod, setEditingMethod] = useState<DeliveryMethod | null>(null);
 
   useEffect(() => {
-    loadDeliveryMethods();
+    // Wait for auth state to be ready before loading methods
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loadDeliveryMethods();
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const loadDeliveryMethods = async () => {

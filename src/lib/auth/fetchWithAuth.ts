@@ -1,3 +1,8 @@
+/**
+ * A helper class to make request to frontend API server (SSR for NextJS)
+ * The API may need authentication, in this case it would try piggy back Firebase ID token
+ * in Authorization: Bearer xxx
+ */
 import { useAuth } from '@/context/AuthContext';
 
 type FetchOptions = RequestInit & {

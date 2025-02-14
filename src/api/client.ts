@@ -1,3 +1,8 @@
+/**
+ * A helper class to make request to API server (Java backend)
+ * The API may need authentication, in this case it would try piggy back Firebase ID token
+ * in Authorization: Bearer xxx
+ */
 import axios from 'axios';
 import { auth } from '@/lib/firebase/config';
 
@@ -13,13 +18,19 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      // Get token directly from Firebase
-      const token = await auth.currentUser?.getIdToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      // Get current user and wait for it to be ready
+      const user = auth.currentUser;
+      if (!user) {
+        // Don't make the request if we're not authenticated
+        return Promise.reject(new Error('Not authenticated'));
       }
+
+      // Get token directly from Firebase
+      const token = await user.getIdToken();
+      config.headers.Authorization = `Bearer ${token}`;
     } catch (error) {
       console.error('Error getting Firebase token:', error);
+      return Promise.reject(error);
     }
     return config;
   },
@@ -36,8 +47,10 @@ apiClient.interceptors.response.use(
       // Handle specific error cases
       switch (error.response.status) {
         case 401:
-          // Handle unauthorized - could redirect to login
-          window.location.href = '/signin';
+          // Only redirect if we're not already on the signin page
+          if (!window.location.pathname.includes('/signin')) {
+            window.location.href = '/signin';
+          }
           break;
         case 403:
           // Handle forbidden
@@ -50,7 +63,6 @@ apiClient.interceptors.response.use(
         default:
           // Handle other errors
           console.error('API error:', error.response.data);
-          break;
       }
     }
     return Promise.reject(error);
