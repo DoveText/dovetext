@@ -45,9 +45,9 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
   const [doveNumber, setDoveNumber] = useState('');
   const [phone, setPhone] = useState<PhoneConfig>({
     phoneNumber: '',
-    countryCode: '1',
-    enableText: group === 'PHONE',
-    enableVoice: false,
+    countryCode: '86',
+    enableText: true,
+    enableVoice: true,
   });
   const [pluginConfig, setPluginConfig] = useState<PluginConfig>({
     type: 'SLACK',
@@ -66,78 +66,101 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
 
   useEffect(() => {
     if (editingMethod) {
-      const config = JSON.parse(editingMethod.config || "{}");
+      const config = typeof editingMethod.config === 'string' 
+        ? JSON.parse(editingMethod.config || '{}')
+        : editingMethod.config || {};
+
       setName(editingMethod.name);
       setDescription(editingMethod.description || '');
-      setType(editingMethod.type);
 
-      if (group === 'DOVEAPP') {
+      if (group === 'DOVEAPP' && config.doveNumber) {
         setDoveNumber(config.doveNumber);
-      } else if (group === 'EMAIL') {
+      } else if (group === 'EMAIL' && config.email) {
         setEmail(config.email);
-      } else if (group === 'PHONE') {
-        setPhone(config.phone);
+      } else if (group === 'PHONE' && config.phoneNumber) {
+        setPhone({
+          phoneNumber: config.phoneNumber,
+          countryCode: config.countryCode || '86',
+          enableText: config.enableText ?? true,
+          enableVoice: config.enableVoice ?? true,
+        });
       } else if (group === 'PLUGIN') {
-        setPluginConfig(config.plugin);
+        setPluginConfig({
+          type: config.type || 'SLACK',
+          url: config.url || '',
+          method: config.method || 'POST',
+          headers: config.headers || {},
+          body: config.body || '',
+        });
       }
-    } else {
-      // Reset form when opening for new method
-      setType(methodTypesByGroup[group][0]);
-      setName('');
-      setDescription('');
-      setEmail('');
-      setDoveNumber('');
-      setPhone({
-        phoneNumber: '',
-        countryCode: '1',
-        enableText: group === 'PHONE',
-        enableVoice: false,
-      });
-      setPluginConfig({
-        type: 'SLACK',
-        slackWebhookUrl: '',
-        slackChannel: '',
-        telegramBotToken: '',
-        telegramChatId: '',
-        webhook: {
-          url: '',
-          method: 'POST',
-          headers: {},
-          payload: '',
-        },
-      });
     }
   }, [editingMethod, group]);
+
+  const getPhoneHint = (enableText: boolean, enableVoice: boolean) => {
+    if (enableText && enableVoice) {
+      return "Both Text and Voice methods will be created using provided number";
+    } else if (enableText) {
+      return "A text method will be created using the number";
+    } else if (enableVoice) {
+      return "A voice method will be created using this number";
+    }
+    return "";
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const config: CreateDeliveryMethodRequest['config'] = {};
 
     if (group === 'DOVEAPP') {
-      config.doveNumber = doveNumber;
+      Object.assign(config, { doveNumber });
     } else if (group === 'EMAIL') {
-      config.email = email;
+      Object.assign(config, { email });
     } else if (group === 'PHONE') {
-      if (!phone.enableText && !phone.enableVoice) {
-        alert('Please enable at least one delivery method (Text or Voice)');
-        return;
-      }
-      config.phone = phone;
+      Object.assign(config, {
+        phoneNumber: phone.phoneNumber,
+        countryCode: phone.countryCode,
+        enableText: phone.enableText,
+        enableVoice: phone.enableVoice,
+      });
     } else if (group === 'PLUGIN') {
-      config.plugin = pluginConfig;
+      Object.assign(config, pluginConfig);
     }
 
     onSubmit({
-      type,
+      id: editingMethod?.id,
       name,
       description,
+      type,
       config,
     });
   };
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
+      <Dialog as="div" className="relative z-10" onClose={() => {}}>
+        <style jsx global>{`
+          .phone-input-container {
+            width: 100%;
+          }
+          .phone-input-container .form-control {
+            width: 100% !important;
+            height: 38px !important;
+            border-radius: 6px !important;
+            padding-left: 48px !important;
+          }
+          .phone-input-container .flag-dropdown {
+            border: none !important;
+            background: transparent !important;
+          }
+          .phone-input-container .selected-flag {
+            background: transparent !important;
+            border-radius: 6px 0 0 6px !important;
+          }
+          .phone-input-container .form-control:focus {
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 1px #6366f1 !important;
+          }
+        `}</style>
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -173,34 +196,24 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                       <div className="mt-4 space-y-6">
                         {/* Common Fields */}
                         <div className="space-y-6">
+                          {/* Name field */}
                           <div>
-                            <label className="block text-sm font-medium leading-6 text-gray-900">Name</label>
-                            <input
-                              type="text"
-                              required
-                              value={name}
-                              onChange={(e) => setName(e.target.value)}
-                              className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
-                          {/* Type selector only shown for groups with multiple types */}
-                          {methodTypesByGroup[group].length > 1 && (
-                            <div>
-                              <label className="block text-sm font-medium leading-6 text-gray-900">Type</label>
-                              <select
-                                value={type}
-                                onChange={(e) => setType(e.target.value as DeliveryMethodType)}
-                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                              >
-                                {methodTypesByGroup[group].map((type) => (
-                                  <option key={type} value={type}>
-                                    {type === 'TEXT' ? 'Text' : type === 'VOICE' ? 'Voice' : type}
-                                  </option>
-                                ))}
-                              </select>
+                            <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900">
+                              Name
+                            </label>
+                            <div className="mt-2">
+                              <input
+                                type="text"
+                                name="name"
+                                id="name"
+                                required
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                placeholder="Enter a name for this delivery method"
+                              />
                             </div>
-                          )}
+                          </div>
 
                           {/* Type-specific Fields */}
                           {group === 'DOVEAPP' && (
@@ -232,41 +245,50 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                           {group === 'PHONE' && (
                             <div className="space-y-4">
                               <div>
-                                <label className="block text-sm font-medium leading-6 text-gray-900">Phone Number</label>
-                                <PhoneInput
-                                  country={'us'}
-                                  value={phone.phoneNumber}
-                                  onChange={(value, data: any) => {
-                                    setPhone(prev => ({
-                                      ...prev,
-                                      phoneNumber: value,
-                                      countryCode: data.dialCode
-                                    }));
-                                  }}
-                                  containerClass="phone-input-container"
-                                  inputClass="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                  buttonClass="phone-select-button"
-                                />
-                              </div>
-                              <div className="flex items-center space-x-6">
-                                <label className="inline-flex items-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={phone.enableText}
-                                    onChange={(e) => setPhone(prev => ({ ...prev, enableText: e.target.checked }))}
-                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                  />
-                                  <span className="ml-2 text-sm text-gray-700">Enable Text</span>
+                                <label className="block text-sm font-medium leading-6 text-gray-900 mb-2">
+                                  Phone Number
                                 </label>
-                                <label className="inline-flex items-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={phone.enableVoice}
-                                    onChange={(e) => setPhone(prev => ({ ...prev, enableVoice: e.target.checked }))}
-                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                  />
-                                  <span className="ml-2 text-sm text-gray-700">Enable Voice</span>
-                                </label>
+                                <div className="flex items-center space-x-4">
+                                  <div className="flex-grow">
+                                    <PhoneInput
+                                      country={'cn'}
+                                      value={phone.phoneNumber}
+                                      onChange={(value, data: any) => {
+                                        setPhone(prev => ({
+                                          ...prev,
+                                          phoneNumber: value,
+                                          countryCode: data.dialCode
+                                        }));
+                                      }}
+                                      containerClass="phone-input-container"
+                                      specialLabel=""
+                                      masks={{cn: '... .... ....', us: '... ... ....', gb: '.... ......'}}
+                                    />
+                                  </div>
+                                  <div className="flex items-center space-x-4">
+                                    <label className="inline-flex items-center whitespace-nowrap">
+                                      <input
+                                        type="checkbox"
+                                        checked={phone.enableText}
+                                        onChange={(e) => setPhone(prev => ({ ...prev, enableText: e.target.checked }))}
+                                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                      />
+                                      <span className="ml-2 text-sm text-gray-700">Text</span>
+                                    </label>
+                                    <label className="inline-flex items-center whitespace-nowrap">
+                                      <input
+                                        type="checkbox"
+                                        checked={phone.enableVoice}
+                                        onChange={(e) => setPhone(prev => ({ ...prev, enableVoice: e.target.checked }))}
+                                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                      />
+                                      <span className="ml-2 text-sm text-gray-700">Voice</span>
+                                    </label>
+                                  </div>
+                                </div>
+                                <p className="mt-2 text-sm text-gray-500">
+                                  {getPhoneHint(phone.enableText, phone.enableVoice)}
+                                </p>
                               </div>
                             </div>
                           )}
@@ -408,36 +430,43 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                             </div>
                           )}
 
-                          {/* Description at bottom */}
+                          {/* Description field at bottom */}
                           <div>
-                            <label className="block text-sm font-medium leading-6 text-gray-900">Description</label>
-                            <textarea
-                              rows={2}
-                              value={description}
-                              onChange={(e) => setDescription(e.target.value)}
-                              className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                              placeholder="Optional description..."
-                            />
+                            <label htmlFor="description" className="block text-sm font-medium leading-6 text-gray-900">
+                              Description
+                            </label>
+                            <div className="mt-2">
+                              <textarea
+                                id="description"
+                                name="description"
+                                rows={3}
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                placeholder="Optional description..."
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                    <button
-                      type="submit"
-                      className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:col-start-2"
-                    >
-                      {editingMethod ? 'Save Changes' : 'Add Method'}
-                    </button>
-                    <button
-                      type="button"
-                      className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0"
-                      onClick={onClose}
-                    >
-                      Cancel
-                    </button>
+                      {/* Footer with buttons */}
+                      <div className="mt-8 flex flex-row-reverse space-x-3 space-x-reverse">
+                        <button
+                          type="submit"
+                          className="inline-flex w-auto justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                        >
+                          {editingMethod ? 'Save Changes' : 'Add Method'}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex w-auto justify-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                          onClick={onClose}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </form>
               </Dialog.Panel>
