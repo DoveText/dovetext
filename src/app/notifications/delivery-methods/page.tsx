@@ -96,6 +96,11 @@ export default function DeliveryMethodsPage() {
     }
   };
 
+  const handleTypeAdd = (type: string) => {
+    setEditingMethod(null);
+    setIsAddModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -149,6 +154,10 @@ export default function DeliveryMethodsPage() {
                 onDelete={handleDelete}
                 onVerify={handleVerify}
                 onSetDefault={handleSetDefault}
+                onAdd={(type) => {
+                  setEditingMethod(null);
+                  setIsAddModalOpen(true);
+                }}
               />
             ) : (
               <div className="text-center py-12">
