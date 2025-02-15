@@ -64,60 +64,88 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
     },
   });
 
-  useEffect(() => {
-    if (editingMethod) {
-      const config = typeof editingMethod.config === 'string' 
-        ? JSON.parse(editingMethod.config || '{}')
-        : editingMethod.config || {};
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-      setName(editingMethod.name);
-      setDescription(editingMethod.description || '');
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    console.log('Starting form validation...');
+    console.log('Current group:', group);
 
-      if (group === 'DOVEAPP' && config.doveNumber) {
-        setDoveNumber(config.doveNumber);
-      } else if (group === 'EMAIL' && config.email) {
-        setEmail(config.email);
-      } else if (group === 'PHONE' && config.phoneNumber) {
-        setPhone({
-          phoneNumber: config.phoneNumber,
-          countryCode: config.countryCode || '86',
-          enableText: config.enableText ?? true,
-          enableVoice: config.enableVoice ?? true,
+    if (!name.trim()) {
+      errors.name = "Name is required";
+      console.log('Name validation failed');
+    }
+
+    switch (group) {
+      case 'EMAIL':
+        if (!email.trim()) {
+          errors.email = "Email address is required";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          errors.email = "Please enter a valid email address";
+        }
+        break;
+
+      case 'PHONE':
+        console.log('Validating phone:', {
+          phoneNumber: phone.phoneNumber,
+          hasUnderscore: phone.phoneNumber.includes('_'),
+          enableText: phone.enableText,
+          enableVoice: phone.enableVoice
         });
-      } else if (group === 'PLUGIN') {
-        setPluginConfig({
-          type: config.type || 'SLACK',
-          url: config.url || '',
-          method: config.method || 'POST',
-          headers: config.headers || {},
-          body: config.body || '',
-        });
-      }
-    }
-  }, [editingMethod, group]);
 
-  const getPhoneHint = (enableText: boolean, enableVoice: boolean): JSX.Element => {
-    if (!enableText && !enableVoice) {
-      return (
-        <span className="text-red-500">
-          You must select one of text or voice to create the delivery method
-        </span>
-      );
+        if (!phone.phoneNumber.trim()) {
+          errors.phone = "Phone number is required";
+          console.log('Phone number is empty');
+        } else if (phone.phoneNumber.includes('_')) {
+          errors.phone = "Please enter a complete phone number";
+          console.log('Phone number is incomplete');
+        }
+        break;
+
+      case 'PLUGIN':
+        if (pluginConfig.type === 'SLACK') {
+          if (!pluginConfig.slackWebhookUrl?.trim()) {
+            errors.webhook = "Slack webhook URL is required";
+          }
+        } else if (pluginConfig.type === 'TELEGRAM') {
+          if (!pluginConfig.telegramBotToken?.trim()) {
+            errors.botToken = "Telegram bot token is required";
+          }
+          if (!pluginConfig.telegramChatId?.trim()) {
+            errors.chatId = "Telegram chat ID is required";
+          }
+        } else if (pluginConfig.type === 'CUSTOM_WEBHOOK') {
+          if (!pluginConfig.webhook?.url?.trim()) {
+            errors.webhook = "Webhook URL is required";
+          }
+        }
+        break;
     }
+
+    setValidationErrors(errors);
+    const hasErrors = Object.keys(errors).length > 0;
+    const phoneMethodsValid = group !== 'PHONE' || phone.enableText || phone.enableVoice;
     
-    if (enableText && enableVoice) {
-      return <span>Both Text and Voice methods will be created using provided number</span>;
-    } else if (enableText) {
-      return <span>A text method will be created using the number</span>;
-    } else if (enableVoice) {
-      return <span>A voice method will be created using this number</span>;
-    }
-    
-    return <span></span>;
+    console.log('Validation results:', {
+      hasErrors,
+      errors,
+      phoneMethodsValid,
+      isValid: !hasErrors && phoneMethodsValid
+    });
+
+    return !hasErrors && phoneMethodsValid;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted, running validation...');
+    
+    if (!validateForm()) {
+      console.log('Form validation failed');
+      return;
+    }
+    console.log('Form validation passed, proceeding with save...');
+
     const config: CreateDeliveryMethodRequest['config'] = {};
 
     if (group === 'DOVEAPP') {
@@ -142,6 +170,87 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
       type,
       config,
     });
+  };
+
+  const resetForm = () => {
+    setName('');
+    setDescription('');
+    setEmail('');
+    setDoveNumber('');
+    setPhone({
+      phoneNumber: '',
+      countryCode: '',
+      enableText: true,
+      enableVoice: true,
+    });
+    setPluginConfig({
+      type: 'SLACK',
+      slackWebhookUrl: '',
+      slackChannel: '',
+      telegramBotToken: '',
+      telegramChatId: '',
+      webhook: {
+        url: '',
+        method: 'POST',
+        headers: {},
+        payload: '',
+      },
+    });
+    setValidationErrors({});
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      resetForm();
+      return;
+    }
+
+    if (editingMethod) {
+      const config = typeof editingMethod.config === 'string' 
+        ? JSON.parse(editingMethod.config)
+        : editingMethod.config;
+
+      setName(editingMethod.name);
+      setDescription(editingMethod.description || '');
+      setType(editingMethod.type);
+
+      if (group === 'DOVEAPP') {
+        setDoveNumber(config.doveNumber || '');
+      } else if (group === 'EMAIL') {
+        setEmail(config.email || '');
+      } else if (group === 'PHONE') {
+        setPhone({
+          phoneNumber: config.phoneNumber || '',
+          countryCode: config.countryCode || '',
+          enableText: config.enableText || false,
+          enableVoice: config.enableVoice || false,
+        });
+      } else if (group === 'PLUGIN') {
+        setPluginConfig(config);
+      }
+    } else {
+      resetForm();
+    }
+  }, [isOpen, editingMethod, group]);
+
+  const getPhoneHint = (enableText: boolean, enableVoice: boolean): JSX.Element => {
+    if (!enableText && !enableVoice) {
+      return (
+        <span className="text-red-500">
+          You must select one of text or voice to create the delivery method
+        </span>
+      );
+    }
+    
+    if (enableText && enableVoice) {
+      return <span>Both Text and Voice methods will be created using provided number</span>;
+    } else if (enableText) {
+      return <span>A text method will be created using the number</span>;
+    } else if (enableVoice) {
+      return <span>A voice method will be created using this number</span>;
+    }
+    
+    return <span></span>;
   };
 
   return (
@@ -215,12 +324,21 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                 type="text"
                                 name="name"
                                 id="name"
-                                required
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                onChange={(e) => {
+                                  setName(e.target.value);
+                                  if (validationErrors.name) {
+                                    setValidationErrors(prev => ({ ...prev, name: '' }));
+                                  }
+                                }}
+                                className={`block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ${
+                                  validationErrors.name ? 'ring-red-500' : 'ring-gray-300'
+                                } placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6`}
                                 placeholder="Enter a name for this delivery method"
                               />
+                              {validationErrors.name && (
+                                <p className="mt-2 text-sm text-red-500">{validationErrors.name}</p>
+                              )}
                             </div>
                           </div>
 
@@ -245,9 +363,17 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                 type="email"
                                 required
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e) => {
+                                  setEmail(e.target.value);
+                                  if (validationErrors.email) {
+                                    setValidationErrors(prev => ({ ...prev, email: '' }));
+                                  }
+                                }}
                                 className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                               />
+                              {validationErrors.email && (
+                                <p className="mt-2 text-sm text-red-500">{validationErrors.email}</p>
+                              )}
                             </div>
                           )}
 
@@ -268,11 +394,17 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                           phoneNumber: value,
                                           countryCode: data.dialCode
                                         }));
+                                        if (validationErrors.phone) {
+                                          setValidationErrors(prev => ({ ...prev, phone: '' }));
+                                        }
                                       }}
                                       containerClass="phone-input-container"
                                       specialLabel=""
                                       masks={{cn: '... .... ....', us: '... ... ....', gb: '.... ......'}}
                                     />
+                                    {validationErrors.phone && (
+                                      <p className="mt-2 text-sm text-red-500">{validationErrors.phone}</p>
+                                    )}
                                   </div>
                                   <div className="flex items-center space-x-4">
                                     <label className="inline-flex items-center whitespace-nowrap">
@@ -330,6 +462,9 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                       onChange={(e) => setPluginConfig(prev => ({ ...prev, slackWebhookUrl: e.target.value }))}
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
+                                    {validationErrors.webhook && (
+                                      <p className="mt-2 text-sm text-red-500">{validationErrors.webhook}</p>
+                                    )}
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium leading-6 text-gray-900">Slack Channel</label>
@@ -355,6 +490,9 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                       onChange={(e) => setPluginConfig(prev => ({ ...prev, telegramBotToken: e.target.value }))}
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
+                                    {validationErrors.botToken && (
+                                      <p className="mt-2 text-sm text-red-500">{validationErrors.botToken}</p>
+                                    )}
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium leading-6 text-gray-900">Chat ID</label>
@@ -365,6 +503,9 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                       onChange={(e) => setPluginConfig(prev => ({ ...prev, telegramChatId: e.target.value }))}
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
+                                    {validationErrors.chatId && (
+                                      <p className="mt-2 text-sm text-red-500">{validationErrors.chatId}</p>
+                                    )}
                                   </div>
                                 </div>
                               )}
@@ -383,6 +524,9 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                       }))}
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
+                                    {validationErrors.webhook && (
+                                      <p className="mt-2 text-sm text-red-500">{validationErrors.webhook}</p>
+                                    )}
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium leading-6 text-gray-900">HTTP Method</label>
