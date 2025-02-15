@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DeliveryMethod, DeliveryMethodType } from '@/types/delivery-method';
+import { DeliveryMethod, DeliveryMethodType, CreateDeliveryMethodRequest } from '@/types/delivery-method';
 import { 
   BellIcon, 
   EnvelopeIcon, 
@@ -17,14 +17,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import DeliveryMethodModal from './DeliveryMethodModal';
+import { deliveryMethodsApi } from '@/api/delivery-methods';
 
 interface DeliveryMethodListProps {
   methods: DeliveryMethod[];
-  onEdit: (method: DeliveryMethod) => void;
-  onDelete: (method: DeliveryMethod) => void;
-  onVerify: (method: DeliveryMethod) => void;
-  onSetDefault: (method: DeliveryMethod) => void;
-  onAdd: (type: DeliveryMethodType) => void;
+  onMethodsChange: () => void;
 }
 
 const methodIcons: Record<DeliveryMethodType, React.ComponentType<any>> = {
@@ -73,17 +70,64 @@ const groupDefinitions: Omit<MethodGroup, 'methods'>[] = [
 
 export default function DeliveryMethodList({
   methods,
-  onEdit,
-  onDelete,
-  onVerify,
-  onSetDefault,
-  onAdd,
+  onMethodsChange,
 }: DeliveryMethodListProps) {
   const [hoveredMethod, setHoveredMethod] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<DeliveryMethod | null>(null);
   const [methodGroup, setMethodGroup] = useState<'DOVEAPP' | 'EMAIL' | 'PHONE' | 'PLUGIN'>('EMAIL');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleDelete = async (method: DeliveryMethod) => {
+    if (!confirm('Are you sure you want to delete this delivery method?')) {
+      return;
+    }
+
+    try {
+      await deliveryMethodsApi.delete(method.id);
+      onMethodsChange();
+    } catch (err) {
+      setError('Failed to delete delivery method');
+      console.error(err);
+    }
+  };
+
+  const handleVerify = async (method: DeliveryMethod) => {
+    try {
+      await deliveryMethodsApi.verify(method.id);
+      onMethodsChange();
+    } catch (err) {
+      setError('Failed to verify delivery method');
+      console.error(err);
+    }
+  };
+
+  const handleSetDefault = async (method: DeliveryMethod) => {
+    try {
+      await deliveryMethodsApi.setDefault(method.id);
+      onMethodsChange();
+    } catch (err) {
+      setError('Failed to set default delivery method');
+      console.error(err);
+    }
+  };
+
+  const handleSubmit = async (data: CreateDeliveryMethodRequest) => {
+    try {
+      if (editingMethod) {
+        await deliveryMethodsApi.update(editingMethod.id, data);
+      } else {
+        await deliveryMethodsApi.create(data);
+      }
+      onMethodsChange();
+      setEditingMethod(null);
+      setIsModalOpen(false);
+    } catch (err) {
+      setError('Failed to save delivery method');
+      console.error(err);
+    }
+  };
 
   const groupMethods = (methods: DeliveryMethod[]): MethodGroup[] => {
     return groupDefinitions.map(group => ({
@@ -169,12 +213,6 @@ export default function DeliveryMethodList({
       'Integrations': 'PLUGIN',
     };
     handleCreateNew(groupMap[group.name]);
-  };
-
-  const handleEditSave = (updatedMethod: DeliveryMethod) => {
-    onEdit(updatedMethod);
-    setEditingMethod(null);
-    setIsModalOpen(false);
   };
 
   const CopyButton = ({ text, methodId }: { text: string; methodId: string }) => {
@@ -319,7 +357,7 @@ export default function DeliveryMethodList({
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                onVerify(method);
+                                handleVerify(method);
                               }}
                               className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-gray-900 shadow-sm 
                                 ring-1 ring-inset ring-gray-300 hover:bg-gray-50
@@ -334,7 +372,7 @@ export default function DeliveryMethodList({
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                onSetDefault(method);
+                                handleSetDefault(method);
                               }}
                               className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-gray-900 shadow-sm 
                                 ring-1 ring-inset ring-gray-300 hover:bg-gray-50
@@ -362,7 +400,7 @@ export default function DeliveryMethodList({
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              onDelete(method);
+                              handleDelete(method);
                             }}
                             className={`rounded-full bg-white p-1 shadow-sm ring-1 ring-inset
                               relative z-10 transition-all duration-200
@@ -411,10 +449,13 @@ export default function DeliveryMethodList({
           setIsModalOpen(false);
           setEditingMethod(null);
         }}
-        onSubmit={handleEditSave}
+        onSubmit={handleSubmit}
         editingMethod={editingMethod}
         group={methodGroup}
       />
+      {error && (
+        <div className="mt-4 text-sm text-red-500">{error}</div>
+      )}
     </>
   );
 }
