@@ -101,6 +101,51 @@ export default function DeliveryMethodsPage() {
     setIsAddModalOpen(true);
   };
 
+  const handleModalSubmit = async (data: CreateDeliveryMethodRequest) => {
+    try {
+      if (editingMethod) {
+        await deliveryMethodsApi.update(editingMethod.id, data);
+        await loadDeliveryMethods();
+      } else {
+        await handleAdd(data);
+      }
+      
+      // Clear modal state
+      setIsAddModalOpen(false);
+      setEditingMethod(null);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to save delivery method:', err);
+      setError('Failed to save delivery method');
+      // Keep modal open when there's an error
+    }
+  };
+
+  const handleModalClose = () => {
+    setIsAddModalOpen(false);
+    setEditingMethod(null);
+    setError(null);
+  };
+
+  const getMethodGroup = (method: DeliveryMethod | null): DeliveryMethodGroup => {
+    if (!method) return 'EMAIL';
+    
+    switch (method.type) {
+      case 'EMAIL':
+        return 'EMAIL';
+      case 'TEXT':
+      case 'VOICE':
+        return 'PHONE';
+      case 'DOVEAPP':
+        return 'DOVEAPP';
+      case 'WEBHOOK':
+      case 'PLUGIN':
+        return 'PLUGIN';
+      default:
+        return 'EMAIL';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -184,21 +229,10 @@ export default function DeliveryMethodsPage() {
       {/* Add/Edit Modal */}
       <DeliveryMethodModal
         isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setEditingMethod(null);
-        }}
-        onSubmit={async (data) => {
-          if (editingMethod) {
-            await deliveryMethodsApi.update(editingMethod.id, data);
-            await loadDeliveryMethods();
-            setIsAddModalOpen(false);
-            setEditingMethod(null);
-          } else {
-            await handleAdd(data);
-          }
-        }}
+        onClose={handleModalClose}
+        onSubmit={handleModalSubmit}
         editingMethod={editingMethod}
+        group={getMethodGroup(editingMethod)}
       />
     </div>
   );
