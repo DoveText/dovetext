@@ -7,21 +7,22 @@ import { DeliveryMethod, DeliveryMethodType, CreateDeliveryMethodRequest, Plugin
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 
+type DeliveryMethodGroup = 'DOVEAPP' | 'EMAIL' | 'PHONE' | 'PLUGIN';
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: CreateDeliveryMethodRequest) => void;
   editingMethod?: DeliveryMethod | null;
-  initialType?: DeliveryMethodType;
+  group: DeliveryMethodGroup;
 }
 
-const methodTypes: { value: DeliveryMethodType; label: string }[] = [
-  { value: 'EMAIL', label: 'Email' },
-  { value: 'TEXT', label: 'Text' },
-  { value: 'VOICE', label: 'Voice' },
-  { value: 'WEBHOOK', label: 'Webhook' },
-  { value: 'PLUGIN', label: 'Plugin' },
-];
+const methodTypesByGroup: Record<DeliveryMethodGroup, DeliveryMethodType[]> = {
+  DOVEAPP: ['DOVEAPP'],
+  EMAIL: ['EMAIL'],
+  PHONE: ['TEXT', 'VOICE'],
+  PLUGIN: ['WEBHOOK', 'PLUGIN'],
+};
 
 const pluginTypes: { value: PluginType; label: string }[] = [
   { value: 'SLACK', label: 'Slack' },
@@ -31,19 +32,26 @@ const pluginTypes: { value: PluginType; label: string }[] = [
 
 const httpMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
-export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editingMethod, initialType }: Props) {
+export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editingMethod, group = 'EMAIL' }: Props) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType] = useState<DeliveryMethodType>(initialType || 'EMAIL');
+  const [type, setType] = useState<DeliveryMethodType>(() => {
+    if (editingMethod) {
+      return editingMethod.type;
+    }
+    return methodTypesByGroup[group][0];
+  });
   const [email, setEmail] = useState('');
+  const [doveNumber, setDoveNumber] = useState('');
   const [phone, setPhone] = useState<PhoneConfig>({
     phoneNumber: '',
     countryCode: '1',
-    enableText: true,
+    enableText: group === 'PHONE',
     enableVoice: false,
   });
   const [pluginConfig, setPluginConfig] = useState<PluginConfig>({
     type: 'SLACK',
+    doveNumber: '',
     slackWebhookUrl: '',
     slackChannel: '',
     telegramBotToken: '',
@@ -58,36 +66,64 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
 
   useEffect(() => {
     if (editingMethod) {
+      const config = JSON.parse(editingMethod.config || "{}");
       setName(editingMethod.name);
       setDescription(editingMethod.description || '');
       setType(editingMethod.type);
-      if (editingMethod.config.email) {
-        setEmail(editingMethod.config.email);
+
+      if (group === 'DOVEAPP') {
+        setDoveNumber(config.doveNumber);
+      } else if (group === 'EMAIL') {
+        setEmail(config.email);
+      } else if (group === 'PHONE') {
+        setPhone(config.phone);
+      } else if (group === 'PLUGIN') {
+        setPluginConfig(config.plugin);
       }
-      if (editingMethod.config.phone) {
-        setPhone(editingMethod.config.phone);
-      }
-      if (editingMethod.config.plugin) {
-        setPluginConfig(editingMethod.config.plugin);
-      }
-    } else if (initialType) {
-      setType(initialType);
+    } else {
+      // Reset form when opening for new method
+      setType(methodTypesByGroup[group][0]);
+      setName('');
+      setDescription('');
+      setEmail('');
+      setDoveNumber('');
+      setPhone({
+        phoneNumber: '',
+        countryCode: '1',
+        enableText: group === 'PHONE',
+        enableVoice: false,
+      });
+      setPluginConfig({
+        type: 'SLACK',
+        slackWebhookUrl: '',
+        slackChannel: '',
+        telegramBotToken: '',
+        telegramChatId: '',
+        webhook: {
+          url: '',
+          method: 'POST',
+          headers: {},
+          payload: '',
+        },
+      });
     }
-  }, [editingMethod, initialType]);
+  }, [editingMethod, group]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const config: CreateDeliveryMethodRequest['config'] = {};
 
-    if (type === 'EMAIL') {
+    if (group === 'DOVEAPP') {
+      config.doveNumber = doveNumber;
+    } else if (group === 'EMAIL') {
       config.email = email;
-    } else if (type === 'TEXT' || type === 'VOICE') {
+    } else if (group === 'PHONE') {
       if (!phone.enableText && !phone.enableVoice) {
         alert('Please enable at least one delivery method (Text or Voice)');
         return;
       }
       config.phone = phone;
-    } else if (type === 'WEBHOOK' || type === 'PLUGIN') {
+    } else if (group === 'PLUGIN') {
       config.plugin = pluginConfig;
     }
 
@@ -144,25 +180,43 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                               required
                               value={name}
                               onChange={(e) => setName(e.target.value)}
-                              className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             />
                           </div>
 
+                          {/* Type selector only shown for groups with multiple types */}
+                          {methodTypesByGroup[group].length > 1 && (
+                            <div>
+                              <label className="block text-sm font-medium leading-6 text-gray-900">Type</label>
+                              <select
+                                value={type}
+                                onChange={(e) => setType(e.target.value as DeliveryMethodType)}
+                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              >
+                                {methodTypesByGroup[group].map((type) => (
+                                  <option key={type} value={type}>
+                                    {type === 'TEXT' ? 'Text' : type === 'VOICE' ? 'Voice' : type}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
                           {/* Type-specific Fields */}
-                          {type === 'DOVEAPP' && (
+                          {group === 'DOVEAPP' && (
                             <div>
                               <label className="block text-sm font-medium leading-6 text-gray-900">Dove Number</label>
                               <input
                                 type="text"
-                                value={editingMethod?.config.doveNumber || ''}
+                                value={doveNumber}
                                 readOnly
                                 disabled
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-500 bg-gray-50 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6"
+                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-500 bg-gray-50 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6"
                               />
                             </div>
                           )}
 
-                          {type === 'EMAIL' && (
+                          {group === 'EMAIL' && (
                             <div>
                               <label className="block text-sm font-medium leading-6 text-gray-900">Email Address</label>
                               <input
@@ -170,12 +224,12 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                               />
                             </div>
                           )}
 
-                          {(type === 'TEXT' || type === 'VOICE') && (
+                          {group === 'PHONE' && (
                             <div className="space-y-4">
                               <div>
                                 <label className="block text-sm font-medium leading-6 text-gray-900">Phone Number</label>
@@ -190,7 +244,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                     }));
                                   }}
                                   containerClass="phone-input-container"
-                                  inputClass="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                  inputClass="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                   buttonClass="phone-select-button"
                                 />
                               </div>
@@ -217,14 +271,14 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                             </div>
                           )}
 
-                          {(type === 'WEBHOOK' || type === 'PLUGIN') && (
+                          {group === 'PLUGIN' && (
                             <div className="space-y-4">
                               <div>
                                 <label className="block text-sm font-medium leading-6 text-gray-900">Integration Type</label>
                                 <select
                                   value={pluginConfig.type}
                                   onChange={(e) => setPluginConfig(prev => ({ ...prev, type: e.target.value as PluginType }))}
-                                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                  className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                 >
                                   {pluginTypes.map((type) => (
                                     <option key={type.value} value={type.value}>
@@ -243,7 +297,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                       required
                                       value={pluginConfig.slackWebhookUrl}
                                       onChange={(e) => setPluginConfig(prev => ({ ...prev, slackWebhookUrl: e.target.value }))}
-                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
                                   </div>
                                   <div>
@@ -253,7 +307,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                       value={pluginConfig.slackChannel}
                                       onChange={(e) => setPluginConfig(prev => ({ ...prev, slackChannel: e.target.value }))}
                                       placeholder="#general"
-                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
                                   </div>
                                 </div>
@@ -268,7 +322,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                       required
                                       value={pluginConfig.telegramBotToken}
                                       onChange={(e) => setPluginConfig(prev => ({ ...prev, telegramBotToken: e.target.value }))}
-                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
                                   </div>
                                   <div>
@@ -278,7 +332,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                       required
                                       value={pluginConfig.telegramChatId}
                                       onChange={(e) => setPluginConfig(prev => ({ ...prev, telegramChatId: e.target.value }))}
-                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
                                   </div>
                                 </div>
@@ -296,7 +350,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                         ...prev,
                                         webhook: { ...prev.webhook!, url: e.target.value }
                                       }))}
-                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
                                   </div>
                                   <div>
@@ -307,7 +361,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                         ...prev,
                                         webhook: { ...prev.webhook!, method: e.target.value as WebhookConfig['method'] }
                                       }))}
-                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     >
                                       {httpMethods.map((method) => (
                                         <option key={method} value={method}>
@@ -333,7 +387,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                       }}
                                       placeholder="{}"
                                       rows={4}
-                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
+                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
                                     />
                                   </div>
                                   <div>
@@ -346,7 +400,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                       }))}
                                       placeholder="{}"
                                       rows={4}
-                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
+                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
                                     />
                                   </div>
                                 </div>
@@ -361,7 +415,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                               rows={2}
                               value={description}
                               onChange={(e) => setDescription(e.target.value)}
-                              className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                               placeholder="Optional description..."
                             />
                           </div>

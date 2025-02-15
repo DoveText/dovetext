@@ -81,8 +81,9 @@ export default function DeliveryMethodList({
 }: DeliveryMethodListProps) {
   const [hoveredMethod, setHoveredMethod] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<DeliveryMethod | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [methodGroup, setMethodGroup] = useState<'DOVEAPP' | 'EMAIL' | 'PHONE' | 'PLUGIN'>('EMAIL');
 
   const groupMethods = (methods: DeliveryMethod[]): MethodGroup[] => {
     return groupDefinitions.map(group => ({
@@ -108,20 +109,15 @@ export default function DeliveryMethodList({
 
   const getMethodConfig = (method: DeliveryMethod) => {
     try {
-      console.log('Raw config:', method.config);
       const parsed = JSON.parse(method.config);
-      console.log('Parsed config:', parsed);
       return parsed;
     } catch (e) {
-      console.error('Failed to parse method config:', e);
-      console.error('Raw config that failed:', method.config);
+      console.error('Failed to parse method config for method:', method.name, e);
       return {};
     }
   };
 
   const copyToClipboard = (text: string, methodId: string) => {
-    console.log('Attempting to copy text:', text);
-    
     const textArea = document.createElement('textarea');
     textArea.value = text;
     
@@ -134,10 +130,8 @@ export default function DeliveryMethodList({
     try {
       textArea.select();
       document.execCommand('copy');
-      console.log('Successfully copied to clipboard');
       setCopiedId(methodId);
       setTimeout(() => {
-        console.log('Resetting copied state');
         setCopiedId(null);
       }, 2000);
     } catch (err) {
@@ -147,29 +141,47 @@ export default function DeliveryMethodList({
     }
   };
 
-  const handleEditClick = (method: DeliveryMethod) => {
+  const handleCreateNew = (group: 'DOVEAPP' | 'EMAIL' | 'PHONE' | 'PLUGIN') => {
+    setMethodGroup(group);
+    setEditingMethod(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (method: DeliveryMethod) => {
+    const groupMap: Record<DeliveryMethodType, 'DOVEAPP' | 'EMAIL' | 'PHONE' | 'PLUGIN'> = {
+      'DOVEAPP': 'DOVEAPP',
+      'EMAIL': 'EMAIL',
+      'TEXT': 'PHONE',
+      'VOICE': 'PHONE',
+      'WEBHOOK': 'PLUGIN',
+      'PLUGIN': 'PLUGIN',
+    };
+    setMethodGroup(groupMap[method.type]);
     setEditingMethod(method);
-    setIsEditModalOpen(true);
+    setIsModalOpen(true);
+  };
+
+  const handleAddClick = (group: MethodGroup) => {
+    const groupMap: Record<string, 'DOVEAPP' | 'EMAIL' | 'PHONE' | 'PLUGIN'> = {
+      'DoveApp': 'DOVEAPP',
+      'Email': 'EMAIL',
+      'Phone & Text': 'PHONE',
+      'Integrations': 'PLUGIN',
+    };
+    handleCreateNew(groupMap[group.name]);
   };
 
   const handleEditSave = (updatedMethod: DeliveryMethod) => {
     onEdit(updatedMethod);
     setEditingMethod(null);
-    setIsEditModalOpen(false);
-  };
-
-  const handleAddClick = (group: MethodGroup) => {
-    // For groups with multiple types, use the first type as default
-    onAdd(group.types[0] as DeliveryMethodType);
+    setIsModalOpen(false);
   };
 
   const CopyButton = ({ text, methodId }: { text: string; methodId: string }) => {
-    console.log('Rendering copy button for:', text);
     return (
       <button
         type="button"
         onClick={(e) => {
-          console.log('Copy button clicked');
           e.preventDefault();
           e.stopPropagation();
           copyToClipboard(text, methodId);
@@ -336,7 +348,7 @@ export default function DeliveryMethodList({
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              handleEditClick(method);
+                              handleEdit(method);
                             }}
                             className={`rounded-full bg-white p-1 text-gray-900 shadow-sm ring-1 ring-inset 
                               ${isEditing ? 'ring-indigo-500 text-indigo-600' : 'ring-gray-300 hover:bg-gray-50'}
@@ -394,13 +406,14 @@ export default function DeliveryMethodList({
       </div>
 
       <DeliveryMethodModal
-        isOpen={isEditModalOpen}
+        isOpen={isModalOpen}
         onClose={() => {
-          setIsEditModalOpen(false);
+          setIsModalOpen(false);
           setEditingMethod(null);
         }}
         onSubmit={handleEditSave}
         editingMethod={editingMethod}
+        group={methodGroup}
       />
     </>
   );

@@ -13,6 +13,8 @@ export interface WebhookConfig {
 
 export interface PluginConfig {
   type: PluginType;
+  // Dove App specific
+  doveNumber?: string;
   // Slack specific
   slackWebhookUrl?: string;
   slackChannel?: string;
