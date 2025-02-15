@@ -43,17 +43,6 @@ export default function DeliveryMethodsPage() {
     }
   };
 
-  const handleAdd = async (data: CreateDeliveryMethodRequest) => {
-    try {
-      const newMethod = await deliveryMethodsApi.create(data);
-      setMethods(prev => [...prev, newMethod]);
-      setIsAddModalOpen(false);
-    } catch (err) {
-      setError('Failed to create delivery method');
-      console.error(err);
-    }
-  };
-
   const handleEdit = async (method: DeliveryMethod) => {
     setEditingMethod(method);
     setIsAddModalOpen(true);
@@ -105,10 +94,11 @@ export default function DeliveryMethodsPage() {
     try {
       if (editingMethod) {
         await deliveryMethodsApi.update(editingMethod.id, data);
-        await loadDeliveryMethods();
       } else {
-        await handleAdd(data);
+        await deliveryMethodsApi.create(data)
       }
+
+      await loadDeliveryMethods();
       
       // Clear modal state
       setIsAddModalOpen(false);
