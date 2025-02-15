@@ -6,6 +6,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { DeliveryMethod, DeliveryMethodType, CreateDeliveryMethodRequest, PluginType, WebhookConfig, PhoneConfig } from '@/types/delivery-method';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
+import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
 
 type DeliveryMethodGroup = 'DOVEAPP' | 'EMAIL' | 'PHONE' | 'PLUGIN';
 
@@ -66,14 +67,48 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
+  const validatePhoneNumber = (phoneNumber: string, countryCode: string): string | null => {
+    if (!phoneNumber.trim()) {
+      return "Phone number is required";
+    }
+    
+    if (phoneNumber.includes('_')) {
+      return "Please enter a complete phone number";
+    }
+
+    try {
+      // Add + to country code if not present
+      const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${countryCode}${phoneNumber}`;
+      
+      // Try to parse the phone number
+      const parsedNumber = parsePhoneNumber(fullNumber);
+      
+      if (!parsedNumber) {
+        return "Invalid phone number format";
+      }
+
+      // Check if the number is valid for its country
+      if (!parsedNumber.isValid()) {
+        return `Invalid phone number for ${parsedNumber.country || 'this country'}`;
+      }
+
+      // Verify the number type (should be mobile)
+      const numberType = parsedNumber.getType();
+      if (numberType !== 'MOBILE' && numberType !== 'FIXED_LINE_OR_MOBILE') {
+        return "Please enter a mobile phone number";
+      }
+
+      return null;
+    } catch (error) {
+      return "Invalid phone number format";
+    }
+  };
+
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
-    console.log('Starting form validation...');
-    console.log('Current group:', group);
 
     if (!name.trim()) {
       errors.name = "Name is required";
-      console.log('Name validation failed');
     }
 
     switch (group) {
@@ -86,19 +121,9 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
         break;
 
       case 'PHONE':
-        console.log('Validating phone:', {
-          phoneNumber: phone.phoneNumber,
-          hasUnderscore: phone.phoneNumber.includes('_'),
-          enableText: phone.enableText,
-          enableVoice: phone.enableVoice
-        });
-
-        if (!phone.phoneNumber.trim()) {
-          errors.phone = "Phone number is required";
-          console.log('Phone number is empty');
-        } else if (phone.phoneNumber.includes('_')) {
-          errors.phone = "Please enter a complete phone number";
-          console.log('Phone number is incomplete');
+        const phoneError = validatePhoneNumber(phone.phoneNumber, phone.countryCode);
+        if (phoneError) {
+          errors.phone = phoneError;
         }
         break;
 
@@ -126,25 +151,15 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
     const hasErrors = Object.keys(errors).length > 0;
     const phoneMethodsValid = group !== 'PHONE' || phone.enableText || phone.enableVoice;
     
-    console.log('Validation results:', {
-      hasErrors,
-      errors,
-      phoneMethodsValid,
-      isValid: !hasErrors && phoneMethodsValid
-    });
-
     return !hasErrors && phoneMethodsValid;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted, running validation...');
     
     if (!validateForm()) {
-      console.log('Form validation failed');
       return;
     }
-    console.log('Form validation passed, proceeding with save...');
 
     const config: CreateDeliveryMethodRequest['config'] = {};
 

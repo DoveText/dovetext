@@ -192,6 +192,8 @@ export default function DeliveryMethodsPage() {
           if (editingMethod) {
             await deliveryMethodsApi.update(editingMethod.id, data);
             await loadDeliveryMethods();
+            setIsAddModalOpen(false);
+            setEditingMethod(null);
           } else {
             await handleAdd(data);
           }

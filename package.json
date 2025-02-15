@@ -33,6 +33,7 @@
     "framer-motion": "^12.3.1",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "libphonenumber-js": "^1.11.19",
     "next": "14.1.0",
     "pg-promise": "^11.5.4",
     "postcss": "8.4.33",
