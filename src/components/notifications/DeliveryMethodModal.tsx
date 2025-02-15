@@ -383,30 +383,36 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                 <label className="block text-sm font-medium leading-6 text-gray-900 mb-2">
                                   Phone Number
                                 </label>
-                                <div className="flex items-center space-x-4">
+                                <div className="flex space-x-4">
                                   <div className="flex-grow">
-                                    <PhoneInput
-                                      country={'cn'}
-                                      value={phone.phoneNumber}
-                                      onChange={(value, data: any) => {
-                                        setPhone(prev => ({
-                                          ...prev,
-                                          phoneNumber: value,
-                                          countryCode: data.dialCode
-                                        }));
-                                        if (validationErrors.phone) {
-                                          setValidationErrors(prev => ({ ...prev, phone: '' }));
-                                        }
-                                      }}
-                                      containerClass="phone-input-container"
-                                      specialLabel=""
-                                      masks={{cn: '... .... ....', us: '... ... ....', gb: '.... ......'}}
-                                    />
-                                    {validationErrors.phone && (
+                                    <div>
+                                      <PhoneInput
+                                        country={'cn'}
+                                        value={phone.phoneNumber}
+                                        onChange={(value, data: any) => {
+                                          setPhone(prev => ({
+                                            ...prev,
+                                            phoneNumber: value,
+                                            countryCode: data.dialCode
+                                          }));
+                                          if (validationErrors.phone) {
+                                            setValidationErrors(prev => ({ ...prev, phone: '' }));
+                                          }
+                                        }}
+                                        containerClass="phone-input-container"
+                                        specialLabel=""
+                                        masks={{cn: '... .... ....', us: '... ... ....', gb: '.... ......'}}
+                                      />
+                                    </div>
+                                    {validationErrors.phone ? (
                                       <p className="mt-2 text-sm text-red-500">{validationErrors.phone}</p>
+                                    ) : (
+                                      <p className="mt-2 text-sm text-gray-500">
+                                        {getPhoneHint(phone.enableText, phone.enableVoice)}
+                                      </p>
                                     )}
                                   </div>
-                                  <div className="flex items-center space-x-4">
+                                  <div className="flex items-center space-x-4 h-[38px]">
                                     <label className="inline-flex items-center whitespace-nowrap">
                                       <input
                                         type="checkbox"
@@ -427,9 +433,6 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                                     </label>
                                   </div>
                                 </div>
-                                <p className="mt-2 text-sm text-gray-500">
-                                  {getPhoneHint(phone.enableText, phone.enableVoice)}
-                                </p>
                               </div>
                             </div>
                           )}
