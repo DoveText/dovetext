@@ -15,7 +15,7 @@ interface DeliveryMethodModalProps {
 const methodTypes: { value: DeliveryMethodType; label: string }[] = [
   { value: 'DOVEAPP', label: 'DoveApp' },
   { value: 'EMAIL', label: 'Email' },
-  { value: 'SMS', label: 'SMS (Coming Soon)' },
+  { value: 'TEXT', label: 'Text (Coming Soon)' },
   { value: 'VOICE', label: 'Voice (Coming Soon)' },
   { value: 'WEBHOOK', label: 'Webhook (Coming Soon)' },
   { value: 'PLUGIN', label: 'Plugin (Coming Soon)' },
@@ -70,7 +70,7 @@ export default function DeliveryMethodModal({
         case 'EMAIL':
           config.email = email;
           break;
-        case 'SMS':
+        case 'TEXT':
         case 'VOICE':
           config.phone = phone;
           break;
@@ -200,7 +200,7 @@ export default function DeliveryMethodModal({
                         </div>
                       )}
 
-                      {(type === 'SMS' || type === 'VOICE') && (
+                      {(type === 'TEXT' || type === 'VOICE') && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700">Phone Number</label>
                           <input

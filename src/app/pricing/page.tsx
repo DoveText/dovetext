@@ -27,7 +27,7 @@ const tiers = [
     features: [
       'Up to 500 notifications per month',
       'Unlimited DoveApp notifications',
-      'SMS and Voice notifications',
+      'Text and Voice notifications',
       'Plugin and / or Webhook notifications',
       'Custom notification rules',
       'Advanced text analysis',

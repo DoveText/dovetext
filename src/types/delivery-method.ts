@@ -1,4 +1,4 @@
-export type DeliveryMethodType = 'DOVEAPP' | 'EMAIL' | 'SMS' | 'VOICE' | 'WEBHOOK' | 'PLUGIN';
+export type DeliveryMethodType = 'DOVEAPP' | 'EMAIL' | 'TEXT' | 'VOICE' | 'WEBHOOK' | 'PLUGIN';
 
 export type DeliveryMethodStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'FAILED';
 
