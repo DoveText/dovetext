@@ -96,15 +96,24 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
     }
   }, [editingMethod, group]);
 
-  const getPhoneHint = (enableText: boolean, enableVoice: boolean) => {
-    if (enableText && enableVoice) {
-      return "Both Text and Voice methods will be created using provided number";
-    } else if (enableText) {
-      return "A text method will be created using the number";
-    } else if (enableVoice) {
-      return "A voice method will be created using this number";
+  const getPhoneHint = (enableText: boolean, enableVoice: boolean): JSX.Element => {
+    if (!enableText && !enableVoice) {
+      return (
+        <span className="text-red-500">
+          You must select one of text or voice to create the delivery method
+        </span>
+      );
     }
-    return "";
+    
+    if (enableText && enableVoice) {
+      return <span>Both Text and Voice methods will be created using provided number</span>;
+    } else if (enableText) {
+      return <span>A text method will be created using the number</span>;
+    } else if (enableVoice) {
+      return <span>A voice method will be created using this number</span>;
+    }
+    
+    return <span></span>;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
