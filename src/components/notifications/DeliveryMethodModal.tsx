@@ -115,7 +115,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
+              <Dialog.Panel className="relative transform overflow-hidden bg-white px-4 pb-4 pt-5 text-left transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                   <button
                     type="button"
@@ -134,238 +134,236 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
                         {editingMethod ? 'Edit Delivery Method' : 'Add Delivery Method'}
                       </Dialog.Title>
 
-                      <div className="mt-6 space-y-6">
+                      <div className="mt-4 space-y-6">
                         {/* Common Fields */}
-                        <div className="bg-white px-6 py-6 shadow-lg sm:rounded-lg sm:p-8">
-                          <div className="space-y-8">
+                        <div className="space-y-6">
+                          <div>
+                            <label className="block text-sm font-medium leading-6 text-gray-900">Name</label>
+                            <input
+                              type="text"
+                              required
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            />
+                          </div>
+
+                          {/* Type-specific Fields */}
+                          {type === 'DOVEAPP' && (
                             <div>
-                              <label className="block text-sm font-medium leading-6 text-gray-900">Name</label>
+                              <label className="block text-sm font-medium leading-6 text-gray-900">Dove Number</label>
                               <input
                                 type="text"
-                                required
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                value={editingMethod?.config.doveNumber || ''}
+                                readOnly
+                                disabled
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-500 bg-gray-50 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6"
                               />
                             </div>
+                          )}
 
-                            {/* Type-specific Fields */}
-                            {type === 'DOVEAPP' && (
-                              <div>
-                                <label className="block text-sm font-medium leading-6 text-gray-900">Dove Number</label>
-                                <input
-                                  type="text"
-                                  value={editingMethod?.config.doveNumber || ''}
-                                  readOnly
-                                  disabled
-                                  className="block w-full rounded-md border-0 py-1.5 text-gray-500 bg-gray-50 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6"
-                                />
-                              </div>
-                            )}
-
-                            {type === 'EMAIL' && (
-                              <div>
-                                <label className="block text-sm font-medium leading-6 text-gray-900">Email Address</label>
-                                <input
-                                  type="email"
-                                  required
-                                  value={email}
-                                  onChange={(e) => setEmail(e.target.value)}
-                                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                />
-                              </div>
-                            )}
-
-                            {(type === 'TEXT' || type === 'VOICE') && (
-                              <div className="space-y-4">
-                                <div>
-                                  <label className="block text-sm font-medium leading-6 text-gray-900">Phone Number</label>
-                                  <PhoneInput
-                                    country={'us'}
-                                    value={phone.phoneNumber}
-                                    onChange={(value, data: any) => {
-                                      setPhone(prev => ({
-                                        ...prev,
-                                        phoneNumber: value,
-                                        countryCode: data.dialCode
-                                      }));
-                                    }}
-                                    containerClass="phone-input-container"
-                                    inputClass="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                    buttonClass="phone-select-button"
-                                  />
-                                </div>
-                                <div className="flex items-center space-x-6">
-                                  <label className="inline-flex items-center">
-                                    <input
-                                      type="checkbox"
-                                      checked={phone.enableText}
-                                      onChange={(e) => setPhone(prev => ({ ...prev, enableText: e.target.checked }))}
-                                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                    />
-                                    <span className="ml-2 text-sm text-gray-700">Enable Text</span>
-                                  </label>
-                                  <label className="inline-flex items-center">
-                                    <input
-                                      type="checkbox"
-                                      checked={phone.enableVoice}
-                                      onChange={(e) => setPhone(prev => ({ ...prev, enableVoice: e.target.checked }))}
-                                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                    />
-                                    <span className="ml-2 text-sm text-gray-700">Enable Voice</span>
-                                  </label>
-                                </div>
-                              </div>
-                            )}
-
-                            {(type === 'WEBHOOK' || type === 'PLUGIN') && (
-                              <div className="space-y-4">
-                                <div>
-                                  <label className="block text-sm font-medium leading-6 text-gray-900">Integration Type</label>
-                                  <select
-                                    value={pluginConfig.type}
-                                    onChange={(e) => setPluginConfig(prev => ({ ...prev, type: e.target.value as PluginType }))}
-                                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                  >
-                                    {pluginTypes.map((type) => (
-                                      <option key={type.value} value={type.value}>
-                                        {type.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-
-                                {pluginConfig.type === 'SLACK' && (
-                                  <div className="space-y-4 bg-gray-50 px-4 py-4 rounded-lg">
-                                    <div>
-                                      <label className="block text-sm font-medium leading-6 text-gray-900">Slack Webhook URL</label>
-                                      <input
-                                        type="url"
-                                        required
-                                        value={pluginConfig.slackWebhookUrl}
-                                        onChange={(e) => setPluginConfig(prev => ({ ...prev, slackWebhookUrl: e.target.value }))}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-sm font-medium leading-6 text-gray-900">Slack Channel</label>
-                                      <input
-                                        type="text"
-                                        value={pluginConfig.slackChannel}
-                                        onChange={(e) => setPluginConfig(prev => ({ ...prev, slackChannel: e.target.value }))}
-                                        placeholder="#general"
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                      />
-                                    </div>
-                                  </div>
-                                )}
-
-                                {pluginConfig.type === 'TELEGRAM' && (
-                                  <div className="space-y-4 bg-gray-50 px-4 py-4 rounded-lg">
-                                    <div>
-                                      <label className="block text-sm font-medium leading-6 text-gray-900">Bot Token</label>
-                                      <input
-                                        type="text"
-                                        required
-                                        value={pluginConfig.telegramBotToken}
-                                        onChange={(e) => setPluginConfig(prev => ({ ...prev, telegramBotToken: e.target.value }))}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-sm font-medium leading-6 text-gray-900">Chat ID</label>
-                                      <input
-                                        type="text"
-                                        required
-                                        value={pluginConfig.telegramChatId}
-                                        onChange={(e) => setPluginConfig(prev => ({ ...prev, telegramChatId: e.target.value }))}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                      />
-                                    </div>
-                                  </div>
-                                )}
-
-                                {pluginConfig.type === 'CUSTOM_WEBHOOK' && (
-                                  <div className="space-y-4 bg-gray-50 px-4 py-4 rounded-lg">
-                                    <div>
-                                      <label className="block text-sm font-medium leading-6 text-gray-900">Webhook URL</label>
-                                      <input
-                                        type="url"
-                                        required
-                                        value={pluginConfig.webhook?.url}
-                                        onChange={(e) => setPluginConfig(prev => ({
-                                          ...prev,
-                                          webhook: { ...prev.webhook!, url: e.target.value }
-                                        }))}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-sm font-medium leading-6 text-gray-900">HTTP Method</label>
-                                      <select
-                                        value={pluginConfig.webhook?.method}
-                                        onChange={(e) => setPluginConfig(prev => ({
-                                          ...prev,
-                                          webhook: { ...prev.webhook!, method: e.target.value as WebhookConfig['method'] }
-                                        }))}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                      >
-                                        {httpMethods.map((method) => (
-                                          <option key={method} value={method}>
-                                            {method}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </div>
-                                    <div>
-                                      <label className="block text-sm font-medium leading-6 text-gray-900">Headers (JSON)</label>
-                                      <textarea
-                                        value={JSON.stringify(pluginConfig.webhook?.headers, null, 2)}
-                                        onChange={(e) => {
-                                          try {
-                                            const headers = JSON.parse(e.target.value);
-                                            setPluginConfig(prev => ({
-                                              ...prev,
-                                              webhook: { ...prev.webhook!, headers }
-                                            }));
-                                          } catch (err) {
-                                            // Invalid JSON, ignore
-                                          }
-                                        }}
-                                        placeholder="{}"
-                                        rows={4}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-sm font-medium leading-6 text-gray-900">Payload Template (JSON)</label>
-                                      <textarea
-                                        value={pluginConfig.webhook?.payload}
-                                        onChange={(e) => setPluginConfig(prev => ({
-                                          ...prev,
-                                          webhook: { ...prev.webhook!, payload: e.target.value }
-                                        }))}
-                                        placeholder="{}"
-                                        rows={4}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
-                                      />
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Description at bottom */}
+                          {type === 'EMAIL' && (
                             <div>
-                              <label className="block text-sm font-medium leading-6 text-gray-900">Description</label>
-                              <textarea
-                                rows={2}
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
+                              <label className="block text-sm font-medium leading-6 text-gray-900">Email Address</label>
+                              <input
+                                type="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                placeholder="Optional description..."
                               />
                             </div>
+                          )}
+
+                          {(type === 'TEXT' || type === 'VOICE') && (
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium leading-6 text-gray-900">Phone Number</label>
+                                <PhoneInput
+                                  country={'us'}
+                                  value={phone.phoneNumber}
+                                  onChange={(value, data: any) => {
+                                    setPhone(prev => ({
+                                      ...prev,
+                                      phoneNumber: value,
+                                      countryCode: data.dialCode
+                                    }));
+                                  }}
+                                  containerClass="phone-input-container"
+                                  inputClass="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                  buttonClass="phone-select-button"
+                                />
+                              </div>
+                              <div className="flex items-center space-x-6">
+                                <label className="inline-flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={phone.enableText}
+                                    onChange={(e) => setPhone(prev => ({ ...prev, enableText: e.target.checked }))}
+                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                  />
+                                  <span className="ml-2 text-sm text-gray-700">Enable Text</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={phone.enableVoice}
+                                    onChange={(e) => setPhone(prev => ({ ...prev, enableVoice: e.target.checked }))}
+                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                  />
+                                  <span className="ml-2 text-sm text-gray-700">Enable Voice</span>
+                                </label>
+                              </div>
+                            </div>
+                          )}
+
+                          {(type === 'WEBHOOK' || type === 'PLUGIN') && (
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium leading-6 text-gray-900">Integration Type</label>
+                                <select
+                                  value={pluginConfig.type}
+                                  onChange={(e) => setPluginConfig(prev => ({ ...prev, type: e.target.value as PluginType }))}
+                                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                >
+                                  {pluginTypes.map((type) => (
+                                    <option key={type.value} value={type.value}>
+                                      {type.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {pluginConfig.type === 'SLACK' && (
+                                <div className="space-y-4 rounded-md bg-gray-50 px-4 py-4">
+                                  <div>
+                                    <label className="block text-sm font-medium leading-6 text-gray-900">Slack Webhook URL</label>
+                                    <input
+                                      type="url"
+                                      required
+                                      value={pluginConfig.slackWebhookUrl}
+                                      onChange={(e) => setPluginConfig(prev => ({ ...prev, slackWebhookUrl: e.target.value }))}
+                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium leading-6 text-gray-900">Slack Channel</label>
+                                    <input
+                                      type="text"
+                                      value={pluginConfig.slackChannel}
+                                      onChange={(e) => setPluginConfig(prev => ({ ...prev, slackChannel: e.target.value }))}
+                                      placeholder="#general"
+                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {pluginConfig.type === 'TELEGRAM' && (
+                                <div className="space-y-4 rounded-md bg-gray-50 px-4 py-4">
+                                  <div>
+                                    <label className="block text-sm font-medium leading-6 text-gray-900">Bot Token</label>
+                                    <input
+                                      type="text"
+                                      required
+                                      value={pluginConfig.telegramBotToken}
+                                      onChange={(e) => setPluginConfig(prev => ({ ...prev, telegramBotToken: e.target.value }))}
+                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium leading-6 text-gray-900">Chat ID</label>
+                                    <input
+                                      type="text"
+                                      required
+                                      value={pluginConfig.telegramChatId}
+                                      onChange={(e) => setPluginConfig(prev => ({ ...prev, telegramChatId: e.target.value }))}
+                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {pluginConfig.type === 'CUSTOM_WEBHOOK' && (
+                                <div className="space-y-4 rounded-md bg-gray-50 px-4 py-4">
+                                  <div>
+                                    <label className="block text-sm font-medium leading-6 text-gray-900">Webhook URL</label>
+                                    <input
+                                      type="url"
+                                      required
+                                      value={pluginConfig.webhook?.url}
+                                      onChange={(e) => setPluginConfig(prev => ({
+                                        ...prev,
+                                        webhook: { ...prev.webhook!, url: e.target.value }
+                                      }))}
+                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium leading-6 text-gray-900">HTTP Method</label>
+                                    <select
+                                      value={pluginConfig.webhook?.method}
+                                      onChange={(e) => setPluginConfig(prev => ({
+                                        ...prev,
+                                        webhook: { ...prev.webhook!, method: e.target.value as WebhookConfig['method'] }
+                                      }))}
+                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    >
+                                      {httpMethods.map((method) => (
+                                        <option key={method} value={method}>
+                                          {method}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium leading-6 text-gray-900">Headers (JSON)</label>
+                                    <textarea
+                                      value={JSON.stringify(pluginConfig.webhook?.headers, null, 2)}
+                                      onChange={(e) => {
+                                        try {
+                                          const headers = JSON.parse(e.target.value);
+                                          setPluginConfig(prev => ({
+                                            ...prev,
+                                            webhook: { ...prev.webhook!, headers }
+                                          }));
+                                        } catch (err) {
+                                          // Invalid JSON, ignore
+                                        }
+                                      }}
+                                      placeholder="{}"
+                                      rows={4}
+                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium leading-6 text-gray-900">Payload Template (JSON)</label>
+                                    <textarea
+                                      value={pluginConfig.webhook?.payload}
+                                      onChange={(e) => setPluginConfig(prev => ({
+                                        ...prev,
+                                        webhook: { ...prev.webhook!, payload: e.target.value }
+                                      }))}
+                                      placeholder="{}"
+                                      rows={4}
+                                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Description at bottom */}
+                          <div>
+                            <label className="block text-sm font-medium leading-6 text-gray-900">Description</label>
+                            <textarea
+                              rows={2}
+                              value={description}
+                              onChange={(e) => setDescription(e.target.value)}
+                              className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              placeholder="Optional description..."
+                            />
                           </div>
                         </div>
                       </div>
