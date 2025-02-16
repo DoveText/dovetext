@@ -196,22 +196,23 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
 
       // If we're editing, we need to check if any methods need to be deleted
       if (editingMethod) {
-        const config = editingMethod.config;
-        console.log('config', config);
-        debugger;
-        // If text was enabled but is now disabled, and this is a text method, delete it
-        if (config.enableText && !phone.enableText) {
-          deleteIds.push(editingMethod.id);
+        const config = typeof editingMethod.config === 'string' 
+          ? JSON.parse(editingMethod.config)
+          : editingMethod.config;
+
+        // If text method exists but is now disabled, delete it
+        if (config.textMethodId && !phone.enableText) {
+          deleteIds.push(config.textMethodId);
         }
-        // If voice was enabled but is now disabled, and this is a voice method, delete it
-        if (config.enableVoice && !phone.enableVoice) {
-          deleteIds.push(editingMethod.id);
+        // If voice method exists but is now disabled, delete it
+        if (config.voiceMethodId && !phone.enableVoice) {
+          deleteIds.push(config.voiceMethodId);
         }
       }
 
       if (phone.enableText) {
         requests.push({
-          id: editingMethod?.type === 'TEXT' ? editingMethod.id : undefined,
+          id: editingMethod?.config?.textMethodId,
           name,
           description,
           type: 'TEXT',
@@ -221,7 +222,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
 
       if (phone.enableVoice) {
         requests.push({
-          id: editingMethod?.type === 'VOICE' ? editingMethod.id : undefined,
+          id: editingMethod?.config?.voiceMethodId,
           name,
           description,
           type: 'VOICE',
@@ -304,8 +305,8 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
         setPhone({
           phoneNumber: config.phoneNumber || '',
           countryCode: config.countryCode || '',
-          enableText: config.enableText || false,
-          enableVoice: config.enableVoice || false,
+          enableText: Boolean(config.textMethodId),
+          enableVoice: Boolean(config.voiceMethodId),
         });
       } else if (group === 'PLUGIN') {
         setPluginConfig(config);
