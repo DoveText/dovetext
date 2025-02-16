@@ -77,8 +77,8 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
     }
 
     try {
-      // Add + to country code if not present
-      const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${countryCode}${phoneNumber}`;
+      // The phoneNumber already includes country code from the input component
+      const fullNumber = `+${phoneNumber}`;
       
       // Try to parse the phone number
       const parsedNumber = parsePhoneNumber(fullNumber);
@@ -100,6 +100,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
 
       return null;
     } catch (error) {
+      console.error('Phone validation error:', error);
       return "Invalid phone number format";
     }
   };
