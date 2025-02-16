@@ -364,6 +364,28 @@ const MethodList = ({
               <CopyButton text={config.doveNumber}/>
             </>
           );
+        } else if (method.type === 'PLUGIN') {
+          const pluginConfig = typeof config === 'string' ? JSON.parse(config) : config;
+          const pluginTypeMap: Record<string, string> = {
+            'SLACK': 'Slack',
+            'TELEGRAM': 'Telegram',
+            'CUSTOM_WEBHOOK': 'Webhook'
+          };
+          details = (
+            <>
+              <GlobeAltIcon className="h-3 w-3 mr-1 flex-shrink-0" />
+              <span className="truncate">{pluginTypeMap[pluginConfig.type] || 'Plugin'}</span>
+              {pluginConfig.type === 'SLACK' && (
+                <span className="ml-2 text-gray-400">{pluginConfig.slackWebhookUrl}</span>
+              )}
+              {pluginConfig.type === 'TELEGRAM' && (
+                <span className="ml-2 text-gray-400">Chat ID: {pluginConfig.telegramChatId}</span>
+              )}
+              {pluginConfig.type === 'CUSTOM_WEBHOOK' && (
+                <span className="ml-2 text-gray-400">{pluginConfig.webhook?.url}</span>
+              )}
+            </>
+          );
         }
 
         return (

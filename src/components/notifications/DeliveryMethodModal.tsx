@@ -262,12 +262,30 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
         }
       }
     } else if (group === 'PLUGIN') {
-      Object.assign(config, pluginConfig);
+      Object.assign(config, { type: pluginConfig.type });
+      
+      // Add only the relevant config based on plugin type
+      if (pluginConfig.type === 'SLACK') {
+        Object.assign(config, {
+          slackWebhookUrl: pluginConfig.slackWebhookUrl,
+          slackChannel: pluginConfig.slackChannel
+        });
+      } else if (pluginConfig.type === 'TELEGRAM') {
+        Object.assign(config, {
+          telegramBotToken: pluginConfig.telegramBotToken,
+          telegramChatId: pluginConfig.telegramChatId
+        });
+      } else if (pluginConfig.type === 'CUSTOM_WEBHOOK') {
+        Object.assign(config, {
+          webhook: pluginConfig.webhook
+        });
+      }
+      
       requests.push({
         id: editingMethod?.id,
         name,
         description,
-        type,
+        type: 'PLUGIN',  // Always set type as PLUGIN
         config,
       });
     }
