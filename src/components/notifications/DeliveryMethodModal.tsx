@@ -94,7 +94,10 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
 
       // Verify the number type (should be mobile)
       const numberType = parsedNumber.getType();
-      if (numberType !== 'MOBILE' && numberType !== 'FIXED_LINE_OR_MOBILE') {
+
+      // Check if the number type is mobile. Only check if we get valid numberType
+      // for CN, the numberType would be null!!
+      if (numberType && numberType !== 'MOBILE' && numberType !== 'FIXED_LINE_OR_MOBILE') {
         return "Please enter a mobile phone number";
       }
 
