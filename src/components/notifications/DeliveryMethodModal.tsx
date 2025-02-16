@@ -158,7 +158,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
     return !hasErrors && phoneMethodsValid;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -166,29 +166,69 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
     }
 
     const config: CreateDeliveryMethodRequest['config'] = {};
+    let requests: CreateDeliveryMethodRequest[] = [];
 
     if (group === 'DOVEAPP') {
       Object.assign(config, { doveNumber });
+      requests.push({
+        id: editingMethod?.id,
+        name,
+        description,
+        type,
+        config,
+      });
     } else if (group === 'EMAIL') {
       Object.assign(config, { email });
+      requests.push({
+        id: editingMethod?.id,
+        name,
+        description,
+        type,
+        config,
+      });
     } else if (group === 'PHONE') {
-      Object.assign(config, {
+      const baseConfig = {
         phoneNumber: phone.phoneNumber,
         countryCode: phone.countryCode,
-        enableText: phone.enableText,
-        enableVoice: phone.enableVoice,
-      });
+      };
+
+      if (phone.enableText) {
+        requests.push({
+          id: editingMethod?.type === 'TEXT' ? editingMethod.id : undefined,
+          name: name,
+          description,
+          type: 'TEXT',
+          config: { ...baseConfig },
+        });
+      }
+
+      if (phone.enableVoice) {
+        requests.push({
+          id: editingMethod?.type === 'VOICE' ? editingMethod.id : undefined,
+          name: name,
+          description,
+          type: 'VOICE',
+          config: { ...baseConfig },
+        });
+      }
     } else if (group === 'PLUGIN') {
       Object.assign(config, pluginConfig);
+      requests.push({
+        id: editingMethod?.id,
+        name,
+        description,
+        type,
+        config,
+      });
     }
 
-    onSubmit({
-      id: editingMethod?.id,
-      name,
-      description,
-      type,
-      config,
-    });
+    try {
+      // Process all requests
+      await Promise.all(requests.map(request => onSubmit(request)));
+    } catch (error) {
+      console.error('Error creating/updating delivery methods:', error);
+      setValidationErrors({ submit: 'Failed to save delivery method' });
+    }
   };
 
   const resetForm = () => {

@@ -75,6 +75,16 @@ const groupDefinitions: Omit<MethodGroup, 'methods'>[] = [
   }
 ];
 
+const getMethodConfig = (method: DeliveryMethod) => {
+  try {
+    const parsed = JSON.parse(method.config);
+    return parsed;
+  } catch (e) {
+    console.error('Failed to parse method config for method:', method.name, e);
+    return {};
+  }
+};
+
 const groupPhoneMethods = (methods: DeliveryMethod[]): PhoneMethodGroup[] => {
   const phoneGroups = new Map<string, PhoneMethodGroup>();
   
@@ -183,16 +193,6 @@ export default function DeliveryMethodList({
         return 'text-red-400';
       default:
         return 'text-gray-400';
-    }
-  };
-
-  const getMethodConfig = (method: DeliveryMethod) => {
-    try {
-      const parsed = JSON.parse(method.config);
-      return parsed;
-    } catch (e) {
-      console.error('Failed to parse method config for method:', method.name, e);
-      return {};
     }
   };
 
