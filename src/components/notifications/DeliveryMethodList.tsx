@@ -174,6 +174,25 @@ export default function DeliveryMethodList({
     }
   };
 
+  const handleModalSubmit = async (data: CreateDeliveryMethodRequest) => {
+    try {
+      await handleSubmit(data);
+    } catch (err) {
+      setError('Failed to save delivery method');
+      console.error(err);
+    }
+  };
+
+  const handleModalDelete = async (id: string) => {
+    try {
+      await deliveryMethodsApi.delete(id);
+      onMethodsChange();
+    } catch (err) {
+      setError('Failed to delete delivery method');
+      console.error(err);
+    }
+  };
+
   const groupMethods = (methods: DeliveryMethod[]): MethodGroup[] => {
     return groupDefinitions.map(group => ({
       ...group,
@@ -595,7 +614,8 @@ export default function DeliveryMethodList({
           setIsModalOpen(false);
           setEditingMethod(null);
         }}
-        onSubmit={handleSubmit}
+        onSubmit={handleModalSubmit}
+        onDelete={handleModalDelete}
         editingMethod={editingMethod}
         group={methodGroup}
       />

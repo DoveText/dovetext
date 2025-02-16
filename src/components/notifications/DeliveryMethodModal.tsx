@@ -14,6 +14,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: CreateDeliveryMethodRequest) => void;
+  onDelete?: (id: string) => void;
   editingMethod?: DeliveryMethod | null;
   group: DeliveryMethodGroup;
 }
@@ -33,7 +34,7 @@ const pluginTypes: { value: PluginType; label: string }[] = [
 
 const httpMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
-export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editingMethod, group = 'EMAIL' }: Props) {
+export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelete, editingMethod, group = 'EMAIL' }: Props) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<DeliveryMethodType>(() => {
@@ -167,6 +168,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
 
     const config: CreateDeliveryMethodRequest['config'] = {};
     let requests: CreateDeliveryMethodRequest[] = [];
+    let deleteIds: string[] = [];
 
     if (group === 'DOVEAPP') {
       Object.assign(config, { doveNumber });
@@ -192,10 +194,25 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
         countryCode: phone.countryCode,
       };
 
+      // If we're editing, we need to check if any methods need to be deleted
+      if (editingMethod) {
+        const config = editingMethod.config;
+        console.log('config', config);
+        debugger;
+        // If text was enabled but is now disabled, and this is a text method, delete it
+        if (config.enableText && !phone.enableText) {
+          deleteIds.push(editingMethod.id);
+        }
+        // If voice was enabled but is now disabled, and this is a voice method, delete it
+        if (config.enableVoice && !phone.enableVoice) {
+          deleteIds.push(editingMethod.id);
+        }
+      }
+
       if (phone.enableText) {
         requests.push({
           id: editingMethod?.type === 'TEXT' ? editingMethod.id : undefined,
-          name: name,
+          name,
           description,
           type: 'TEXT',
           config: { ...baseConfig },
@@ -205,7 +222,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
       if (phone.enableVoice) {
         requests.push({
           id: editingMethod?.type === 'VOICE' ? editingMethod.id : undefined,
-          name: name,
+          name,
           description,
           type: 'VOICE',
           config: { ...baseConfig },
@@ -223,7 +240,12 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
     }
 
     try {
-      // Process all requests
+      // First delete any methods that need to be deleted
+      if (deleteIds.length > 0 && onDelete) {
+        await Promise.all(deleteIds.map(id => onDelete(id)));
+      }
+
+      // Then process all create/update requests
       await Promise.all(requests.map(request => onSubmit(request)));
     } catch (error) {
       console.error('Error creating/updating delivery methods:', error);
@@ -265,6 +287,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, editing
     }
 
     if (editingMethod) {
+      console.log('Editing method', editingMethod);
       const config = typeof editingMethod.config === 'string' 
         ? JSON.parse(editingMethod.config)
         : editingMethod.config;
