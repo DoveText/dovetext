@@ -4,10 +4,12 @@ import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import Select from '@/components/common/Select';
+import EditableSelect, { EditableSelectOption } from '../common/EditableSelect';
 import { DeliveryMethod, DeliveryMethodType, CreateDeliveryMethodRequest, PluginType, WebhookConfig, PhoneConfig } from '@/types/delivery-method';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
+import { TrashIcon } from '@heroicons/react/24/outline';
 
 type DeliveryMethodGroup = 'DOVEAPP' | 'EMAIL' | 'PHONE' | 'PLUGIN';
 
@@ -41,6 +43,15 @@ const pluginTypeMap: Record<PluginType, string> = {
   CUSTOM_WEBHOOK: 'Custom Webhook',
 };
 
+const commonHeaderOptions: EditableSelectOption[] = [
+  { value: 'Authorization', label: 'Authorization' },
+  { value: 'Content-Type', label: 'Content-Type' },
+  { value: 'Accept', label: 'Accept' },
+  { value: 'User-Agent', label: 'User-Agent' },
+  { value: 'X-API-Key', label: 'X-API-Key' },
+  { value: 'X-Request-ID', label: 'X-Request-ID' },
+];
+
 export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelete, editingMethod, group = 'EMAIL' }: Props) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -71,6 +82,8 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
       payload: '',
     },
   });
+
+  const [headerKeys, setHeaderKeys] = useState<string[]>([]);
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
@@ -335,6 +348,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
         payload: '',
       },
     });
+    setHeaderKeys([]);
     setValidationErrors({});
   };
 
@@ -366,6 +380,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
         });
       } else if (group === 'PLUGIN') {
         setPluginConfig(config);
+        setHeaderKeys(Object.keys(config.webhook?.headers || {}));
       }
     } else {
       resetForm();
@@ -557,7 +572,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                         type="checkbox"
                                         checked={phone.enableText}
                                         onChange={(e) => setPhone(prev => ({ ...prev, enableText: e.target.checked }))}
-                                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-inset focus:ring-indigo-500"
                                       />
                                       <span className="ml-2 text-sm text-gray-700">Text</span>
                                     </label>
@@ -566,7 +581,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                         type="checkbox"
                                         checked={phone.enableVoice}
                                         onChange={(e) => setPhone(prev => ({ ...prev, enableVoice: e.target.checked }))}
-                                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-inset focus:ring-indigo-500"
                                       />
                                       <span className="ml-2 text-sm text-gray-700">Voice</span>
                                     </label>
@@ -712,24 +727,119 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                   </div>
 
                                   <div>
-                                    <label className="block text-sm font-medium leading-6 text-gray-900">Headers (JSON)</label>
-                                    <textarea
-                                      value={JSON.stringify(pluginConfig.webhook?.headers, null, 2)}
-                                      onChange={(e) => {
-                                        try {
-                                          const headers = JSON.parse(e.target.value);
-                                          setPluginConfig(prev => ({
-                                            ...prev,
-                                            webhook: { ...prev.webhook!, headers }
-                                          }));
-                                        } catch (err) {
-                                          // Invalid JSON, ignore
-                                        }
-                                      }}
-                                      placeholder="{}"
-                                      rows={4}
-                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
-                                    />
+                                    <div className="flex items-center justify-between">
+                                      <label className="block text-sm font-medium leading-6 text-gray-900">Headers</label>
+                                    </div>
+                                    <div className="mt-2 space-y-2">
+                                      {headerKeys.map((headerKey) => {
+                                        const value = pluginConfig.webhook?.headers?.[headerKey] || '';
+                                        return (
+                                          <div key={headerKey} className="flex gap-x-2 items-center">
+                                            <div className="w-1/3">
+                                              <EditableSelect
+                                                options={commonHeaderOptions}
+                                                value={headerKey}
+                                                onChange={(newKey) => {
+                                                  if (newKey === headerKey) return;
+                                                  
+                                                  const currentHeaders = { ...pluginConfig.webhook?.headers };
+                                                  const currentValue = currentHeaders[headerKey];
+                                                  delete currentHeaders[headerKey];
+                                                  currentHeaders[newKey] = currentValue;
+
+                                                  setHeaderKeys(prev => 
+                                                    prev.map(k => k === headerKey ? newKey : k)
+                                                  );
+
+                                                  setPluginConfig(prev => ({
+                                                    ...prev,
+                                                    webhook: {
+                                                      ...prev.webhook!,
+                                                      headers: currentHeaders
+                                                    }
+                                                  }));
+                                                }}
+                                                placeholder="Header name"
+                                              />
+                                            </div>
+                                            <div className="flex-1">
+                                              <input
+                                                type="text"
+                                                value={value}
+                                                onChange={(e) => {
+                                                  const currentHeaders = { ...pluginConfig.webhook?.headers };
+                                                  currentHeaders[headerKey] = e.target.value;
+                                                  setPluginConfig(prev => ({
+                                                    ...prev,
+                                                    webhook: {
+                                                      ...prev.webhook!,
+                                                      headers: currentHeaders
+                                                    }
+                                                  }));
+                                                }}
+                                                placeholder="Header value"
+                                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                              />
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const currentHeaders = { ...pluginConfig.webhook?.headers };
+                                                delete currentHeaders[headerKey];
+                                                
+                                                setHeaderKeys(prev => 
+                                                  prev.filter(k => k !== headerKey)
+                                                );
+
+                                                setPluginConfig(prev => ({
+                                                  ...prev,
+                                                  webhook: {
+                                                    ...prev.webhook!,
+                                                    headers: currentHeaders
+                                                  }
+                                                }));
+                                              }}
+                                              className="inline-flex items-center rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-500"
+                                            >
+                                              <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
+                                      {headerKeys.length === 0 && (
+                                        <p className="text-sm text-gray-500 text-center py-4">
+                                          No headers added yet. Click "Add Header" to add one.
+                                        </p>
+                                      )}
+                                      <div className="mt-4">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newKey = `header${headerKeys.length + 1}`;
+                                            setHeaderKeys(prev => [...prev, newKey]);
+                                            
+                                            setPluginConfig(prev => ({
+                                              ...prev,
+                                              webhook: {
+                                                ...prev.webhook || {
+                                                  url: '',
+                                                  method: 'POST',
+                                                  headers: {},
+                                                  payload: '',
+                                                },
+                                                headers: {
+                                                  ...(prev.webhook?.headers || {}),
+                                                  [newKey]: ''
+                                                }
+                                              }
+                                            }));
+                                          }}
+                                          className="w-full rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                                        >
+                                          Add Header
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
 
                                   <div>
