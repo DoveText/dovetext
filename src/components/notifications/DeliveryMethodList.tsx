@@ -325,7 +325,7 @@ const MethodList = ({
             <>
               <PhoneIcon className="h-3 w-3 flex-shrink-0" />
               <span className="truncate">{phoneNumber}</span>
-              <CopyButton text={phoneNumber} methodId={method.id} />
+              <CopyButton text={phoneNumber}/>
               <div className="flex items-center gap-x-2 ml-2">
                 {config.textMethodId && (
                   <span className="inline-flex items-center rounded-md bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
@@ -345,7 +345,7 @@ const MethodList = ({
             <>
               <EnvelopeIcon className="h-3 w-3 mr-1 flex-shrink-0" />
               <span className="truncate">{config.email}</span>
-              <CopyButton text={config.email} methodId={method.id} />
+              <CopyButton text={config.email}/>
             </>
           );
         } else if (method.type === 'DOVEAPP' && config.doveNumber) {
@@ -353,7 +353,7 @@ const MethodList = ({
             <>
               <BellIcon className="h-3 w-3 mr-1 flex-shrink-0" />
               <span className="truncate">Dove #: {config.doveNumber}</span>
-              <CopyButton text={config.doveNumber} methodId={method.id} />
+              <CopyButton text={config.doveNumber}/>
             </>
           );
         }
