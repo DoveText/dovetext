@@ -1,8 +1,8 @@
 'use client';
 
 import { Fragment, useEffect, useState } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { Dialog, Transition, Listbox } from '@headlessui/react';
+import { XMarkIcon, ChevronUpDownIcon } from '@heroicons/react/24/outline';
 import { DeliveryMethod, DeliveryMethodType, CreateDeliveryMethodRequest, PluginType, WebhookConfig, PhoneConfig } from '@/types/delivery-method';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
@@ -33,6 +33,12 @@ const pluginTypes: { value: PluginType; label: string }[] = [
 ];
 
 const httpMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+
+const pluginTypeMap: Record<PluginType, string> = {
+  SLACK: 'Slack',
+  TELEGRAM: 'Telegram',
+  CUSTOM_WEBHOOK: 'Custom Webhook',
+};
 
 export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelete, editingMethod, group = 'EMAIL' }: Props) {
   const [name, setName] = useState('');
@@ -573,18 +579,75 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                           {group === 'PLUGIN' && (
                             <div className="space-y-4">
                               <div>
-                                <label className="block text-sm font-medium leading-6 text-gray-900">Integration Type</label>
-                                <select
-                                  value={pluginConfig.type}
-                                  onChange={(e) => setPluginConfig(prev => ({ ...prev, type: e.target.value as PluginType }))}
-                                  className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                >
-                                  {pluginTypes.map((type) => (
-                                    <option key={type.value} value={type.value}>
-                                      {type.label}
-                                    </option>
-                                  ))}
-                                </select>
+                                <label className="block text-sm font-medium leading-6 text-gray-900">
+                                  Integration Type
+                                </label>
+                                {editingMethod ? (
+                                  <div className="mt-2">
+                                    <input
+                                      type="text"
+                                      value={pluginTypeMap[pluginConfig.type] || pluginConfig.type}
+                                      disabled
+                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-500 bg-gray-50 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6"
+                                    />
+                                  </div>
+                                ) : (
+                                  <Listbox
+                                    value={pluginConfig.type}
+                                    onChange={(value) => setPluginConfig(prev => ({ 
+                                      ...prev, 
+                                      type: value as PluginType,
+                                      // Reset other fields when type changes
+                                      slackWebhookUrl: '',
+                                      slackChannel: '',
+                                      telegramBotToken: '',
+                                      telegramChatId: '',
+                                      webhook: {
+                                        url: '',
+                                        method: 'POST',
+                                        headers: {},
+                                        payload: '',
+                                      },
+                                    }))}
+                                  >
+                                    <div className="relative mt-2">
+                                      <Listbox.Button className="relative w-full cursor-default rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                        <span className="block truncate">{pluginTypeMap[pluginConfig.type]}</span>
+                                        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                          <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                        </span>
+                                      </Listbox.Button>
+                                      <Transition
+                                        as={Fragment}
+                                        leave="transition ease-in duration-100"
+                                        leaveFrom="opacity-100"
+                                        leaveTo="opacity-0"
+                                      >
+                                        <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                                          {pluginTypes.map(({ value, label }) => (
+                                            <Listbox.Option
+                                              key={value}
+                                              className={({ active }) =>
+                                                `relative cursor-default select-none py-2 pl-3 pr-9 ${
+                                                  active ? 'bg-indigo-600 text-white' : 'text-gray-900'
+                                                }`
+                                              }
+                                              value={value}
+                                            >
+                                              {({ selected, active }) => (
+                                                <>
+                                                  <span className={`block truncate ${selected ? 'font-semibold' : 'font-normal'}`}>
+                                                    {label}
+                                                  </span>
+                                                </>
+                                              )}
+                                            </Listbox.Option>
+                                          ))}
+                                        </Listbox.Options>
+                                      </Transition>
+                                    </div>
+                                  </Listbox>
+                                )}
                               </div>
 
                               {pluginConfig.type === 'SLACK' && (
