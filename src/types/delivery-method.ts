@@ -9,31 +9,19 @@ export interface WebhookConfig {
   method: string;
   headers: Record<string, string>;
   payload?: string;
-  auth?: {
-    type: 'basic' | 'bearer' | 'apiKey';
-    username?: string;
-    password?: string;
-    token?: string;
-    key?: string;
-    value?: string;
-    in?: 'header' | 'query';
-  };
-}
-
-export interface SlackConfig {
-  webhookUrl: string;
-  channel?: string;  // Optional as it can be set in webhook URL
-}
-
-export interface TelegramConfig {
-  botToken: string;  // Required for authentication
-  chatId: string;    // Required to identify the target chat
 }
 
 export interface PluginConfig {
   type: PluginType;
-  slack?: SlackConfig;
-  telegram?: TelegramConfig;
+  // Dove App specific
+  doveNumber?: string;
+  // Slack specific
+  slackWebhookUrl?: string;
+  slackChannel?: string;
+  // Telegram specific
+  telegramBotToken?: string;
+  telegramChatId?: string;
+  // Custom webhook
   webhook?: WebhookConfig;
 }
 

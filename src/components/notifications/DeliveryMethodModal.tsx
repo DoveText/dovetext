@@ -60,14 +60,10 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
   });
   const [pluginConfig, setPluginConfig] = useState<PluginConfig>({
     type: 'SLACK',
-    slack: {
-      webhookUrl: '',
-      channel: '',
-    },
-    telegram: {
-      botToken: '',
-      chatId: '',
-    },
+    slackWebhookUrl: '',
+    slackChannel: '',
+    telegramBotToken: '',
+    telegramChatId: '',
     webhook: {
       url: '',
       method: 'POST',
@@ -144,14 +140,14 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
 
       case 'PLUGIN':
         if (pluginConfig.type === 'SLACK') {
-          if (!pluginConfig.slack?.webhookUrl?.trim()) {
+          if (!pluginConfig.slackWebhookUrl?.trim()) {
             errors.webhook = "Slack webhook URL is required";
           }
         } else if (pluginConfig.type === 'TELEGRAM') {
-          if (!pluginConfig.telegram?.botToken?.trim()) {
+          if (!pluginConfig.telegramBotToken?.trim()) {
             errors.botToken = "Telegram bot token is required";
           }
-          if (!pluginConfig.telegram?.chatId?.trim()) {
+          if (!pluginConfig.telegramChatId?.trim()) {
             errors.chatId = "Telegram chat ID is required";
           }
         } else if (pluginConfig.type === 'CUSTOM_WEBHOOK') {
@@ -277,17 +273,13 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
       // Add only the relevant config based on plugin type
       if (pluginConfig.type === 'SLACK') {
         Object.assign(config, {
-          slack: {
-            webhookUrl: pluginConfig.slack?.webhookUrl,
-            channel: pluginConfig.slack?.channel
-          }
+          slackWebhookUrl: pluginConfig.slackWebhookUrl,
+          slackChannel: pluginConfig.slackChannel
         });
       } else if (pluginConfig.type === 'TELEGRAM') {
         Object.assign(config, {
-          telegram: {
-            botToken: pluginConfig.telegram?.botToken,
-            chatId: pluginConfig.telegram?.chatId
-          }
+          telegramBotToken: pluginConfig.telegramBotToken,
+          telegramChatId: pluginConfig.telegramChatId
         });
       } else if (pluginConfig.type === 'CUSTOM_WEBHOOK') {
         Object.assign(config, {
@@ -332,14 +324,10 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
     });
     setPluginConfig({
       type: 'SLACK',
-      slack: {
-        webhookUrl: '',
-        channel: '',
-      },
-      telegram: {
-        botToken: '',
-        chatId: '',
-      },
+      slackWebhookUrl: '',
+      slackChannel: '',
+      telegramBotToken: '',
+      telegramChatId: '',
       webhook: {
         url: '',
         method: 'POST',
@@ -597,14 +585,10 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                   ...prev, 
                                   type: value as PluginType,
                                   // Reset other fields when type changes
-                                  slack: {
-                                    webhookUrl: '',
-                                    channel: '',
-                                  },
-                                  telegram: {
-                                    botToken: '',
-                                    chatId: '',
-                                  },
+                                  slackWebhookUrl: '',
+                                  slackChannel: '',
+                                  telegramBotToken: '',
+                                  telegramChatId: '',
                                   webhook: {
                                     url: '',
                                     method: 'POST',
@@ -624,10 +608,10 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                     <input
                                       type="url"
                                       required
-                                      value={pluginConfig.slack?.webhookUrl || ''}
+                                      value={pluginConfig.slackWebhookUrl}
                                       onChange={(e) => setPluginConfig(prev => ({
                                         ...prev,
-                                        slack: { ...prev.slack, webhookUrl: e.target.value }
+                                        slackWebhookUrl: e.target.value
                                       }))}
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                       placeholder="https://hooks.slack.com/services/..."
@@ -637,19 +621,16 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                     )}
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium leading-6 text-gray-900">
-                                      Channel Name (Optional)
-                                      <span className="ml-2 text-sm text-gray-500">Overrides the channel in webhook URL</span>
-                                    </label>
+                                    <label className="block text-sm font-medium leading-6 text-gray-900">Channel (Optional)</label>
                                     <input
                                       type="text"
-                                      value={pluginConfig.slack?.channel || ''}
+                                      value={pluginConfig.slackChannel || ''}
                                       onChange={(e) => setPluginConfig(prev => ({
                                         ...prev,
-                                        slack: { ...prev.slack, channel: e.target.value }
+                                        slackChannel: e.target.value
                                       }))}
-                                      placeholder="#general"
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      placeholder="#general"
                                     />
                                   </div>
                                 </div>
@@ -662,10 +643,10 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                     <input
                                       type="text"
                                       required
-                                      value={pluginConfig.telegram?.botToken || ''}
+                                      value={pluginConfig.telegramBotToken}
                                       onChange={(e) => setPluginConfig(prev => ({
                                         ...prev,
-                                        telegram: { ...prev.telegram, botToken: e.target.value }
+                                        telegramBotToken: e.target.value
                                       }))}
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                       placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
@@ -679,10 +660,10 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                     <input
                                       type="text"
                                       required
-                                      value={pluginConfig.telegram?.chatId || ''}
+                                      value={pluginConfig.telegramChatId}
                                       onChange={(e) => setPluginConfig(prev => ({
                                         ...prev,
-                                        telegram: { ...prev.telegram, chatId: e.target.value }
+                                        telegramChatId: e.target.value
                                       }))}
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                       placeholder="-100123456789"
@@ -707,28 +688,29 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                         webhook: { ...prev.webhook!, url: e.target.value }
                                       }))}
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      placeholder="https://api.example.com/webhook"
                                     />
                                     {validationErrors.webhook && (
                                       <p className="mt-2 text-sm text-red-500">{validationErrors.webhook}</p>
                                     )}
                                   </div>
+
                                   <div>
                                     <label className="block text-sm font-medium leading-6 text-gray-900">HTTP Method</label>
                                     <select
                                       value={pluginConfig.webhook?.method}
                                       onChange={(e) => setPluginConfig(prev => ({
                                         ...prev,
-                                        webhook: { ...prev.webhook!, method: e.target.value as WebhookConfig['method'] }
+                                        webhook: { ...prev.webhook!, method: e.target.value }
                                       }))}
-                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      className="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     >
-                                      {httpMethods.map((method) => (
-                                        <option key={method} value={method}>
-                                          {method}
-                                        </option>
+                                      {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(method => (
+                                        <option key={method} value={method}>{method}</option>
                                       ))}
                                     </select>
                                   </div>
+
                                   <div>
                                     <label className="block text-sm font-medium leading-6 text-gray-900">Headers (JSON)</label>
                                     <textarea
@@ -749,6 +731,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
                                     />
                                   </div>
+
                                   <div>
                                     <label className="block text-sm font-medium leading-6 text-gray-900">Payload Template (JSON)</label>
                                     <textarea
