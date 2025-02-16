@@ -427,8 +427,9 @@ export default function DeliveryMethodList({
 
   const handleSubmit = async (data: CreateDeliveryMethodRequest) => {
     try {
-      if (editingMethod) {
-        await deliveryMethodsApi.update(editingMethod.id, data);
+      console.log('Handling submit with data:', JSON.stringify(data, null, 2));
+      if (data.id) {
+        await deliveryMethodsApi.update(data.id, data);
       } else {
         await deliveryMethodsApi.create(data);
       }

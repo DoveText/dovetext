@@ -194,40 +194,72 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
         countryCode: phone.countryCode,
       };
 
-      // If we're editing, we need to check if any methods need to be deleted
       if (editingMethod) {
         const config = typeof editingMethod.config === 'string' 
           ? JSON.parse(editingMethod.config)
           : editingMethod.config;
 
-        // If text method exists but is now disabled, delete it
+        // Handle text method
         if (config.textMethodId && !phone.enableText) {
           deleteIds.push(config.textMethodId);
+        } else if (phone.enableText) {
+          if (!config.textMethodId) {
+            requests.push({
+              name,
+              description,
+              type: 'TEXT',
+              config: { ...baseConfig },
+            });
+          } else {
+            requests.push({
+              id: config.textMethodId,
+              name,
+              description,
+              type: 'TEXT',
+              config: { ...baseConfig },
+            });
+          }
         }
-        // If voice method exists but is now disabled, delete it
+
+        // Handle voice method
         if (config.voiceMethodId && !phone.enableVoice) {
           deleteIds.push(config.voiceMethodId);
+        } else if (phone.enableVoice) {
+          if (!config.voiceMethodId) {
+            requests.push({
+              name,
+              description,
+              type: 'VOICE',
+              config: { ...baseConfig },
+            });
+          } else {
+            requests.push({
+              id: config.voiceMethodId,
+              name,
+              description,
+              type: 'VOICE',
+              config: { ...baseConfig },
+            });
+          }
         }
-      }
-
-      if (phone.enableText) {
-        requests.push({
-          id: editingMethod?.config?.textMethodId,
-          name,
-          description,
-          type: 'TEXT',
-          config: { ...baseConfig },
-        });
-      }
-
-      if (phone.enableVoice) {
-        requests.push({
-          id: editingMethod?.config?.voiceMethodId,
-          name,
-          description,
-          type: 'VOICE',
-          config: { ...baseConfig },
-        });
+      } else {
+        // For new methods or when editing a method of different type
+        if (phone.enableText) {
+          requests.push({
+            name,
+            description,
+            type: 'TEXT',
+            config: { ...baseConfig },
+          });
+        }
+        if (phone.enableVoice) {
+          requests.push({
+            name,
+            description,
+            type: 'VOICE',
+            config: { ...baseConfig },
+          });
+        }
       }
     } else if (group === 'PLUGIN') {
       Object.assign(config, pluginConfig);
@@ -248,6 +280,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
 
       // Then process all create/update requests
       await Promise.all(requests.map(request => onSubmit(request)));
+      onClose()
     } catch (error) {
       console.error('Error creating/updating delivery methods:', error);
       setValidationErrors({ submit: 'Failed to save delivery method' });
@@ -288,7 +321,6 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
     }
 
     if (editingMethod) {
-      console.log('Editing method', editingMethod);
       const config = typeof editingMethod.config === 'string' 
         ? JSON.parse(editingMethod.config)
         : editingMethod.config;
