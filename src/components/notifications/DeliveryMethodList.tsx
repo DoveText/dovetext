@@ -19,6 +19,8 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import DeliveryMethodModal from './DeliveryMethodModal';
 import { deliveryMethodsApi } from '@/api/delivery-methods';
 import CopyButton from '@/components/common/CopyButton';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
+import { Dialog } from '@headlessui/react';
 
 interface DeliveryMethodListProps {
   methods: DeliveryMethod[];
@@ -390,15 +392,34 @@ export default function DeliveryMethodList({
   const [editingMethod, setEditingMethod] = useState<DeliveryMethod | null>(null);
   const [methodGroup, setMethodGroup] = useState<'DOVEAPP' | 'EMAIL' | 'PHONE' | 'PLUGIN'>('EMAIL');
   const [error, setError] = useState<string | null>(null);
+  const [deletingMethod, setDeletingMethod] = useState<DeliveryMethod | null>(null);
 
-  const handleDelete = async (method: DeliveryMethod) => {
-    if (!confirm('Are you sure you want to delete this delivery method?')) {
-      return;
-    }
+  const handleDelete = (method: DeliveryMethod) => {
+    setDeletingMethod(method);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingMethod) return;
 
     try {
-      await deliveryMethodsApi.delete(method.id);
+      if (deletingMethod.type === 'TEXT' || deletingMethod.type === 'VOICE') {
+        const config = deletingMethod.config;
+
+        const deleteIds = [];
+        if (config.textMethodId) {
+          deleteIds.push(config.textMethodId);
+        }
+        if (config.voiceMethodId) {
+          deleteIds.push(config.voiceMethodId);
+        }
+
+        await Promise.all(deleteIds.map(id => deliveryMethodsApi.delete(id)));
+      } else {
+        await deliveryMethodsApi.delete(deletingMethod.id);
+      }
+      
       onMethodsChange();
+      setDeletingMethod(null);
     } catch (err) {
       setError('Failed to delete delivery method');
       console.error(err);
@@ -427,7 +448,6 @@ export default function DeliveryMethodList({
 
   const handleSubmit = async (data: CreateDeliveryMethodRequest) => {
     try {
-      console.log('Handling submit with data:', JSON.stringify(data, null, 2));
       if (data.id) {
         await deliveryMethodsApi.update(data.id, data);
       } else {
@@ -593,6 +613,14 @@ export default function DeliveryMethodList({
         onDelete={handleModalDelete}
         editingMethod={editingMethod}
         group={methodGroup}
+      />
+      <ConfirmDialog
+        isOpen={Boolean(deletingMethod)}
+        onClose={() => setDeletingMethod(null)}
+        onConfirm={confirmDelete}
+        title="Delete Delivery Method"
+        message="Are you sure you want to delete this delivery method? This action cannot be undone."
+        confirmText="Delete"
       />
       {error && (
         <div className="mt-4 text-sm text-red-500">{error}</div>
