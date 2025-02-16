@@ -135,6 +135,21 @@ const groupMethods = (methods: DeliveryMethod[]): MethodGroup[] => {
   }));
 };
 
+interface MethodListProps {
+  methods: DeliveryMethod[];
+  group: MethodGroup;
+  hoveredMethod: string | null;
+  editingMethod: DeliveryMethod | null;
+  onMouseEnter: (methodId: string) => void;
+  onMouseLeave: () => void;
+  handleVerify: (method: DeliveryMethod) => void;
+  handleSetDefault: (method: DeliveryMethod) => void;
+  handleEdit: (method: DeliveryMethod) => void;
+  handleDelete: (method: DeliveryMethod) => void;
+  getMethodStatusColor: (status: string) => string;
+  handleAddClick: (group: MethodGroup) => void;
+}
+
 const MethodItem = ({ 
   method, 
   icon: Icon, 
@@ -152,6 +167,8 @@ const MethodItem = ({
   handleEdit,
   handleDelete,
   getMethodStatusColor,
+  handleAddClick,
+  group,
 }: {
   method: DeliveryMethod;
   icon: React.ComponentType<any>;
@@ -169,6 +186,8 @@ const MethodItem = ({
   handleEdit: (method: DeliveryMethod) => void;
   handleDelete: (method: DeliveryMethod) => void;
   getMethodStatusColor: (status: string) => string;
+  handleAddClick: (group: MethodGroup) => void;
+  group: MethodGroup;
 }) => (
   <li
     className={`relative flex justify-between gap-x-6 py-5 px-4 transition-colors duration-200
@@ -266,19 +285,8 @@ const MethodList = ({
   handleEdit,
   handleDelete,
   getMethodStatusColor,
-}: {
-  methods: DeliveryMethod[];
-  group: MethodGroup;
-  hoveredMethod: string | null;
-  editingMethod: DeliveryMethod | null;
-  onMouseEnter: (methodId: string) => void;
-  onMouseLeave: () => void;
-  handleVerify: (method: DeliveryMethod) => void;
-  handleSetDefault: (method: DeliveryMethod) => void;
-  handleEdit: (method: DeliveryMethod) => void;
-  handleDelete: (method: DeliveryMethod) => void;
-  getMethodStatusColor: (status: string) => string;
-}) => {
+  handleAddClick,
+}: MethodListProps) => {
   if (methods.length === 0) {
     if (!group.canCreate) return null;
 
@@ -309,7 +317,7 @@ const MethodList = ({
 
   const methodsToRender = group.name === 'Phone & Text' 
     ? groupPhoneMethods(methods)
-    : methods.map(method => ({ method, config: getMethodConfig(method) }));
+    : methods.map(method => ({ method: {...method, config: getMethodConfig(method)} }));
 
   return (
     <ul role="list" className="space-y-4">
@@ -376,6 +384,8 @@ const MethodList = ({
             handleEdit={handleEdit}
             handleDelete={handleDelete}
             getMethodStatusColor={getMethodStatusColor}
+            handleAddClick={handleAddClick}
+            group={group}
           />
         );
       })}
@@ -598,6 +608,7 @@ export default function DeliveryMethodList({
               handleEdit={handleEdit}
               handleDelete={handleDelete}
               getMethodStatusColor={getMethodStatusColor}
+              handleAddClick={handleAddClick}
             />
           </div>
         ))}
