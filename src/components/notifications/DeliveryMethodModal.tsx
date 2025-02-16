@@ -1,8 +1,9 @@
 'use client';
 
 import { Fragment, useEffect, useState } from 'react';
-import { Dialog, Transition, Listbox } from '@headlessui/react';
-import { XMarkIcon, ChevronUpDownIcon } from '@heroicons/react/24/outline';
+import { Dialog, Transition } from '@headlessui/react';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import Select from '@/components/common/Select';
 import { DeliveryMethod, DeliveryMethodType, CreateDeliveryMethodRequest, PluginType, WebhookConfig, PhoneConfig } from '@/types/delivery-method';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
@@ -59,11 +60,14 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
   });
   const [pluginConfig, setPluginConfig] = useState<PluginConfig>({
     type: 'SLACK',
-    doveNumber: '',
-    slackWebhookUrl: '',
-    slackChannel: '',
-    telegramBotToken: '',
-    telegramChatId: '',
+    slack: {
+      webhookUrl: '',
+      channel: '',
+    },
+    telegram: {
+      botToken: '',
+      chatId: '',
+    },
     webhook: {
       url: '',
       method: 'POST',
@@ -140,14 +144,14 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
 
       case 'PLUGIN':
         if (pluginConfig.type === 'SLACK') {
-          if (!pluginConfig.slackWebhookUrl?.trim()) {
+          if (!pluginConfig.slack?.webhookUrl?.trim()) {
             errors.webhook = "Slack webhook URL is required";
           }
         } else if (pluginConfig.type === 'TELEGRAM') {
-          if (!pluginConfig.telegramBotToken?.trim()) {
+          if (!pluginConfig.telegram?.botToken?.trim()) {
             errors.botToken = "Telegram bot token is required";
           }
-          if (!pluginConfig.telegramChatId?.trim()) {
+          if (!pluginConfig.telegram?.chatId?.trim()) {
             errors.chatId = "Telegram chat ID is required";
           }
         } else if (pluginConfig.type === 'CUSTOM_WEBHOOK') {
@@ -273,13 +277,17 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
       // Add only the relevant config based on plugin type
       if (pluginConfig.type === 'SLACK') {
         Object.assign(config, {
-          slackWebhookUrl: pluginConfig.slackWebhookUrl,
-          slackChannel: pluginConfig.slackChannel
+          slack: {
+            webhookUrl: pluginConfig.slack?.webhookUrl,
+            channel: pluginConfig.slack?.channel
+          }
         });
       } else if (pluginConfig.type === 'TELEGRAM') {
         Object.assign(config, {
-          telegramBotToken: pluginConfig.telegramBotToken,
-          telegramChatId: pluginConfig.telegramChatId
+          telegram: {
+            botToken: pluginConfig.telegram?.botToken,
+            chatId: pluginConfig.telegram?.chatId
+          }
         });
       } else if (pluginConfig.type === 'CUSTOM_WEBHOOK') {
         Object.assign(config, {
@@ -324,10 +332,14 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
     });
     setPluginConfig({
       type: 'SLACK',
-      slackWebhookUrl: '',
-      slackChannel: '',
-      telegramBotToken: '',
-      telegramChatId: '',
+      slack: {
+        webhookUrl: '',
+        channel: '',
+      },
+      telegram: {
+        botToken: '',
+        chatId: '',
+      },
       webhook: {
         url: '',
         method: 'POST',
@@ -578,99 +590,64 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
 
                           {group === 'PLUGIN' && (
                             <div className="space-y-4">
-                              <div>
-                                <label className="block text-sm font-medium leading-6 text-gray-900">
-                                  Integration Type
-                                </label>
-                                {editingMethod ? (
-                                  <div className="mt-2">
-                                    <input
-                                      type="text"
-                                      value={pluginTypeMap[pluginConfig.type] || pluginConfig.type}
-                                      disabled
-                                      className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-500 bg-gray-50 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6"
-                                    />
-                                  </div>
-                                ) : (
-                                  <Listbox
-                                    value={pluginConfig.type}
-                                    onChange={(value) => setPluginConfig(prev => ({ 
-                                      ...prev, 
-                                      type: value as PluginType,
-                                      // Reset other fields when type changes
-                                      slackWebhookUrl: '',
-                                      slackChannel: '',
-                                      telegramBotToken: '',
-                                      telegramChatId: '',
-                                      webhook: {
-                                        url: '',
-                                        method: 'POST',
-                                        headers: {},
-                                        payload: '',
-                                      },
-                                    }))}
-                                  >
-                                    <div className="relative mt-2">
-                                      <Listbox.Button className="relative w-full cursor-default rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
-                                        <span className="block truncate">{pluginTypeMap[pluginConfig.type]}</span>
-                                        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                                          <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                                        </span>
-                                      </Listbox.Button>
-                                      <Transition
-                                        as={Fragment}
-                                        leave="transition ease-in duration-100"
-                                        leaveFrom="opacity-100"
-                                        leaveTo="opacity-0"
-                                      >
-                                        <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                                          {pluginTypes.map(({ value, label }) => (
-                                            <Listbox.Option
-                                              key={value}
-                                              className={({ active }) =>
-                                                `relative cursor-default select-none py-2 pl-3 pr-9 ${
-                                                  active ? 'bg-indigo-600 text-white' : 'text-gray-900'
-                                                }`
-                                              }
-                                              value={value}
-                                            >
-                                              {({ selected, active }) => (
-                                                <>
-                                                  <span className={`block truncate ${selected ? 'font-semibold' : 'font-normal'}`}>
-                                                    {label}
-                                                  </span>
-                                                </>
-                                              )}
-                                            </Listbox.Option>
-                                          ))}
-                                        </Listbox.Options>
-                                      </Transition>
-                                    </div>
-                                  </Listbox>
-                                )}
-                              </div>
+                              <Select
+                                label="Integration Type"
+                                value={pluginConfig.type}
+                                onChange={(value) => setPluginConfig(prev => ({ 
+                                  ...prev, 
+                                  type: value as PluginType,
+                                  // Reset other fields when type changes
+                                  slack: {
+                                    webhookUrl: '',
+                                    channel: '',
+                                  },
+                                  telegram: {
+                                    botToken: '',
+                                    chatId: '',
+                                  },
+                                  webhook: {
+                                    url: '',
+                                    method: 'POST',
+                                    headers: {},
+                                    payload: '',
+                                  },
+                                }))}
+                                options={pluginTypes}
+                                disabled={!!editingMethod}
+                                className="mt-2"
+                              />
 
                               {pluginConfig.type === 'SLACK' && (
                                 <div className="space-y-4 rounded-md bg-gray-50 px-4 py-4">
                                   <div>
-                                    <label className="block text-sm font-medium leading-6 text-gray-900">Slack Webhook URL</label>
+                                    <label className="block text-sm font-medium leading-6 text-gray-900">Webhook URL</label>
                                     <input
                                       type="url"
                                       required
-                                      value={pluginConfig.slackWebhookUrl}
-                                      onChange={(e) => setPluginConfig(prev => ({ ...prev, slackWebhookUrl: e.target.value }))}
+                                      value={pluginConfig.slack?.webhookUrl || ''}
+                                      onChange={(e) => setPluginConfig(prev => ({
+                                        ...prev,
+                                        slack: { ...prev.slack, webhookUrl: e.target.value }
+                                      }))}
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      placeholder="https://hooks.slack.com/services/..."
                                     />
                                     {validationErrors.webhook && (
                                       <p className="mt-2 text-sm text-red-500">{validationErrors.webhook}</p>
                                     )}
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium leading-6 text-gray-900">Slack Channel</label>
+                                    <label className="block text-sm font-medium leading-6 text-gray-900">
+                                      Channel Name (Optional)
+                                      <span className="ml-2 text-sm text-gray-500">Overrides the channel in webhook URL</span>
+                                    </label>
                                     <input
                                       type="text"
-                                      value={pluginConfig.slackChannel}
-                                      onChange={(e) => setPluginConfig(prev => ({ ...prev, slackChannel: e.target.value }))}
+                                      value={pluginConfig.slack?.channel || ''}
+                                      onChange={(e) => setPluginConfig(prev => ({
+                                        ...prev,
+                                        slack: { ...prev.slack, channel: e.target.value }
+                                      }))}
                                       placeholder="#general"
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
@@ -685,26 +662,34 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                     <input
                                       type="text"
                                       required
-                                      value={pluginConfig.telegramBotToken}
-                                      onChange={(e) => setPluginConfig(prev => ({ ...prev, telegramBotToken: e.target.value }))}
+                                      value={pluginConfig.telegram?.botToken || ''}
+                                      onChange={(e) => setPluginConfig(prev => ({
+                                        ...prev,
+                                        telegram: { ...prev.telegram, botToken: e.target.value }
+                                      }))}
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
                                     />
-                                    {validationErrors.botToken && (
-                                      <p className="mt-2 text-sm text-red-500">{validationErrors.botToken}</p>
-                                    )}
+                                    <p className="mt-2 text-sm text-gray-500">
+                                      Create a bot and get the token from @BotFather
+                                    </p>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium leading-6 text-gray-900">Chat ID</label>
                                     <input
                                       type="text"
                                       required
-                                      value={pluginConfig.telegramChatId}
-                                      onChange={(e) => setPluginConfig(prev => ({ ...prev, telegramChatId: e.target.value }))}
+                                      value={pluginConfig.telegram?.chatId || ''}
+                                      onChange={(e) => setPluginConfig(prev => ({
+                                        ...prev,
+                                        telegram: { ...prev.telegram, chatId: e.target.value }
+                                      }))}
                                       className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      placeholder="-100123456789"
                                     />
-                                    {validationErrors.chatId && (
-                                      <p className="mt-2 text-sm text-red-500">{validationErrors.chatId}</p>
-                                    )}
+                                    <p className="mt-2 text-sm text-gray-500">
+                                      Add the bot to a group/channel and get the chat ID
+                                    </p>
                                   </div>
                                 </div>
                               )}
