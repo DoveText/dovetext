@@ -1,4 +1,4 @@
-import { Fragment, useState, useRef } from 'react';
+import { Fragment, useState, useRef, useEffect } from 'react';
 import { Combobox, Transition } from '@headlessui/react';
 import { ChevronUpDownIcon } from '@heroicons/react/20/solid';
 
@@ -35,35 +35,35 @@ export default function EditableSelect({
           return option.label.toLowerCase().includes(query.toLowerCase());
         });
 
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = event.target.value;
-    setQuery(newValue);
-    onChange(newValue);
-  };
-
   return (
     <div className={className}>
-      <Combobox value={value} onChange={onChange}>
+      <Combobox 
+        value={value} 
+        onChange={(newValue) => {
+          onChange(newValue);
+          setQuery('');
+        }}
+      >
         <div className="relative">
           <Combobox.Input
             ref={inputRef}
             className="w-full rounded-md border-0 bg-white py-1.5 pl-3 pr-10 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-            onChange={handleInputChange}
-            onFocus={() => setIsOpen(true)}
+            onChange={(event) => {
+              const newValue = event.target.value;
+              setQuery(newValue);
+            }}
+            value={query || value}
+            onFocus={() => {
+              setIsOpen(true);
+            }}
             onBlur={() => {
               setTimeout(() => {
+                onChange(query || value);
                 setIsOpen(false);
                 setQuery('');
                 onBlur?.();
               }, 100);
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                inputRef.current?.blur();
-              }
-            }}
-            displayValue={(val: string) => val}
             placeholder={placeholder}
           />
           <Combobox.Button 
@@ -88,7 +88,7 @@ export default function EditableSelect({
             <Combobox.Options static className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
               {filteredOptions.length === 0 && query !== '' ? (
                 <div className="relative cursor-default select-none px-4 py-2 text-gray-700">
-                  Press Enter to use this value
+                  No matches found
                 </div>
               ) : (
                 filteredOptions.map((option) => (
