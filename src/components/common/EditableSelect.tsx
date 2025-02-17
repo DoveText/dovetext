@@ -26,6 +26,7 @@ export default function EditableSelect({
 }: EditableSelectProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const filteredOptions =
@@ -42,6 +43,7 @@ export default function EditableSelect({
         onChange={(newValue) => {
           onChange(newValue);
           setQuery('');
+          setIsEditing(false);
         }}
       >
         <div className="relative">
@@ -52,15 +54,19 @@ export default function EditableSelect({
               const newValue = event.target.value;
               setQuery(newValue);
             }}
-            value={query || value}
+            value={isEditing ? query : value}
             onFocus={() => {
+              setIsEditing(true);
+              setQuery(value);
               setIsOpen(true);
             }}
             onBlur={() => {
               setTimeout(() => {
-                onChange(query || value);
+                const finalValue = query || value;
+                onChange(finalValue);
                 setIsOpen(false);
                 setQuery('');
+                setIsEditing(false);
                 onBlur?.();
               }, 100);
             }}
@@ -72,6 +78,7 @@ export default function EditableSelect({
                   onChange(currentValue);
                   setQuery('');
                   setIsOpen(false);
+                  setIsEditing(false);
                   inputRef.current?.blur();
                 }
               }
@@ -83,6 +90,8 @@ export default function EditableSelect({
             onClick={() => {
               setIsOpen(!isOpen);
               if (!isOpen) {
+                setIsEditing(true);
+                setQuery(value);
                 inputRef.current?.focus();
               }
             }}
