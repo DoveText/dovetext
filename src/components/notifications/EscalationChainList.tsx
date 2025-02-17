@@ -83,24 +83,29 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
     return `${Math.floor(seconds / 3600)}h`;
   };
 
-  const renderChainSteps = (chain: EscalationChain) => (
+  const renderChainStages = (chain: EscalationChain) => (
     <div className="mt-2 flex flex-wrap gap-2">
-      {chain.steps?.map((step, index) => (
+      {chain.stages?.map((stage, index) => (
         <div
-          key={`${chain.id}-step-${index}`}
+          key={`${chain.id}-stage-${index}`}
           className="inline-flex items-center gap-x-1.5 rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset"
         >
           <BellIcon className="h-3 w-3" aria-hidden="true" />
-          {step.method?.name || 'Loading...'}
-          {index < (chain.steps?.length || 0) - 1 && (
+          {stage.method?.name || 'Loading...'}
+          {index < (chain.stages?.length || 0) - 1 && (
             <>
               <ChevronRightIcon className="h-3 w-3 text-gray-400" aria-hidden="true" />
               <ClockIcon className="h-3 w-3 text-gray-400" aria-hidden="true" />
-              {formatDuration(step.waitTime)}
+              {formatDuration(stage.waitTime)}
             </>
           )}
         </div>
       ))}
+      {!chain.stages?.length && (
+        <div className="text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-md">
+          No stages added yet. Click "Add Stage" to create your first escalation stage.
+        </div>
+      )}
     </div>
   );
 
@@ -110,7 +115,7 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
         <div className="sm:flex-auto">
           <h1 className="text-base font-semibold leading-6 text-gray-900">Escalation Chains</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Define escalation paths for notifications with multiple steps and retry policies.
+            Define escalation paths for notifications with multiple stages and retry policies.
           </p>
         </div>
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
@@ -185,7 +190,7 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
                               {chain.description}
                             </p>
                           )}
-                          {renderChainSteps(chain)}
+                          {renderChainStages(chain)}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-x-4">

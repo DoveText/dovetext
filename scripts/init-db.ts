@@ -1,16 +1,13 @@
-import { Pool } from 'pg';
+import { db, pgp } from '../src/lib/db';
 import * as fs from 'fs';
 import * as path from 'path';
-import { config } from './db/config';
 
 async function initDb() {
-  const pool = new Pool(config);
-  
   try {
     // Read and execute schema.sql
     const schemaPath = path.join(__dirname, 'db', 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
-    await pool.query(schema);
+    await db.none(schema);
     console.log('Schema initialized successfully');
 
     // Get today's date in YYYYMMDD format
@@ -31,14 +28,14 @@ async function initDb() {
       for (const file of migrationFiles) {
         const [date, ...nameParts] = file.replace('.ts', '').split('_');
         const name = nameParts.join('_');
-        await pool.query(
+        await db.none(
           'INSERT INTO migrations (date, name) VALUES ($1, $2) ON CONFLICT (date, name) DO NOTHING',
           [date, name || 'init']
         );
       }
     } else {
       // No migrations for today, create a dummy record
-      await pool.query(
+      await db.none(
         'INSERT INTO migrations (date, name) VALUES ($1, $2) ON CONFLICT (date, name) DO NOTHING',
         [today, 'init']
       );
@@ -49,7 +46,8 @@ async function initDb() {
     console.error('Failed to initialize database:', error);
     throw error;
   } finally {
-    await pool.end();
+    // Close the database connection
+    pgp.end();
   }
 }
 

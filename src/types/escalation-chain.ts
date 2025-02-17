@@ -1,33 +1,42 @@
 import { DeliveryMethod } from './delivery-method';
 
-export interface EscalationStep {
-  id: string;
+export interface StageDeliveryMethod {
+  id?: string;
   methodId: string;
-  method?: DeliveryMethod;  // Populated when loading
-  waitTime: number;  // Time to wait before escalating to this step (in seconds)
-  retryCount: number;  // Number of times to retry this step before escalating
-  retryInterval: number;  // Time to wait between retries (in seconds)
+  methodName?: string;
+}
+
+export interface EscalationStage {
+  id?: string;
+  name: string;
+  stageOrder: number;
+  waitDurationSeconds: number;
+  maxAttempts: number;
+  retryIntervalSeconds: number;
+  deliveryMethods: StageDeliveryMethod[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface EscalationChain {
-  id: string;
+  id?: string;
   name: string;
   description?: string;
-  isEnabled: boolean;
-  steps: EscalationStep[];
-  createdAt: string;
-  updatedAt: string;
+  isActive: boolean;
+  stages: EscalationStage[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CreateEscalationChainRequest {
   name: string;
   description?: string;
-  steps: Omit<EscalationStep, 'id' | 'method'>[];
+  stages: Omit<EscalationStage, 'id' | 'createdAt' | 'updatedAt'>[];
 }
 
 export interface UpdateEscalationChainRequest {
   name?: string;
   description?: string;
-  isEnabled?: boolean;
-  steps?: Omit<EscalationStep, 'id' | 'method'>[];
+  isActive?: boolean;
+  stages?: Omit<EscalationStage, 'id' | 'createdAt' | 'updatedAt'>[];
 }
