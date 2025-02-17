@@ -13,6 +13,7 @@ import {
 import { deliveryRulesApi } from '@/api/delivery-rules';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { Dialog } from '@headlessui/react';
+import DeliveryRuleModal from './DeliveryRuleModal';
 
 interface DeliveryRuleListProps {
   rules: DeliveryRule[];
