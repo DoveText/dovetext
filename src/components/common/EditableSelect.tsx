@@ -36,14 +36,20 @@ export default function EditableSelect({
           return option.label.toLowerCase().includes(query.toLowerCase());
         });
 
+  // Find the matching option for the current value
+  const selectedOption = options.find(option => option.value === value);
+
   return (
     <div className={className}>
       <Combobox 
         value={value} 
         onChange={(newValue) => {
           onChange(newValue);
-          setQuery('');
+          // Find the selected option to get its label
+          const selected = options.find(option => option.value === newValue);
+          setQuery(selected ? selected.label : newValue);
           setIsEditing(false);
+          setIsOpen(false);
         }}
       >
         <div className="relative">
@@ -53,11 +59,12 @@ export default function EditableSelect({
             onChange={(event) => {
               const newValue = event.target.value;
               setQuery(newValue);
+              setIsOpen(true);
             }}
-            value={isEditing ? query : value}
+            displayValue={() => isEditing ? query : (selectedOption?.label || value)}
             onFocus={() => {
               setIsEditing(true);
-              setQuery(value);
+              setQuery(selectedOption?.label || value);
               setIsOpen(true);
             }}
             onBlur={() => {
@@ -65,10 +72,9 @@ export default function EditableSelect({
                 const finalValue = query || value;
                 onChange(finalValue);
                 setIsOpen(false);
-                setQuery('');
                 setIsEditing(false);
                 onBlur?.();
-              }, 100);
+              }, 200);  // Increased timeout to ensure dropdown click is registered
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -76,7 +82,6 @@ export default function EditableSelect({
                 const currentValue = query || value;
                 if (currentValue) {
                   onChange(currentValue);
-                  setQuery('');
                   setIsOpen(false);
                   setIsEditing(false);
                   inputRef.current?.blur();

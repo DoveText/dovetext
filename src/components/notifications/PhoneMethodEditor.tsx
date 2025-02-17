@@ -65,7 +65,7 @@ export default function PhoneMethodEditor({ config, onChange, validationErrors =
             {validationErrors.phone ? (
               <p className="mt-2 text-sm text-red-500">{validationErrors.phone}</p>
             ) : (
-              <p className="mt-2 text-sm text-gray-500">
+              <p className={`mt-2 text-sm ${!config.enableText && !config.enableVoice ? 'text-red-500' : 'text-gray-500'}`}>
                 {getPhoneHint(config.enableText, config.enableVoice)}
               </p>
             )}
