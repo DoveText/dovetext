@@ -815,7 +815,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            const newKey = `header${headerKeys.length + 1}`;
+                                            const newKey = '';  // Empty key by default
                                             setHeaderKeys(prev => [...prev, newKey]);
                                             
                                             setPluginConfig(prev => ({
