@@ -4,15 +4,16 @@ export interface StageDeliveryMethod {
   id?: string;
   methodId: string;
   methodName?: string;
+  priority: number;
 }
 
 export interface EscalationStage {
   id?: string;
   name: string;
   stageOrder: number;
-  waitDurationSeconds: number;
+  waitDuration: number;
   maxAttempts: number;
-  retryIntervalSeconds: number;
+  retryInterval: number;
   deliveryMethods: StageDeliveryMethod[];
   createdAt?: string;
   updatedAt?: string;

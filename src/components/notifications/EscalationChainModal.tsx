@@ -45,11 +45,12 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
     editingChain?.stages ? editingChain.stages.map(stage => ({
       name: `Stage ${stage.stageOrder}`,
       stageOrder: stage.stageOrder,
-      waitDurationSeconds: stage.waitDurationSeconds,
+      waitDuration: stage.waitDuration,
       maxAttempts: stage.maxAttempts || 1,
-      retryIntervalSeconds: stage.retryIntervalSeconds,
+      retryInterval: stage.retryInterval,
       deliveryMethods: stage.deliveryMethods.map(dm => ({
-        methodId: dm.methodId
+        methodId: dm.methodId,
+        priority: dm.priority
       }))
     })) : []
   );
@@ -64,11 +65,12 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
       setStages(editingChain.stages ? editingChain.stages.map(stage => ({
         name: `Stage ${stage.stageOrder}`,
         stageOrder: stage.stageOrder,
-        waitDurationSeconds: stage.waitDurationSeconds,
+        waitDuration: stage.waitDuration,
         maxAttempts: stage.maxAttempts || 1,
-        retryIntervalSeconds: stage.retryIntervalSeconds,
+        retryInterval: stage.retryInterval,
         deliveryMethods: stage.deliveryMethods.map(dm => ({
-          methodId: dm.methodId
+          methodId: dm.methodId,
+          priority: dm.priority
         }))
       })) : []);
     } else {
@@ -101,8 +103,8 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
     const formattedStages = stages.map(stage => ({
       ...stage,
       // Convert seconds to Duration format expected by backend
-      waitDurationSeconds: stage.waitDurationSeconds,
-      retryIntervalSeconds: stage.retryIntervalSeconds
+      waitDuration: stage.waitDuration,
+      retryInterval: stage.retryInterval
     }));
 
     try {
@@ -136,9 +138,9 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
       {
         name: `Stage ${newStageOrder}`,
         stageOrder: newStageOrder,
-        waitDurationSeconds: 0,
+        waitDuration: 0,
         maxAttempts: 1,
-        retryIntervalSeconds: 0,
+        retryInterval: 0,
         deliveryMethods: []
       }
     ]);
@@ -260,7 +262,10 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                       onChange={(value) => {
                                         const updatedStage = {
                                           ...stage,
-                                          deliveryMethods: [{ methodId: value }]
+                                          deliveryMethods: [{ 
+                                            methodId: value,
+                                            priority: 0
+                                          }]
                                         };
                                         const newStages = [...stages];
                                         newStages[index] = updatedStage;
@@ -286,10 +291,10 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                       <input
                                         type="number"
                                         min="0"
-                                        value={stage.waitDurationSeconds}
+                                        value={stage.waitDuration}
                                         onChange={(e) => {
                                           const value = parseInt(e.target.value) || 0;
-                                          updateStage(index, 'waitDurationSeconds', value);
+                                          updateStage(index, 'waitDuration', value);
                                         }}
                                         className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                         placeholder="Duration in seconds"
@@ -325,10 +330,10 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                       <input
                                         type="number"
                                         min="0"
-                                        value={stage.retryIntervalSeconds}
+                                        value={stage.retryInterval}
                                         onChange={(e) => {
                                           const value = parseInt(e.target.value) || 0;
-                                          updateStage(index, 'retryIntervalSeconds', value);
+                                          updateStage(index, 'retryInterval', value);
                                         }}
                                         className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                         placeholder="Interval in seconds"
