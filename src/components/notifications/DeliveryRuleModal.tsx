@@ -81,8 +81,8 @@ export default function DeliveryRuleModal({
     const fetchData = async () => {
       try {
         const [methodsResponse, chainsResponse] = await Promise.all([
-          deliveryMethodsApi.list(),
-          escalationChainsApi.list(),
+          deliveryMethodsApi.getAll(),
+          escalationChainsApi.getAll(),
         ]);
         setDeliveryMethods(methodsResponse);
         setEscalationChains(chainsResponse);
