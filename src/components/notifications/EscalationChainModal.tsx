@@ -8,6 +8,7 @@ import { DeliveryMethod } from '@/types/delivery-method';
 import { deliveryMethodsApi } from '@/api/delivery-methods';
 import { escalationChainsApi } from '@/api/escalation-chains';
 import Select from '@/components/common/Select';
+import EditableSelect from '@/components/common/EditableSelect';
 
 interface EscalationChainModalProps {
   isOpen: boolean;
@@ -15,6 +16,22 @@ interface EscalationChainModalProps {
   editingChain?: EscalationChain | null;
   onSubmit: () => void;
 }
+
+const retryIntervalOptions = [
+  { value: '0', label: 'No Retry' },
+  { value: '60', label: 'One Minute' },
+  { value: '300', label: 'Five Minutes' },
+  { value: '900', label: 'Fifteen Minutes' },
+  { value: '3600', label: 'One Hour' },
+];
+
+const timeOptions = [
+  { value: '0', label: 'No Delay' },
+  { value: '60', label: 'One Minute' },
+  { value: '300', label: 'Five Minutes' },
+  { value: '900', label: 'Fifteen Minutes' },
+  { value: '3600', label: 'One Hour' },
+];
 
 const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
   isOpen,
@@ -242,15 +259,14 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                   {/* Wait Time */}
                                   <div>
                                     <label className="block text-sm font-medium leading-6 text-gray-900">
-                                      Wait Time (seconds)
+                                      Wait Time
                                     </label>
                                     <div className="mt-2">
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={step.waitTime}
-                                        onChange={(e) => handleStepChange(index, 'waitTime', parseInt(e.target.value) || 0)}
-                                        className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      <Select<string>
+                                        value={step.waitTime.toString()}
+                                        onChange={(value) => handleStepChange(index, 'waitTime', parseInt(value))}
+                                        options={timeOptions}
+                                        placeholder="Select wait time"
                                       />
                                     </div>
                                   </div>
@@ -274,15 +290,14 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                   {/* Retry Interval */}
                                   <div>
                                     <label className="block text-sm font-medium leading-6 text-gray-900">
-                                      Retry Interval (seconds)
+                                      Retry Interval
                                     </label>
                                     <div className="mt-2">
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={step.retryInterval}
-                                        onChange={(e) => handleStepChange(index, 'retryInterval', parseInt(e.target.value) || 0)}
-                                        className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                      <Select<string>
+                                        value={step.retryInterval.toString()}
+                                        onChange={(value) => handleStepChange(index, 'retryInterval', parseInt(value))}
+                                        options={retryIntervalOptions}
+                                        placeholder="Select retry interval"
                                       />
                                     </div>
                                   </div>
