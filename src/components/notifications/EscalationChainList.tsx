@@ -15,17 +15,17 @@ import {
 } from '@heroicons/react/24/outline';
 import { escalationChainsApi } from '@/api/escalation-chains';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
-import { Dialog } from '@headlessui/react';
+import EscalationChainModal from './EscalationChainModal';
 
 interface EscalationChainListProps {
   chains: EscalationChain[];
   onChainsChange: () => void;
 }
 
-export default function EscalationChainList({
+const EscalationChainList: React.FC<EscalationChainListProps> = ({
   chains,
   onChainsChange,
-}: EscalationChainListProps) {
+}) => {
   const [hoveredChain, setHoveredChain] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingChain, setEditingChain] = useState<EscalationChain | null>(null);
@@ -252,4 +252,6 @@ export default function EscalationChainList({
       )}
     </div>
   );
-}
+};
+
+export default EscalationChainList;

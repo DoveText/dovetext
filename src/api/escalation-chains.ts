@@ -7,36 +7,36 @@ import {
 
 export const escalationChainsApi = {
   getAll: async (): Promise<EscalationChain[]> => {
-    const response = await apiClient.get('/escalation-chains');
+    const response = await apiClient.get('/api/v1/chains');
     return response.data;
   },
 
   get: async (id: string): Promise<EscalationChain> => {
-    const response = await apiClient.get(`/escalation-chains/${id}`);
+    const response = await apiClient.get(`/api/v1/chains/${id}`);
     return response.data;
   },
 
   create: async (data: CreateEscalationChainRequest): Promise<EscalationChain> => {
-    const response = await apiClient.post('/escalation-chains', data);
+    const response = await apiClient.post('/api/v1/chains', data);
     return response.data;
   },
 
   update: async (id: string, data: UpdateEscalationChainRequest): Promise<EscalationChain> => {
-    const response = await apiClient.patch(`/escalation-chains/${id}`, data);
+    const response = await apiClient.patch(`/api/v1/chains/${id}`, data);
     return response.data;
   },
 
   delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/escalation-chains/${id}`);
+    await apiClient.delete(`/api/v1/chains/${id}`);
   },
 
   enable: async (id: string): Promise<EscalationChain> => {
-    const response = await apiClient.post(`/escalation-chains/${id}/enable`);
+    const response = await apiClient.post(`/api/v1/chains/${id}/enable`);
     return response.data;
   },
 
   disable: async (id: string): Promise<EscalationChain> => {
-    const response = await apiClient.post(`/escalation-chains/${id}/disable`);
+    const response = await apiClient.post(`/api/v1/chains/${id}/disable`);
     return response.data;
   },
 };
