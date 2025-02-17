@@ -132,36 +132,46 @@ export default function PluginEditor({ config, onChange, isEditing, validationEr
         <div className="space-y-4 rounded-md bg-gray-50 px-4 py-4">
           <div>
             <label className="block text-sm font-medium leading-6 text-gray-900">Webhook URL</label>
-            <input
-              type="url"
-              required
-              value={config.webhook?.url}
-              onChange={(e) => onChange({
-                ...config,
-                webhook: { ...config.webhook!, url: e.target.value }
-              })}
-              className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-              placeholder="https://api.example.com/webhook"
-            />
+            <div className="mt-2 flex gap-2">
+              <Select
+                value={config.webhook.method}
+                onChange={(method) => {
+                  onChange({
+                    ...config,
+                    webhook: {
+                      ...config.webhook,
+                      method,
+                    },
+                  });
+                }}
+                options={[
+                  { value: 'GET', label: 'GET' },
+                  { value: 'POST', label: 'POST' },
+                  { value: 'PUT', label: 'PUT' },
+                  { value: 'DELETE', label: 'DELETE' },
+                  { value: 'PATCH', label: 'PATCH' },
+                ]}
+                className="w-28"
+              />
+              <input
+                type="text"
+                value={config.webhook.url}
+                onChange={(e) => {
+                  onChange({
+                    ...config,
+                    webhook: {
+                      ...config.webhook,
+                      url: e.target.value,
+                    },
+                  });
+                }}
+                className="block flex-1 rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                placeholder="https://api.example.com/webhook"
+              />
+            </div>
             {validationErrors.webhook && (
               <p className="mt-2 text-sm text-red-500">{validationErrors.webhook}</p>
             )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium leading-6 text-gray-900">HTTP Method</label>
-            <select
-              value={config.webhook?.method}
-              onChange={(e) => onChange({
-                ...config,
-                webhook: { ...config.webhook!, method: e.target.value }
-              })}
-              className="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-            >
-              {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(method => (
-                <option key={method} value={method}>{method}</option>
-              ))}
-            </select>
           </div>
 
           <div>
