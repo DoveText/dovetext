@@ -39,9 +39,16 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
   editingChain,
   onSubmit,
 }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [steps, setSteps] = useState<Omit<EscalationStep, 'id'>[]>([]);
+  const [name, setName] = useState(editingChain?.name || '');
+  const [description, setDescription] = useState(editingChain?.description || '');
+  const [steps, setSteps] = useState<Omit<EscalationStep, 'id' | 'method'>[]>(
+    editingChain?.steps ? editingChain.steps.map(step => ({
+      methodId: step.methodId,
+      waitTime: step.waitTime,
+      retryCount: step.retryCount,
+      retryInterval: step.retryInterval,
+    })) : []
+  );
   const [deliveryMethods, setDeliveryMethods] = useState<DeliveryMethod[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,12 +57,12 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
     if (editingChain) {
       setName(editingChain.name);
       setDescription(editingChain.description || '');
-      setSteps(editingChain.steps.map(step => ({
+      setSteps(editingChain.steps ? editingChain.steps.map(step => ({
         methodId: step.methodId,
         waitTime: step.waitTime,
         retryCount: step.retryCount,
         retryInterval: step.retryInterval,
-      })));
+      })) : []);
     } else {
       setName('');
       setDescription('');
@@ -64,84 +71,70 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
   }, [editingChain]);
 
   useEffect(() => {
-    loadDeliveryMethods();
+    const fetchData = async () => {
+      try {
+        const methods = await deliveryMethodsApi.getAll();
+        setDeliveryMethods(methods);
+      } catch (err) {
+        console.error('Failed to fetch delivery methods:', err);
+        setError('Failed to load delivery methods');
+      }
+    };
+    fetchData();
   }, []);
 
-  const loadDeliveryMethods = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
     try {
-      const methods = await deliveryMethodsApi.getAll();
-      setDeliveryMethods(methods);
+      if (editingChain) {
+        await escalationChainsApi.update(editingChain.id, {
+          name,
+          description,
+          steps,
+        });
+      } else {
+        await escalationChainsApi.create({
+          name,
+          description,
+          steps,
+        });
+      }
+      onSubmit();
+      onClose();
     } catch (err) {
-      setError('Failed to load delivery methods');
-      console.error(err);
+      console.error('Failed to save chain:', err);
+      setError('Failed to save escalation chain');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleAddStep = () => {
+  const addStep = () => {
     setSteps([
       ...steps,
       {
         methodId: '',
         waitTime: 0,
         retryCount: 0,
-        retryInterval: 60,
+        retryInterval: 0,
       },
     ]);
   };
 
-  const handleRemoveStep = (index: number) => {
+  const removeStep = (index: number) => {
     setSteps(steps.filter((_, i) => i !== index));
   };
 
-  const handleStepChange = (index: number, field: keyof Omit<EscalationStep, 'id'>, value: any) => {
+  const updateStep = (index: number, field: keyof Omit<EscalationStep, 'id' | 'method'>, value: any) => {
     const newSteps = [...steps];
     newSteps[index] = {
       ...newSteps[index],
       [field]: value,
     };
     setSteps(newSteps);
-  };
-
-  const handleSubmit = async () => {
-    try {
-      setError(null);
-      setIsSubmitting(true);
-
-      if (!name.trim()) {
-        setError('Name is required');
-        return;
-      }
-
-      if (steps.length === 0) {
-        setError('At least one step is required');
-        return;
-      }
-
-      if (steps.some(step => !step.methodId)) {
-        setError('All steps must have a delivery method selected');
-        return;
-      }
-
-      const data = {
-        name: name.trim(),
-        description: description.trim() || undefined,
-        steps,
-      };
-
-      if (editingChain) {
-        await escalationChainsApi.update(editingChain.id, data);
-      } else {
-        await escalationChainsApi.create(data);
-      }
-
-      onSubmit();
-      onClose();
-    } catch (err) {
-      setError('Failed to save escalation chain');
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -224,7 +217,7 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                           <h4 className="text-sm font-medium leading-6 text-gray-900">Steps</h4>
                           <button
                             type="button"
-                            onClick={handleAddStep}
+                            onClick={addStep}
                             className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                           >
                             <PlusIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
@@ -244,7 +237,7 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                   <div className="mt-2">
                                     <Select<string>
                                       value={step.methodId}
-                                      onChange={(value) => handleStepChange(index, 'methodId', value)}
+                                      onChange={(value) => updateStep(index, 'methodId', value)}
                                       options={deliveryMethods.map((method) => ({
                                         value: method.id,
                                         label: method.name,
@@ -264,7 +257,7 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                     <div className="mt-2">
                                       <Select<string>
                                         value={step.waitTime.toString()}
-                                        onChange={(value) => handleStepChange(index, 'waitTime', parseInt(value))}
+                                        onChange={(value) => updateStep(index, 'waitTime', parseInt(value))}
                                         options={timeOptions}
                                         placeholder="Select wait time"
                                       />
@@ -281,7 +274,7 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                         type="number"
                                         min="0"
                                         value={step.retryCount}
-                                        onChange={(e) => handleStepChange(index, 'retryCount', parseInt(e.target.value) || 0)}
+                                        onChange={(e) => updateStep(index, 'retryCount', parseInt(e.target.value) || 0)}
                                         className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                       />
                                     </div>
@@ -295,7 +288,7 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                     <div className="mt-2">
                                       <Select<string>
                                         value={step.retryInterval.toString()}
-                                        onChange={(value) => handleStepChange(index, 'retryInterval', parseInt(value))}
+                                        onChange={(value) => updateStep(index, 'retryInterval', parseInt(value))}
                                         options={retryIntervalOptions}
                                         placeholder="Select retry interval"
                                       />
@@ -306,7 +299,7 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
 
                               <button
                                 type="button"
-                                onClick={() => handleRemoveStep(index)}
+                                onClick={() => removeStep(index)}
                                 className="rounded-md bg-white p-2 text-gray-400 hover:text-gray-500"
                               >
                                 <span className="sr-only">Remove step</span>

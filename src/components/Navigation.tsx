@@ -84,19 +84,6 @@ export default function Navigation() {
                         <Menu.Item>
                           {({ active }) => (
                             <Link
-                              href="/notifications/rules"
-                              className={classNames(
-                                active ? 'bg-gray-100' : '',
-                                'block px-4 py-2 text-sm text-gray-700'
-                              )}
-                            >
-                              Notification Rules
-                            </Link>
-                          )}
-                        </Menu.Item>
-                        <Menu.Item>
-                          {({ active }) => (
-                            <Link
                               href="/notifications/chains"
                               className={classNames(
                                 active ? 'bg-gray-100' : '',
@@ -107,6 +94,19 @@ export default function Navigation() {
                             </Link>
                           )}
                         </Menu.Item>
+                        <Menu.Item>
+                          {({ active }) => (
+                            <Link
+                              href="/notifications/rules"
+                              className={classNames(
+                                active ? 'bg-gray-100' : '',
+                                'block px-4 py-2 text-sm text-gray-700'
+                              )}
+                            >
+                              Notification Rules
+                            </Link>
+                          )}
+                        </Menu.Item>                        
                       </div>
                     </Menu.Items>
                   </Transition>

@@ -83,6 +83,27 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
     return `${Math.floor(seconds / 3600)}h`;
   };
 
+  const renderChainSteps = (chain: EscalationChain) => (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {chain.steps?.map((step, index) => (
+        <div
+          key={`${chain.id}-step-${index}`}
+          className="inline-flex items-center gap-x-1.5 rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset"
+        >
+          <BellIcon className="h-3 w-3" aria-hidden="true" />
+          {step.method?.name || 'Loading...'}
+          {index < (chain.steps?.length || 0) - 1 && (
+            <>
+              <ChevronRightIcon className="h-3 w-3 text-gray-400" aria-hidden="true" />
+              <ClockIcon className="h-3 w-3 text-gray-400" aria-hidden="true" />
+              {formatDuration(step.waitTime)}
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
@@ -164,27 +185,7 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
                               {chain.description}
                             </p>
                           )}
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {chain.steps.map((step, index) => (
-                              <div
-                                key={step.id}
-                                className="inline-flex items-center gap-x-1.5 rounded-md px-2 py-1 text-xs font-medium text-gray-900 ring-1 ring-inset ring-gray-200"
-                              >
-                                <span className="text-gray-400">{index + 1}.</span>
-                                {step.method?.name || 'Unknown Method'}
-                                <span className="text-gray-400 ml-1 flex items-center gap-x-1">
-                                  <ClockIcon className="h-3 w-3" />
-                                  {formatDuration(step.waitTime)}
-                                  {step.retryCount > 0 && (
-                                    <>
-                                      <ArrowPathIcon className="h-3 w-3" />
-                                      {step.retryCount}×{formatDuration(step.retryInterval)}
-                                    </>
-                                  )}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
+                          {renderChainSteps(chain)}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-x-4">
