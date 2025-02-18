@@ -1,26 +1,27 @@
 import { DeliveryMethod } from './delivery-method';
+import { EscalationChain } from './escalation-chain';
 
-export interface DeliveryRuleCondition {
-  field: string;
-  operator: 'equals' | 'contains' | 'startsWith' | 'endsWith' | 'matches';
-  value: string;
-}
-
-export interface DeliveryRuleAction {
-  methodId: string;
+export interface DeliveryRuleTarget {
+  id?: string;
+  methodId?: string;
+  chainId?: string;
   method?: DeliveryMethod;  // Populated when loading
-  priority: number;  // Lower number means higher priority
-  retryCount?: number;
-  retryInterval?: number;  // in seconds
+  chain?: EscalationChain;  // Populated when loading
+  startTime: string;  // HH:mm format
+  endTime: string;   // HH:mm format
+  daysOfWeek: number[];  // 0-6, where 0 is Sunday
+  timezone: string;
+  priority: number;
 }
 
 export interface DeliveryRule {
   id: string;
   name: string;
   description?: string;
-  isEnabled: boolean;
-  conditions: DeliveryRuleCondition[];
-  actions: DeliveryRuleAction[];
+  isActive: boolean;
+  conditions: Record<string, any>;  // JSON object for conditions
+  targets: DeliveryRuleTarget[];
+  priority: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,14 +29,16 @@ export interface DeliveryRule {
 export interface CreateDeliveryRuleRequest {
   name: string;
   description?: string;
-  conditions: DeliveryRuleCondition[];
-  actions: Omit<DeliveryRuleAction, 'method'>[];
+  conditions: Record<string, any>;
+  targets: Omit<DeliveryRuleTarget, 'id' | 'method' | 'chain'>[];
+  priority?: number;
 }
 
 export interface UpdateDeliveryRuleRequest {
   name?: string;
   description?: string;
-  isEnabled?: boolean;
-  conditions?: DeliveryRuleCondition[];
-  actions?: Omit<DeliveryRuleAction, 'method'>[];
+  isActive?: boolean;
+  conditions?: Record<string, any>;
+  targets?: Omit<DeliveryRuleTarget, 'id' | 'method' | 'chain'>[];
+  priority?: number;
 }

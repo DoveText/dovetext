@@ -4,7 +4,7 @@ import { Fragment, useState, useEffect } from 'react';
 import { Dialog as HeadlessDialog, Transition } from '@headlessui/react';
 import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import Select from '@/components/common/Select';
-import { DeliveryRule } from '@/types/delivery-rule';
+import { DeliveryRule, DeliveryRuleTarget } from '@/types/delivery-rule';
 import { DeliveryMethod } from '@/types/delivery-method';
 import { EscalationChain } from '@/types/escalation-chain';
 import { deliveryMethodsApi } from '@/api/delivery-methods';
@@ -14,8 +14,8 @@ import { deliveryRulesApi } from '@/api/delivery-rules';
 interface DeliveryRuleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  editingRule: DeliveryRule | null;
-  onSubmit: () => void;
+  rule: DeliveryRule | null;
+  onSave: () => void;
 }
 
 const priorityOptions = [
@@ -64,13 +64,14 @@ const daysOfWeek = [
 export default function DeliveryRuleModal({
   isOpen,
   onClose,
-  editingRule,
-  onSubmit,
+  rule,
+  onSave,
 }: DeliveryRuleModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('0');
   const [conditions, setConditions] = useState('{}');
+  const [targets, setTargets] = useState<DeliveryRuleTarget[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,18 +97,47 @@ export default function DeliveryRuleModal({
   }, []);
 
   useEffect(() => {
-    if (editingRule) {
-      setName(editingRule.name);
-      setDescription(editingRule.description || '');
-      setPriority(editingRule.priority.toString());
-      setConditions(JSON.stringify(editingRule.conditions, null, 2));
+    if (rule) {
+      setName(rule.name);
+      setDescription(rule.description || '');
+      setPriority(rule.priority.toString());
+      setConditions(JSON.stringify(rule.conditions, null, 2));
+      setTargets(rule.targets);
     } else {
       setName('');
       setDescription('');
       setPriority('0');
       setConditions('{}');
+      setTargets([]);
     }
-  }, [editingRule]);
+  }, [rule]);
+
+  const handleAddTarget = () => {
+    setTargets([
+      ...targets,
+      {
+        methodId: '',
+        chainId: '',
+        startTime: '09:00',
+        endTime: '17:00',
+        daysOfWeek: [1, 2, 3, 4, 5],
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        priority: targets.length,
+      },
+    ]);
+  };
+
+  const handleRemoveTarget = (index: number) => {
+    setTargets(targets.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateTarget = (index: number, updates: Partial<DeliveryRuleTarget>) => {
+    setTargets(
+      targets.map((target, i) =>
+        i === index ? { ...target, ...updates } : target
+      )
+    );
+  };
 
   const handleSubmit = async () => {
     try {
@@ -119,16 +149,17 @@ export default function DeliveryRuleModal({
         description,
         priority: parseInt(priority),
         conditions: JSON.parse(conditions),
+        targets: targets.map(({ method, chain, ...target }) => target),
         isActive: true,
       };
 
-      if (editingRule) {
-        await deliveryRulesApi.update(editingRule.id, ruleData);
+      if (rule) {
+        await deliveryRulesApi.update(rule.id, ruleData);
       } else {
         await deliveryRulesApi.create(ruleData);
       }
 
-      onSubmit();
+      onSave();
       onClose();
     } catch (err) {
       console.error('Failed to save delivery rule:', err);
@@ -178,7 +209,7 @@ export default function DeliveryRuleModal({
 
                 <div>
                   <HeadlessDialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
-                    {editingRule ? 'Edit Delivery Rule' : 'Create Delivery Rule'}
+                    {rule ? 'Edit Delivery Rule' : 'Create Delivery Rule'}
                   </HeadlessDialog.Title>
 
                   <div className="mt-6 space-y-6">
@@ -261,6 +292,97 @@ export default function DeliveryRuleModal({
                         />
                       </div>
                     </div>
+
+                    {/* Targets */}
+                    <div>
+                      <label className="block text-sm font-medium leading-6 text-gray-900">
+                        Targets
+                      </label>
+                      <div className="mt-2">
+                        {targets.map((target, index) => (
+                          <div key={index} className="mb-4">
+                            <div className="flex justify-between">
+                              <h4 className="text-sm font-medium leading-6 text-gray-900">
+                                Target {index + 1}
+                              </h4>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTarget(index)}
+                                className="rounded-md bg-red-50 px-2 py-1 text-sm font-semibold text-red-800 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                            <div className="mt-2">
+                              <Select<string>
+                                value={target.methodId}
+                                onChange={(value) => handleUpdateTarget(index, { methodId: value })}
+                                options={deliveryMethods.map((method) => ({ value: method.id, label: method.name }))}
+                                placeholder="Select delivery method"
+                              />
+                            </div>
+                            <div className="mt-2">
+                              <Select<string>
+                                value={target.chainId}
+                                onChange={(value) => handleUpdateTarget(index, { chainId: value })}
+                                options={escalationChains.map((chain) => ({ value: chain.id, label: chain.name }))}
+                                placeholder="Select escalation chain"
+                              />
+                            </div>
+                            <div className="mt-2">
+                              <Select<string>
+                                value={target.startTime}
+                                onChange={(value) => handleUpdateTarget(index, { startTime: value })}
+                                options={timeOptions}
+                                placeholder="Select start time"
+                              />
+                            </div>
+                            <div className="mt-2">
+                              <Select<string>
+                                value={target.endTime}
+                                onChange={(value) => handleUpdateTarget(index, { endTime: value })}
+                                options={timeOptions}
+                                placeholder="Select end time"
+                              />
+                            </div>
+                            <div className="mt-2">
+                              <Select<string>
+                                value={target.daysOfWeek.join(',')}
+                                onChange={(value) => handleUpdateTarget(index, { daysOfWeek: value.split(',').map(Number) })}
+                                options={daysOfWeek.map((day) => ({ value: day.value, label: day.label }))}
+                                placeholder="Select days of week"
+                                multiple
+                              />
+                            </div>
+                            <div className="mt-2">
+                              <input
+                                type="text"
+                                value={target.timezone}
+                                onChange={(e) => handleUpdateTarget(index, { timezone: e.target.value })}
+                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                placeholder="Enter timezone"
+                              />
+                            </div>
+                            <div className="mt-2">
+                              <input
+                                type="number"
+                                value={target.priority}
+                                onChange={(e) => handleUpdateTarget(index, { priority: Number(e.target.value) })}
+                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                placeholder="Enter priority"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={handleAddTarget}
+                          className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                        >
+                          Add Target
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -271,7 +393,7 @@ export default function DeliveryRuleModal({
                     disabled={isSubmitting}
                     className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:col-start-2"
                   >
-                    {isSubmitting ? 'Saving...' : editingRule ? 'Save Changes' : 'Create Rule'}
+                    {isSubmitting ? 'Saving...' : rule ? 'Save Changes' : 'Create Rule'}
                   </button>
                   <button
                     type="button"
