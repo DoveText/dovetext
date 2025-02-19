@@ -1,21 +1,18 @@
 'use client';
 
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import { Dialog as HeadlessDialog, Transition } from '@headlessui/react';
 import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { EscalationChain, EscalationStage } from '@/types/escalation-chain';
+import { DeliveryChannel } from '@/types/delivery-channel';
 import { DeliveryMethod } from '@/types/delivery-method';
+import { deliveryChannelsApi } from '@/api/delivery-channels';
 import { deliveryMethodsApi } from '@/api/delivery-methods';
 import { escalationChainsApi } from '@/api/escalation-chains';
 import Select from '@/components/common/Select';
-import EditableSelect from '@/components/common/EditableSelect';
-
-interface EscalationChainModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  editingChain?: EscalationChain | null;
-  onSubmit: () => void;
-}
+import { FormField, FormInput, FormTextArea } from '@/components/common/form';
+import DeliveryChannelSelector, { DeliveryChannelSelectorRef } from './DeliveryChannelSelector';
+import DeliveryMethodSelector, { DeliveryMethodSelectorRef } from './DeliveryMethodSelector';
 
 const retryIntervalOptions = [
   { value: '0', label: 'No Retry' },
@@ -33,6 +30,13 @@ const timeOptions = [
   { value: '3600', label: 'One Hour' },
 ];
 
+interface EscalationChainModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  editingChain?: EscalationChain | null;
+  onSubmit: () => void;
+}
+
 const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
   isOpen,
   onClose,
@@ -43,35 +47,41 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
   const [description, setDescription] = useState(editingChain?.description || '');
   const [stages, setStages] = useState<Omit<EscalationStage, 'id' | 'createdAt' | 'updatedAt'>[]>(
     editingChain?.stages ? editingChain.stages.map(stage => ({
-      name: `Stage ${stage.stageOrder}`,
+      name: stage.name || `Stage ${stage.stageOrder}`,
       stageOrder: stage.stageOrder,
-      waitDuration: stage.waitDuration,
-      maxAttempts: stage.maxAttempts || 1,
-      retryInterval: stage.retryInterval,
-      deliveryMethods: stage.deliveryMethods.map(dm => ({
-        methodId: dm.methodId,
-        priority: dm.priority
-      }))
+      channelIds: stage.channelIds || [],
+      methodIds: stage.methodIds || [],
+      settings: {
+        waitDuration: stage.settings?.waitDuration || 0,
+        maxAttempts: stage.settings?.maxAttempts || 1,
+        retryInterval: stage.settings?.retryInterval || 0,
+        timeRange: stage.settings?.timeRange || null
+      }
     })) : []
   );
-  const [deliveryMethods, setDeliveryMethods] = useState<DeliveryMethod[]>([]);
+  const [channels, setChannels] = useState<DeliveryChannel[]>([]);
+  const [methods, setMethods] = useState<DeliveryMethod[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const channelSelectorRefs = useRef<(DeliveryChannelSelectorRef | null)[]>([]);
+  const methodSelectorRefs = useRef<(DeliveryMethodSelectorRef | null)[]>([]);
 
   useEffect(() => {
     if (editingChain) {
       setName(editingChain.name);
       setDescription(editingChain.description || '');
       setStages(editingChain.stages ? editingChain.stages.map(stage => ({
-        name: `Stage ${stage.stageOrder}`,
+        name: stage.name || `Stage ${stage.stageOrder}`,
         stageOrder: stage.stageOrder,
-        waitDuration: stage.waitDuration,
-        maxAttempts: stage.maxAttempts || 1,
-        retryInterval: stage.retryInterval,
-        deliveryMethods: stage.deliveryMethods.map(dm => ({
-          methodId: dm.methodId,
-          priority: dm.priority
-        }))
+        channelIds: stage.channelIds || [],
+        methodIds: stage.methodIds || [],
+        settings: {
+          waitDuration: stage.settings?.waitDuration || 0,
+          maxAttempts: stage.settings?.maxAttempts || 1,
+          retryInterval: stage.settings?.retryInterval || 0,
+          timeRange: stage.settings?.timeRange || null
+        }
       })) : []);
     } else {
       setName('');
@@ -83,11 +93,15 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const methods = await deliveryMethodsApi.getAll();
-        setDeliveryMethods(methods);
+        const [fetchedChannels, fetchedMethods] = await Promise.all([
+          deliveryChannelsApi.getAll(),
+          deliveryMethodsApi.getAll()
+        ]);
+        setChannels(fetchedChannels);
+        setMethods(fetchedMethods);
       } catch (err) {
-        console.error('Failed to fetch delivery methods:', err);
-        setError('Failed to load delivery methods');
+        console.error('Failed to fetch delivery options:', err);
+        setError('Failed to load delivery options');
       }
     };
     fetchData();
@@ -99,27 +113,41 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
     setIsSubmitting(true);
     setError(null);
 
-    // Format stages for API
-    const formattedStages = stages.map(stage => ({
-      ...stage,
-      // Convert seconds to Duration format expected by backend
-      waitDuration: stage.waitDuration,
-      retryInterval: stage.retryInterval
-    }));
+    // Validate stages
+    if (stages.length === 0) {
+      setError('Please add at least one stage');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Validate each stage
+    for (const stage of stages) {
+      if ((!stage.channelIds || stage.channelIds.length === 0) && 
+          (!stage.methodIds || stage.methodIds.length === 0)) {
+        setError(`Please select at least one channel or method for stage ${stage.stageOrder}`);
+        setIsSubmitting(false);
+        return;
+      }
+    }
 
     try {
+      const chainData = {
+        name,
+        description,
+        type: 'staged',
+        stages: stages.map(stage => ({
+          name: stage.name,
+          stageOrder: stage.stageOrder,
+          channelIds: stage.channelIds,
+          methodIds: stage.methodIds,
+          settings: stage.settings
+        }))
+      };
+
       if (editingChain) {
-        await escalationChainsApi.update(editingChain.id, {
-          name,
-          description,
-          stages: formattedStages
-        });
+        await escalationChainsApi.update(editingChain.id, chainData);
       } else {
-        await escalationChainsApi.create({
-          name,
-          description,
-          stages: formattedStages
-        });
+        await escalationChainsApi.create(chainData);
       }
       onSubmit();
       onClose();
@@ -138,10 +166,14 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
       {
         name: `Stage ${newStageOrder}`,
         stageOrder: newStageOrder,
-        waitDuration: 0,
-        maxAttempts: 1,
-        retryInterval: 0,
-        deliveryMethods: []
+        channelIds: [],
+        methodIds: [],
+        settings: {
+          waitDuration: 0,
+          maxAttempts: 1,
+          retryInterval: 0,
+          timeRange: null
+        }
       }
     ]);
   };
@@ -161,7 +193,7 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
-      <HeadlessDialog as="div" className="relative z-50" onClose={onClose}>
+      <HeadlessDialog as="div" className="relative z-40" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -174,7 +206,7 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
         </Transition.Child>
 
-        <div className="fixed inset-0 z-10 overflow-y-auto">
+        <div className="fixed inset-0 z-40 overflow-y-auto">
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
             <Transition.Child
               as={Fragment}
@@ -203,203 +235,217 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                       {editingChain ? 'Edit Escalation Chain' : 'Create Escalation Chain'}
                     </HeadlessDialog.Title>
 
-                    <div className="mt-6 space-y-6">
-                      {/* Error Message */}
-                      {error && (
-                        <div className="rounded-md bg-red-50 p-4">
-                          <div className="flex">
-                            <div className="ml-3">
-                              <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Name */}
-                      <div>
-                        <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900">
-                          Name
-                        </label>
-                        <div className="mt-2">
-                          <input
-                            type="text"
-                            name="name"
+                    <form onSubmit={handleSubmit}>
+                      <div className="mt-6 space-y-6">
+                        {/* Name */}
+                        <FormField label="Name" htmlFor="name">
+                          <FormInput
                             id="name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             placeholder="Enter chain name"
+                            required
                           />
-                        </div>
-                      </div>
+                        </FormField>
 
-                      {/* Stages */}
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-medium leading-6 text-gray-900">Stages</h4>
-                          <button
-                            type="button"
-                            onClick={addStage}
-                            className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                          >
-                            <PlusIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                            Add Stage
-                          </button>
-                        </div>
+                        {/* Stages */}
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-medium leading-6 text-gray-900">Stages</h4>
+                            <button
+                              type="button"
+                              onClick={addStage}
+                              className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                            >
+                              <PlusIcon className="h-4 w-4 mr-1" />
+                              Add Stage
+                            </button>
+                          </div>
 
-                        <div className="mt-4 space-y-4">
-                          {stages.map((stage, index) => (
-                            <div key={index} className="flex items-start gap-4 rounded-lg border border-gray-200 p-4">
-                              <div className="flex-1 space-y-4">
-                                {/* Method */}
-                                <div>
-                                  <label className="block text-sm font-medium leading-6 text-gray-900">
-                                    Delivery Method
-                                  </label>
-                                  <div className="mt-2">
-                                    <Select<string>
-                                      value={stage.deliveryMethods[0]?.methodId || ''}
-                                      onChange={(value) => {
-                                        const updatedStage = {
-                                          ...stage,
-                                          deliveryMethods: [{ 
-                                            methodId: value,
-                                            priority: 0
-                                          }]
-                                        };
-                                        const newStages = [...stages];
-                                        newStages[index] = updatedStage;
-                                        setStages(newStages);
-                                      }}
-                                      options={deliveryMethods.map((method) => ({
-                                        value: method.id,
-                                        label: method.name,
-                                      }))}
-                                      placeholder="Select a delivery method"
-                                      className="block w-full"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-4">
-                                  {/* Wait Duration */}
-                                  <div>
-                                    <label className="block text-sm font-medium leading-6 text-gray-900">
-                                      Wait Duration (seconds)
-                                    </label>
-                                    <div className="mt-2">
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={stage.waitDuration}
-                                        onChange={(e) => {
-                                          const value = parseInt(e.target.value) || 0;
-                                          updateStage(index, 'waitDuration', value);
-                                        }}
-                                        className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                        placeholder="Duration in seconds"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {/* Max Attempts */}
-                                  <div>
-                                    <label className="block text-sm font-medium leading-6 text-gray-900">
-                                      Max Attempts
-                                    </label>
-                                    <div className="mt-2">
-                                      <input
-                                        type="number"
-                                        min="1"
-                                        value={stage.maxAttempts}
-                                        onChange={(e) => {
-                                          const value = parseInt(e.target.value) || 1;
-                                          updateStage(index, 'maxAttempts', value);
-                                        }}
-                                        className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {/* Retry Interval */}
-                                  <div>
-                                    <label className="block text-sm font-medium leading-6 text-gray-900">
-                                      Retry Interval (seconds)
-                                    </label>
-                                    <div className="mt-2">
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={stage.retryInterval}
-                                        onChange={(e) => {
-                                          const value = parseInt(e.target.value) || 0;
-                                          updateStage(index, 'retryInterval', value);
-                                        }}
-                                        className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                        placeholder="Interval in seconds"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
+                          <div className="mt-4 space-y-4">
+                            {stages.length === 0 ? (
+                              <div className="text-center py-6 bg-gray-50 rounded-lg">
+                                <p className="text-sm text-gray-500">No escalation stage created yet</p>
+                                <button
+                                  type="button"
+                                  onClick={addStage}
+                                  className="mt-2 inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                                >
+                                  <PlusIcon className="h-4 w-4 mr-1" />
+                                  Add your first stage
+                                </button>
                               </div>
+                            ) : (
+                              stages.map((stage, index) => (
+                                <div key={index} className="flex items-start gap-4 rounded-lg border border-gray-200 p-4">
+                                  <div className="flex-1 space-y-4">
+                                    {/* Stage Settings */}
+                                    <div className="grid grid-cols-3 gap-4">
+                                      {/* Wait Duration */}
+                                      <FormField label="Wait Duration (seconds)">
+                                        <FormInput
+                                          type="number"
+                                          min="0"
+                                          value={stage.settings.waitDuration}
+                                          onChange={(e) => {
+                                            const value = parseInt(e.target.value) || 0;
+                                            updateStage(index, 'settings', {
+                                              ...stage.settings,
+                                              waitDuration: value
+                                            });
+                                          }}
+                                          placeholder="Duration in seconds"
+                                        />
+                                      </FormField>
 
-                              <button
-                                type="button"
-                                onClick={() => removeStage(index)}
-                                className="rounded-md bg-white p-2 text-gray-400 hover:text-gray-500"
-                              >
-                                <span className="sr-only">Remove stage</span>
-                                <TrashIcon className="h-5 w-5" aria-hidden="true" />
-                              </button>
-                            </div>
-                          ))}
+                                      {/* Max Attempts */}
+                                      <FormField label="Max Attempts">
+                                        <FormInput
+                                          type="number"
+                                          min="1"
+                                          value={stage.settings.maxAttempts}
+                                          onChange={(e) => {
+                                            const value = parseInt(e.target.value) || 1;
+                                            updateStage(index, 'settings', {
+                                              ...stage.settings,
+                                              maxAttempts: value
+                                            });
+                                          }}
+                                        />
+                                      </FormField>
 
-                          {stages.length === 0 && (
-                            <p className="text-sm text-gray-500 text-center py-4">
-                              No stages added yet. Click "Add Stage" to create your first escalation stage.
-                            </p>
-                          )}
+                                      {/* Retry Interval */}
+                                      <FormField label="Retry Interval">
+                                        <Select<string>
+                                          value={stage.settings.retryInterval.toString()}
+                                          onChange={(value) => {
+                                            updateStage(index, 'settings', {
+                                              ...stage.settings,
+                                              retryInterval: parseInt(value) || 0
+                                            });
+                                          }}
+                                          options={retryIntervalOptions}
+                                          placeholder="Select a retry interval"
+                                          className="block w-full"
+                                        />
+                                      </FormField>
+                                    </div>
+                                    {/* Delivery Options */}
+                                    <div className="space-y-4">
+                                      {/* Channels */}
+                                      <FormField 
+                                        label={
+                                          <div className="flex items-center justify-between">
+                                            <span>Delivery Channels</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                channelSelectorRefs.current[index]?.openDialog();
+                                              }}
+                                              className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                                            >
+                                              <PlusIcon className="h-4 w-4 mr-1" />
+                                              Add Channel
+                                            </button>
+                                          </div>
+                                        }
+                                      >
+                                        <DeliveryChannelSelector
+                                          ref={el => channelSelectorRefs.current[index] = el}
+                                          value={channels.filter(c => stage.channelIds.includes(c.id))}
+                                          onChange={(selectedChannels) => {
+                                            const updatedStage = {
+                                              ...stage,
+                                              channelIds: selectedChannels.map(c => c.id)
+                                            };
+                                            const newStages = [...stages];
+                                            newStages[index] = updatedStage;
+                                            setStages(newStages);
+                                          }}
+                                          hideAddButton
+                                        />
+                                      </FormField>
+
+                                      {/* Methods */}
+                                      <FormField 
+                                        label={
+                                          <div className="flex items-center justify-between">
+                                            <span>Delivery Methods</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                methodSelectorRefs.current[index]?.openDialog();
+                                              }}
+                                              className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                                            >
+                                              <PlusIcon className="h-4 w-4 mr-1" />
+                                              Add Method
+                                            </button>
+                                          </div>
+                                        }
+                                      >
+                                        <DeliveryMethodSelector
+                                          ref={el => methodSelectorRefs.current[index] = el}
+                                          value={methods.filter(m => stage.methodIds.includes(m.id))}
+                                          onChange={(selectedMethods) => {
+                                            const updatedStage = {
+                                              ...stage,
+                                              methodIds: selectedMethods.map(m => m.id)
+                                            };
+                                            const newStages = [...stages];
+                                            newStages[index] = updatedStage;
+                                            setStages(newStages);
+                                          }}
+                                          hideAddButton
+                                        />
+                                      </FormField>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => removeStage(index)}
+                                    className="text-gray-400 hover:text-gray-500"
+                                  >
+                                    <TrashIcon className="h-5 w-5" />
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Description */}
-                      <div>
-                        <label htmlFor="description" className="block text-sm font-medium leading-6 text-gray-900">
-                          Description
-                        </label>
-                        <div className="mt-2">
-                          <textarea
+                        {/* Description */}
+                        <FormField label="Description" htmlFor="description">
+                          <FormTextArea
                             id="description"
-                            name="description"
                             rows={3}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             placeholder="Enter a description for this escalation chain"
                           />
+                        </FormField>
+
+                        {/* Error Message */}
+                        {error && (
+                          <div className="mt-4">
+                            <p className="text-sm text-red-600">{error}</p>
+                          </div>
+                        )}
+
+                        {/* Submit Button */}
+                        <div className="mt-5 sm:mt-6">
+                          <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
+                          >
+                            {isSubmitting ? 'Saving...' : editingChain ? 'Update' : 'Create'}
+                          </button>
                         </div>
                       </div>
-                    </div>
+                    </form>
                   </div>
-                </div>
-
-                <div className="mt-8 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:col-start-2"
-                  >
-                    {isSubmitting ? 'Saving...' : editingChain ? 'Save Changes' : 'Create Chain'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    disabled={isSubmitting}
-                    className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0"
-                  >
-                    Cancel
-                  </button>
                 </div>
               </HeadlessDialog.Panel>
             </Transition.Child>

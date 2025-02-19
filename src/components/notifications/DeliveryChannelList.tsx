@@ -4,7 +4,7 @@ import {
   TrashIcon,
   PencilIcon,
   PlusIcon,
-  BellIcon,
+  BellAlertIcon,
   ClockIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
@@ -12,18 +12,18 @@ import DeliveryChannelModal from './DeliveryChannelModal';
 import { deliveryChannelsApi } from '@/api/delivery-channels';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 
-interface DeliveryChannelListProps {
+export interface DeliveryChannelListProps {
   channels: DeliveryChannel[];
   onChannelsChange: () => void;
 }
 
-const channelIcons: Record<DeliveryChannelType, React.ComponentType<any>> = {
-  SIMPLE: BellIcon,
+export const channelIcons: Record<DeliveryChannelType, React.ComponentType<any>> = {
+  SIMPLE: BellAlertIcon,
   TIME_BASED: ClockIcon,
 };
 
 // Helper function to get descriptive text for channel type
-function getChannelTypeDescription(type: DeliveryChannelType): string {
+export function getChannelTypeDescription(type: DeliveryChannelType): string {
   return type === 'TIME_BASED' 
     ? 'A time-based channel'
     : 'A simple channel';

@@ -195,7 +195,9 @@ const DeliveryMethodSelector = forwardRef<DeliveryMethodSelectorRef, DeliveryMet
 }, ref) {
   const [isOpen, setIsOpen] = useState(false);
   const [methods, setMethods] = useState<DeliveryMethod[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
+  // Expose the openDialog method via ref
   useImperativeHandle(ref, () => ({
     openDialog: () => setIsOpen(true)
   }), []);
@@ -229,11 +231,13 @@ const DeliveryMethodSelector = forwardRef<DeliveryMethodSelectorRef, DeliveryMet
   const availableMethods = methods.filter(method => !value.some(m => m.id === method.id));
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={className}>
       {/* Selected Methods List */}
       <div className="space-y-2">
         {value.length === 0 ? (
-          <div className="text-sm text-gray-400 italic py-2">No delivery method selected</div>
+          <div className="rounded-lg border border-dashed border-gray-300 p-4">
+            <p className="text-sm text-gray-500 text-center text-italic">No delivery method is selected</p>
+          </div>
         ) : (
           value.map((method) => (
             <MethodCard
@@ -258,9 +262,9 @@ const DeliveryMethodSelector = forwardRef<DeliveryMethodSelectorRef, DeliveryMet
         </button>
       )}
 
-      {/* Selection Dialog */}
-      <Transition appear show={isOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-10" onClose={() => setIsOpen(false)}>
+      {/* Method Selection Dialog */}
+      <Transition.Root show={isOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={setIsOpen}>
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -270,10 +274,10 @@ const DeliveryMethodSelector = forwardRef<DeliveryMethodSelectorRef, DeliveryMet
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-black bg-opacity-25" />
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
           </Transition.Child>
 
-          <div className="fixed inset-0 overflow-y-auto">
+          <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4 text-center">
               <Transition.Child
                 as={Fragment}
@@ -317,7 +321,7 @@ const DeliveryMethodSelector = forwardRef<DeliveryMethodSelectorRef, DeliveryMet
             </div>
           </div>
         </Dialog>
-      </Transition>
+      </Transition.Root>
     </div>
   );
 });
