@@ -9,6 +9,7 @@ import {
   createFallbackSlot,
 } from '@/types/delivery-channel';
 import { deliveryChannelsApi } from '@/api/delivery-channels';
+import { deliveryMethodsApi } from '@/api/delivery-methods';
 import Select from '@/components/common/Select';
 import { FormField, FormInput, FormTextArea } from '@/components/common/form';
 import DeliveryMethodSelector from './DeliveryMethodSelector';
@@ -38,7 +39,7 @@ export default function DeliveryChannelModal({
     const initialSlots = channel?.slots || [type === 'SIMPLE' ? createSimpleChannelSlot() : createFallbackSlot()];
     return initialSlots.map(slot => ({
       ...slot,
-      deliveryMethods: [], // Initialize empty array for deliveryMethods
+      deliveryMethods: [], // Will be populated by useEffect
       timeRange: slot.timeRange || slot.timeslot || {
         daysOfWeek: [],
         startTime: "09:00",
@@ -48,6 +49,31 @@ export default function DeliveryChannelModal({
   });
   const [error, setError] = useState<string | null>(null);
   const methodSelectorRefs = useRef<{ [key: number]: DeliveryMethodSelectorRef | null }>({});
+
+  // Load methods for slots when editing
+  useEffect(() => {
+    if (channel?.slots) {
+      const loadMethods = async () => {
+        const updatedSlots = await Promise.all(
+          slots.map(async (slot) => {
+            if (slot.methodIds?.length) {
+              const methods = await Promise.all(
+                slot.methodIds.map(id => deliveryMethodsApi.getById(id.toString()))
+              );
+              return {
+                ...slot,
+                deliveryMethods: methods
+              };
+            }
+            return slot;
+          })
+        );
+        setSlots(updatedSlots);
+      };
+
+      loadMethods().catch(console.error);
+    }
+  }, [channel]);
 
   const handleOpenDialog = (index: number) => {
     methodSelectorRefs.current[index]?.openDialog();
