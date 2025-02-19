@@ -1,4 +1,4 @@
-import { Fragment, useState, useRef } from 'react';
+import { Fragment, useState, useRef, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { 
@@ -34,9 +34,18 @@ export default function DeliveryChannelModal({
   const [type, setType] = useState<DeliveryChannelType>(channel?.type || 'SIMPLE');
   const [description, setDescription] = useState(channel?.description || '');
   const [settings, setSettings] = useState(channel?.settings || '{}');
-  const [slots, setSlots] = useState<DeliveryChannelSlot[]>(
-    channel?.slots || [type === 'SIMPLE' ? createSimpleChannelSlot() : createFallbackSlot()]
-  );
+  const [slots, setSlots] = useState<DeliveryChannelSlot[]>(() => {
+    const initialSlots = channel?.slots || [type === 'SIMPLE' ? createSimpleChannelSlot() : createFallbackSlot()];
+    return initialSlots.map(slot => ({
+      ...slot,
+      deliveryMethods: [], // Initialize empty array for deliveryMethods
+      timeRange: slot.timeRange || slot.timeslot || {
+        daysOfWeek: [],
+        startTime: "09:00",
+        endTime: "17:00"
+      }
+    }));
+  });
   const [error, setError] = useState<string | null>(null);
   const methodSelectorRefs = useRef<{ [key: number]: DeliveryMethodSelectorRef | null }>({});
 
@@ -63,11 +72,17 @@ export default function DeliveryChannelModal({
   };
 
   const handleDeliveryMethodsChange = (index: number, deliveryMethods: DeliveryMethod[]) => {
-    setSlots(currentSlots => 
-      currentSlots.map((slot, i) => 
-        i === index ? { ...slot, deliveryMethods } : slot
-      )
-    );
+    setSlots(currentSlots => {
+      const newSlots = [...currentSlots];
+      if (!newSlots[index]) {
+        newSlots[index] = createFallbackSlot();
+      }
+      newSlots[index] = {
+        ...newSlots[index],
+        deliveryMethods
+      };
+      return newSlots;
+    });
   };
 
   const addNewTimeSlot = () => {
@@ -95,7 +110,12 @@ export default function DeliveryChannelModal({
         type,
         description,
         settings,
-        slots: slots.map(({ id, channelId, ...slot }) => slot), // Remove id and channelId for API
+        slots: slots.map(({ id, channelId, deliveryMethods, ...slot }) => ({
+          ...slot,
+          methodIds: deliveryMethods?.map(method => method.id) || [],
+          timeslot: slot.timeRange || slot.timeslot,
+          settings: slot.settings || '{}'
+        }))
       };
 
       if (channel) {
@@ -113,6 +133,15 @@ export default function DeliveryChannelModal({
       }
     }
   };
+
+  useEffect(() => {
+    if (slots.length === 0) {
+      setSlots([type === 'SIMPLE' ? createSimpleChannelSlot() : createFallbackSlot()].map(slot => ({
+        ...slot,
+        deliveryMethods: []
+      })));
+    }
+  }, [slots.length, type]);
 
   return (
     <Transition.Root show={true} as={Fragment}>
@@ -263,7 +292,7 @@ export default function DeliveryChannelModal({
                                 <div className="mt-4">
                                   <DeliveryMethodSelector
                                     ref={(ref) => methodSelectorRefs.current[0] = ref}
-                                    value={slots[0].deliveryMethods}
+                                    value={slots[0]?.deliveryMethods || []}
                                     onChange={(deliveryMethods) =>
                                       handleDeliveryMethodsChange(0, deliveryMethods)
                                     }
