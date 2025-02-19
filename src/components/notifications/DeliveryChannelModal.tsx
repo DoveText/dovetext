@@ -37,15 +37,31 @@ export default function DeliveryChannelModal({
   const [settings, setSettings] = useState(channel?.settings || '{}');
   const [slots, setSlots] = useState<DeliveryChannelSlot[]>(() => {
     const initialSlots = channel?.slots || [type === 'SIMPLE' ? createSimpleChannelSlot() : createFallbackSlot()];
-    return initialSlots.map(slot => ({
-      ...slot,
-      deliveryMethods: [], // Will be populated by useEffect
-      timeRange: slot.timeRange || slot.timeslot || {
-        daysOfWeek: [],
-        startTime: "09:00",
-        endTime: "17:00"
+    return initialSlots.map(slot => {
+      // Parse timeslot if it's a string
+      let timeRange;
+      if (typeof slot.timeslot === 'string') {
+        try {
+          timeRange = JSON.parse(slot.timeslot);
+        } catch (e) {
+          console.error('Failed to parse timeslot:', e);
+          timeRange = {
+            daysOfWeek: [],
+            startTime: "09:00",
+            endTime: "17:00",
+            timezone: ""
+          };
+        }
+      } else {
+        timeRange = slot.timeslot;
       }
-    }));
+
+      return {
+        ...slot,
+        deliveryMethods: [], // Will be populated by useEffect
+        timeRange
+      };
+    });
   });
   const [error, setError] = useState<string | null>(null);
   const methodSelectorRefs = useRef<{ [key: number]: DeliveryMethodSelectorRef | null }>({});
@@ -136,10 +152,15 @@ export default function DeliveryChannelModal({
         type,
         description,
         settings,
-        slots: slots.map(({ id, channelId, deliveryMethods, ...slot }) => ({
+        slots: slots.map(({ id, channelId, deliveryMethods, timeRange, ...slot }) => ({
           ...slot,
           methodIds: deliveryMethods?.map(method => method.id) || [],
-          timeslot: slot.timeRange || slot.timeslot,
+          timeslot: {
+            daysOfWeek: timeRange?.daysOfWeek || [],
+            startTime: timeRange?.startTime || null,
+            endTime: timeRange?.endTime || null,
+            timezone: timeRange?.timezone || 'Asia/Shanghai'
+          },
           settings: slot.settings || '{}'
         }))
       };
