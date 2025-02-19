@@ -4,6 +4,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { DeliveryChannel, DeliveryChannelType } from '@/types/delivery-channel';
 import { deliveryChannelsApi } from '@/api/delivery-channels';
 import Select from '@/components/common/Select';
+import { FormField, FormInput, FormTextArea } from '@/components/common/form';
 
 interface DeliveryChannelModalProps {
   channel?: DeliveryChannel | null;
@@ -109,70 +110,46 @@ export default function DeliveryChannelModal({
                       </Dialog.Title>
 
                       <div className="mt-4 space-y-6">
-                        <div>
-                          <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900">
-                            Name
-                          </label>
-                          <div className="mt-2">
-                            <input
-                              type="text"
-                              id="name"
-                              value={name}
-                              onChange={(e) => setName(e.target.value)}
-                              className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                              placeholder="Enter a name for this channel"
-                              required
-                            />
-                          </div>
-                        </div>
+                        <FormField label="Name" htmlFor="name">
+                          <FormInput
+                            id="name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Enter a name for this channel"
+                            required
+                          />
+                        </FormField>
 
-                        <div>
+                        <FormField label="Type" htmlFor="type">
                           <Select
-                            label="Type"
+                            id="type"
                             value={type}
                             onChange={setType}
                             options={channelTypeOptions}
                           />
-                        </div>
+                        </FormField>
 
-                        <div>
-                          <label htmlFor="description" className="block text-sm font-medium leading-6 text-gray-900">
-                            Description
-                          </label>
-                          <div className="mt-2">
-                            <textarea
-                              id="description"
-                              value={description}
-                              onChange={(e) => setDescription(e.target.value)}
-                              rows={3}
-                              className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                              placeholder="Enter a description for this channel"
-                            />
-                          </div>
-                        </div>
+                        <FormField label="Description" htmlFor="description">
+                          <FormTextArea
+                            id="description"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            rows={3}
+                            placeholder="Enter a description for this channel"
+                          />
+                        </FormField>
 
-                        <div>
-                          <label htmlFor="settings" className="block text-sm font-medium leading-6 text-gray-900">
-                            Settings (JSON)
-                          </label>
-                          <div className="mt-2">
-                            <textarea
-                              id="settings"
-                              value={settings}
-                              onChange={(e) => setSettings(e.target.value)}
-                              rows={6}
-                              className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
-                              placeholder="{}"
-                              required
-                            />
-                          </div>
-                        </div>
-
-                        {error && (
-                          <div className="text-sm text-red-600">
-                            {error}
-                          </div>
-                        )}
+                        <FormField label="Settings (JSON)" htmlFor="settings" error={error}>
+                          <FormTextArea
+                            id="settings"
+                            value={settings}
+                            onChange={(e) => setSettings(e.target.value)}
+                            rows={6}
+                            className="font-mono"
+                            placeholder="{}"
+                            required
+                          />
+                        </FormField>
                       </div>
                     </div>
                   </div>
