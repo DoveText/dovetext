@@ -51,40 +51,30 @@ export default function TimeRangeSelector({
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* First Row: Delete, Name, All Day, Time Range */}
-      <div className="flex items-center space-x-4">
-        {onDelete && (
-          <button
-            type="button"
-            onClick={onDelete}
-            className="text-gray-400 hover:text-gray-500"
-          >
-            <TrashIcon className="h-5 w-5" />
-          </button>
-        )}
+      {/* First Row: Delete, Name, Time Range, Any Time */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="text-gray-400 hover:text-gray-500"
+            >
+              <TrashIcon className="h-5 w-5" />
+            </button>
+          )}
 
-        <div className="relative rounded-md shadow-sm">
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => onNameChange?.(e.target.value)}
-            className="block w-40 rounded-md border-0 px-3 py-1.5 text-sm text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
-            placeholder="Time Slot Name"
-          />
-        </div>
+          <div className="relative rounded-md shadow-sm">
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => onNameChange?.(e.target.value)}
+              className="block w-40 rounded-md border-0 px-3 py-1.5 text-sm text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+              placeholder="Time Slot Name"
+            />
+          </div>
 
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={isAllDay}
-            onChange={(e) => setIsAllDay(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-            id="all-day"
-          />
-          <label htmlFor="all-day" className="text-sm text-gray-700 whitespace-nowrap">All Day</label>
-        </div>
-
-        {!isAllDay && (
+          {/* Always show time inputs, just disable when Any Time is checked */}
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-700">From</span>
             <div className="relative rounded-md shadow-sm w-24">
@@ -93,6 +83,7 @@ export default function TimeRangeSelector({
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 className="block w-full rounded-md border-0 py-1.5 text-sm text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 px-2"
+                disabled={isAllDay}
               />
             </div>
             <span className="text-sm text-gray-700">to</span>
@@ -102,13 +93,28 @@ export default function TimeRangeSelector({
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
                 className="block w-full rounded-md border-0 py-1.5 text-sm text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 px-2"
+                disabled={isAllDay}
               />
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Any Time checkbox at the end of first line */}
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            checked={isAllDay}
+            onChange={(e) => {
+              setIsAllDay(e.target.checked);
+            }}
+            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            id="any-time"
+          />
+          <label htmlFor="any-time" className="text-sm text-gray-700 whitespace-nowrap">Any Time</label>
+        </div>
       </div>
 
-      {/* Second Row: Days Selection */}
+      {/* Second Row: Days Selection with All Days at the end */}
       <div className="flex items-center justify-between pl-[37px]">
         <div className="flex items-center space-x-4">
           {DAYS_OF_WEEK.map((day) => (
@@ -123,6 +129,7 @@ export default function TimeRangeSelector({
                     setSelectedDays(selectedDays.filter(d => d !== day.value));
                   }
                 }}
+                disabled={isEveryDay}
                 className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
               />
               <span className="text-sm text-gray-700">{day.label.slice(0, 3)}</span>
@@ -130,13 +137,21 @@ export default function TimeRangeSelector({
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setSelectedDays(selectedDays.length === DAYS_OF_WEEK.length ? [] : DAYS_OF_WEEK.map(d => d.value))}
-          className="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-        >
-          {selectedDays.length === DAYS_OF_WEEK.length ? 'Uncheck all' : 'Check all'}
-        </button>
+        {/* All Days checkbox at the end of second line */}
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            checked={isEveryDay}
+            onChange={(e) => {
+              setIsEveryDay(e.target.checked);
+              // Whether checking or unchecking, always set all days to checked
+              setSelectedDays([0,1,2,3,4,5,6]);
+            }}
+            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            id="all-days"
+          />
+          <label htmlFor="all-days" className="text-sm text-gray-700 whitespace-nowrap">All Days</label>
+        </div>
       </div>
     </div>
   );
