@@ -64,6 +64,8 @@ export default function DeliveryChannelModal({
     });
   });
   const [error, setError] = useState<string | null>(null);
+  const [slotErrors, setSlotErrors] = useState<{ [key: number]: string }>({});
+  const [methodErrors, setMethodErrors] = useState<{ [key: number]: string }>({});
   const methodSelectorRefs = useRef<{ [key: number]: DeliveryMethodSelectorRef | null }>({});
 
   // Load methods for slots when editing
@@ -139,9 +141,87 @@ export default function DeliveryChannelModal({
     setSlots(currentSlots => currentSlots.filter((_, i) => i !== index));
   };
 
+  const validateForm = () => {
+    const newSlotErrors: { [key: number]: string } = {};
+    const newMethodErrors: { [key: number]: string } = {};
+    let isValid = true;
+
+    // For simple type, validate method list
+    if (type === 'SIMPLE') {
+      if (!slots[0]?.deliveryMethods?.length) {
+        newMethodErrors[0] = 'Please select at least one delivery method';
+        isValid = false;
+      }
+    }
+    
+    // For time-based type
+    if (type === 'TIME_BASED') {
+      // Must have at least one non-fallback slot
+      if (slots.length <= 1) {
+        setError('Please create at least one time slot');
+        isValid = false;
+      }
+
+      // Validate each slot
+      slots.forEach((slot, index) => {
+        // Skip fallback slot (index 0)
+        if (index === 0) {
+          if (!slot.deliveryMethods?.length) {
+            newMethodErrors[index] = 'Please select at least one delivery method for fallback slot';
+            isValid = false;
+          }
+          return;
+        }
+
+        // Validate delivery methods
+        if (!slot.deliveryMethods?.length) {
+          newMethodErrors[index] = 'Please select at least one delivery method';
+          isValid = false;
+        }
+
+        // Validate time range
+        if (slot.timeRange) {
+          const isAnyTime = !slot.timeRange.startTime || !slot.timeRange.endTime;
+          const isAllDays = !slot.timeRange.daysOfWeek?.length || slot.timeRange.daysOfWeek?.length === 7;
+          const hasNoDays = !slot.timeRange.daysOfWeek?.length;
+
+          // Cannot have both Any Time and All Days checked
+          if (isAnyTime && isAllDays) {
+            newSlotErrors[index] = 'You cannot select all days without specifying a time range in a day'
+            isValid = false;
+          }
+
+          // If Any Time is not checked, validate start/end time
+          if (!isAnyTime && slot.timeRange.startTime && slot.timeRange.endTime) {
+            if (slot.timeRange.startTime >= slot.timeRange.endTime) {
+              newSlotErrors[index] = 'Invalid time range in a day'
+              isValid = false;
+            }
+          }
+
+          // If All Days is not checked, must have at least one day selected
+          if (!isAllDays && hasNoDays) {
+            newSlotErrors[index] = 'Please select at least one day';
+            isValid = false;
+          }
+        }
+      });
+    }
+
+    setSlotErrors(newSlotErrors);
+    setMethodErrors(newMethodErrors);
+    return isValid;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSlotErrors({});
+    setMethodErrors({});
+
+    if (!validateForm()) {
+      return;
+    }
 
     try {
       // Validate settings JSON
@@ -295,6 +375,9 @@ export default function DeliveryChannelModal({
                                     }}
                                     onDelete={() => removeTimeSlot(index + 1)}
                                   />
+                                  {slotErrors[index + 1] && (
+                                    <p className="mt-2 text-sm text-red-600">{slotErrors[index + 1]}</p>
+                                  )}
                                   <div className="mt-4">
                                     <div className="flex items-center justify-between mb-4">
                                       <h5 className="text-sm font-medium text-gray-900">
@@ -317,6 +400,9 @@ export default function DeliveryChannelModal({
                                       }
                                       hideAddButton={true}
                                     />
+                                    {methodErrors[index + 1] && (
+                                      <p className="mt-2 text-sm text-red-600">{methodErrors[index + 1]}</p>
+                                    )}
                                   </div>
                                 </div>
                               ))}
@@ -345,6 +431,9 @@ export default function DeliveryChannelModal({
                                     }
                                     hideAddButton={true}
                                   />
+                                  {methodErrors[0] && (
+                                    <p className="mt-2 text-sm text-red-600">{methodErrors[0]}</p>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -360,6 +449,9 @@ export default function DeliveryChannelModal({
                                   }
                                   hideAddButton={true}
                                 />
+                                {methodErrors[index] && (
+                                  <p className="mt-2 text-sm text-red-600">{methodErrors[index]}</p>
+                                )}
                               </div>
                             ))
                           )}
