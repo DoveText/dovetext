@@ -212,7 +212,7 @@ export default function DeliveryChannelModal({
                                     <div className="mb-4">
                                       <TimeRangeSelector
                                         value={slot.timeslot}
-                                        onChange={(value) => handleSlotTimeRangeChange(index, value)}
+                                        onChange={(value: any) => handleSlotTimeRangeChange(index, value)}
                                       />
                                     </div>
                                   )}
