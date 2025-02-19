@@ -15,18 +15,19 @@ import DeliveryChannelSelector, { DeliveryChannelSelectorRef } from './DeliveryC
 import DeliveryMethodSelector, { DeliveryMethodSelectorRef } from './DeliveryMethodSelector';
 
 const retryIntervalOptions = [
-  { value: '0', label: 'No Retry' },
-  { value: '60', label: 'One Minute' },
   { value: '300', label: 'Five Minutes' },
+  { value: '600', label: 'Ten Minutes' },
   { value: '900', label: 'Fifteen Minutes' },
+  { value: '1800', label: 'Thirty Minutes' },
   { value: '3600', label: 'One Hour' },
 ];
 
-const timeOptions = [
+const waitDelayOptions = [
   { value: '0', label: 'No Delay' },
-  { value: '60', label: 'One Minute' },
   { value: '300', label: 'Five Minutes' },
+  { value: '600', label: 'Ten Minutes' },
   { value: '900', label: 'Fifteen Minutes' },
+  { value: '1800', label: 'Thirty Minutes' },
   { value: '3600', label: 'One Hour' },
 ];
 
@@ -52,10 +53,9 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
       channelIds: stage.channelIds || [],
       methodIds: stage.methodIds || [],
       settings: {
-        waitDuration: stage.settings?.waitDuration || 0,
-        maxAttempts: stage.settings?.maxAttempts || 1,
-        retryInterval: stage.settings?.retryInterval || 0,
-        timeRange: stage.settings?.timeRange || null
+        stageDelay: stage.settings?.stageDelay || 0,
+        maxRetries: stage.settings?.maxRetries || 3,
+        retryInterval: stage.settings?.retryInterval || 300,
       }
     })) : []
   );
@@ -77,10 +77,9 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
         channelIds: stage.channelIds || [],
         methodIds: stage.methodIds || [],
         settings: {
-          waitDuration: stage.settings?.waitDuration || 0,
-          maxAttempts: stage.settings?.maxAttempts || 1,
-          retryInterval: stage.settings?.retryInterval || 0,
-          timeRange: stage.settings?.timeRange || null
+          stageDelay: stage.settings?.stageDelay || 0,
+          maxRetries: stage.settings?.maxRetries || 3,
+          retryInterval: stage.settings?.retryInterval || 300,
         }
       })) : []);
     } else {
@@ -169,10 +168,9 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
         channelIds: [],
         methodIds: [],
         settings: {
-          waitDuration: 0,
-          maxAttempts: 1,
-          retryInterval: 0,
-          timeRange: null
+          stageDelay: 0,
+          maxRetries: 3,
+          retryInterval: 300,
         }
       }
     ]);
@@ -282,33 +280,32 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                     {/* Stage Settings */}
                                     <div className="grid grid-cols-3 gap-4">
                                       {/* Wait Duration */}
-                                      <FormField label="Wait Duration (seconds)">
-                                        <FormInput
-                                          type="number"
-                                          min="0"
-                                          value={stage.settings.waitDuration}
-                                          onChange={(e) => {
-                                            const value = parseInt(e.target.value) || 0;
+                                      <FormField label="Stage Delay">
+                                        <Select<string>
+                                          value={stage.settings.stageDelay.toString()}
+                                          onChange={(value) => {
                                             updateStage(index, 'settings', {
                                               ...stage.settings,
-                                              waitDuration: value
+                                              stageDelay: value
                                             });
                                           }}
-                                          placeholder="Duration in seconds"
+                                          options={waitDelayOptions}
+                                          placeholder="Select a delay interval"
+                                          className="block w-full"
                                         />
                                       </FormField>
 
-                                      {/* Max Attempts */}
-                                      <FormField label="Max Attempts">
+                                      {/* Max Retries */}
+                                      <FormField label="Max Retries">
                                         <FormInput
                                           type="number"
                                           min="1"
-                                          value={stage.settings.maxAttempts}
+                                          value={stage.settings.maxRetries}
                                           onChange={(e) => {
                                             const value = parseInt(e.target.value) || 1;
                                             updateStage(index, 'settings', {
                                               ...stage.settings,
-                                              maxAttempts: value
+                                              maxRetries: value
                                             });
                                           }}
                                         />
