@@ -59,6 +59,19 @@ export default function DeliveryChannelList({
     handleModalClose();
   };
 
+  const handleConfirmDelete = () => {
+    if (channelToDelete) {
+      handleDelete(channelToDelete);
+    }
+    setShowDeleteConfirm(false);
+    setChannelToDelete(null);
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setChannelToDelete(null);
+  };
+
   return (
     <div>
       <div className="mt-4 divide-y divide-gray-200">
@@ -133,20 +146,13 @@ export default function DeliveryChannelList({
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
         title="Delete Channel"
         message="Are you sure you want to delete this channel? This action cannot be undone."
-        confirmLabel="Delete"
-        onConfirm={() => {
-          if (channelToDelete) {
-            handleDelete(channelToDelete);
-          }
-          setShowDeleteConfirm(false);
-          setChannelToDelete(null);
-        }}
-        onCancel={() => {
-          setShowDeleteConfirm(false);
-          setChannelToDelete(null);
-        }}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonClassName="bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500"
       />
     </div>
   );
