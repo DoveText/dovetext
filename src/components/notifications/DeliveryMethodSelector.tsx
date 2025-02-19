@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, forwardRef, useImperativeHandle } from 'react';
 import { DeliveryMethod, DeliveryMethodType } from '@/types/delivery-method';
 import { deliveryMethodsApi } from '@/api/delivery-methods';
 import { Dialog, Transition } from '@headlessui/react';
@@ -176,19 +176,29 @@ function MethodCard({ method, onRemove, onClick, className = '', isButton = fals
   );
 }
 
+export interface DeliveryMethodSelectorRef {
+  openDialog: () => void;
+}
+
 interface DeliveryMethodSelectorProps {
   value: DeliveryMethod[];
   onChange: (value: DeliveryMethod[]) => void;
   className?: string;
+  hideAddButton?: boolean;
 }
 
-export default function DeliveryMethodSelector({
+const DeliveryMethodSelector = forwardRef<DeliveryMethodSelectorRef, DeliveryMethodSelectorProps>(function DeliveryMethodSelector({
   value = [],
   onChange,
   className = '',
-}: DeliveryMethodSelectorProps) {
+  hideAddButton = false,
+}, ref) {
   const [isOpen, setIsOpen] = useState(false);
   const [methods, setMethods] = useState<DeliveryMethod[]>([]);
+
+  useImperativeHandle(ref, () => ({
+    openDialog: () => setIsOpen(true)
+  }), []);
 
   useEffect(() => {
     const fetchMethods = async () => {
@@ -222,25 +232,31 @@ export default function DeliveryMethodSelector({
     <div className={`space-y-4 ${className}`}>
       {/* Selected Methods List */}
       <div className="space-y-2">
-        {value.map((method) => (
-          <MethodCard
-            key={method.id}
-            method={method}
-            onRemove={() => handleRemove(method.id)}
-          />
-        ))}
+        {value.length === 0 ? (
+          <div className="text-sm text-gray-400 italic py-2">No delivery method selected</div>
+        ) : (
+          value.map((method) => (
+            <MethodCard
+              key={method.id}
+              method={method}
+              onRemove={() => handleRemove(method.id)}
+            />
+          ))
+        )}
       </div>
 
       {/* Add Button */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        disabled={availableMethods.length === 0}
-        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
-      >
-        <PlusIcon className="h-5 w-5 mr-2" />
-        Add Delivery Method
-      </button>
+      {!hideAddButton && (
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          disabled={availableMethods.length === 0}
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+        >
+          <PlusIcon className="h-5 w-5 mr-2" />
+          Add Delivery Method
+        </button>
+      )}
 
       {/* Selection Dialog */}
       <Transition appear show={isOpen} as={Fragment}>
@@ -304,4 +320,6 @@ export default function DeliveryMethodSelector({
       </Transition>
     </div>
   );
-}
+});
+
+export default DeliveryMethodSelector;

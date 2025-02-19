@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useRef } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { 
@@ -38,6 +38,8 @@ export default function DeliveryChannelModal({
     channel?.slots || [type === 'SIMPLE' ? createSimpleChannelSlot() : createFallbackSlot()]
   );
   const [error, setError] = useState<string | null>(null);
+
+  const methodSelectorRef = useRef<DeliveryMethodSelectorRef>(null);
 
   const handleTypeChange = (newType: DeliveryChannelType) => {
     setType(newType);
@@ -121,6 +123,10 @@ export default function DeliveryChannelModal({
     setSlots(currentSlots => currentSlots.filter((_, i) => i !== index));
   };
 
+  const handleAddMethod = () => {
+    methodSelectorRef.current?.openDialog();
+  };
+
   return (
     <Transition.Root show={true} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={() => {}}>
@@ -201,6 +207,16 @@ export default function DeliveryChannelModal({
                                 Add Time Slot
                               </button>
                             )}
+                            {type === 'SIMPLE' && (
+                              <button
+                                type="button"
+                                onClick={() => methodSelectorRef.current?.openDialog()}
+                                className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                              >
+                                <PlusIcon className="h-4 w-4 mr-1" />
+                                Add Method
+                              </button>
+                            )}
                           </div>
 
                           {type === 'TIME_BASED' && (
@@ -260,6 +276,7 @@ export default function DeliveryChannelModal({
                             slots.map((slot, index) => (
                               <div key={index} className="rounded-lg border border-gray-200 p-4">
                                 <DeliveryMethodSelector
+                                  ref={methodSelectorRef}
                                   value={slot.deliveryMethods}
                                   onChange={(deliveryMethods) =>
                                     handleTimeSlotChange(index, {
@@ -267,6 +284,7 @@ export default function DeliveryChannelModal({
                                       deliveryMethods,
                                     })
                                   }
+                                  hideAddButton={true}
                                 />
                               </div>
                             ))
