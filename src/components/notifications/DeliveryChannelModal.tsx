@@ -38,8 +38,11 @@ export default function DeliveryChannelModal({
     channel?.slots || [type === 'SIMPLE' ? createSimpleChannelSlot() : createFallbackSlot()]
   );
   const [error, setError] = useState<string | null>(null);
+  const methodSelectorRefs = useRef<{ [key: number]: DeliveryMethodSelectorRef | null }>({});
 
-  const methodSelectorRef = useRef<DeliveryMethodSelectorRef>(null);
+  const handleOpenDialog = (index: number) => {
+    methodSelectorRefs.current[index]?.openDialog();
+  };
 
   const handleTypeChange = (newType: DeliveryChannelType) => {
     setType(newType);
@@ -51,18 +54,18 @@ export default function DeliveryChannelModal({
     }
   };
 
-  const handleSlotMethodsChange = (slotIndex: number, methodIds: number[]) => {
+  const handleTimeSlotChange = (index: number, timeRange: TimeRange) => {
     setSlots(currentSlots => 
-      currentSlots.map((slot, index) => 
-        index === slotIndex ? { ...slot, methodIds } : slot
+      currentSlots.map((slot, i) => 
+        i === index ? { ...slot, timeRange } : slot
       )
     );
   };
 
-  const handleSlotTimeRangeChange = (slotIndex: number, timeslot: any) => {
+  const handleDeliveryMethodsChange = (index: number, deliveryMethods: DeliveryMethod[]) => {
     setSlots(currentSlots => 
-      currentSlots.map((slot, index) => 
-        index === slotIndex ? { ...slot, timeslot } : slot
+      currentSlots.map((slot, i) => 
+        i === index ? { ...slot, deliveryMethods } : slot
       )
     );
   };
@@ -109,22 +112,6 @@ export default function DeliveryChannelModal({
         console.error(err);
       }
     }
-  };
-
-  const handleTimeSlotChange = (index: number, slot: any) => {
-    setSlots(currentSlots => 
-      currentSlots.map((s, i) => 
-        i === index ? slot : s
-      )
-    );
-  };
-
-  const handleRemoveTimeSlot = (index: number) => {
-    setSlots(currentSlots => currentSlots.filter((_, i) => i !== index));
-  };
-
-  const handleAddMethod = () => {
-    methodSelectorRef.current?.openDialog();
   };
 
   return (
@@ -210,7 +197,7 @@ export default function DeliveryChannelModal({
                             {type === 'SIMPLE' && (
                               <button
                                 type="button"
-                                onClick={() => methodSelectorRef.current?.openDialog()}
+                                onClick={() => handleOpenDialog(0)}
                                 className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
                               >
                                 <PlusIcon className="h-4 w-4 mr-1" />
@@ -225,27 +212,34 @@ export default function DeliveryChannelModal({
                                 <div key={index + 1} className="rounded-lg border border-gray-200 p-4">
                                   <TimeRangeSelector
                                     value={slot.timeRange}
-                                    onChange={(timeRange) =>
-                                      handleTimeSlotChange(index + 1, {
-                                        ...slot,
-                                        timeRange,
-                                      })
-                                    }
+                                    onChange={(timeRange) => handleTimeSlotChange(index + 1, timeRange)}
                                     name={`Time Slot ${index + 1}`}
                                     onNameChange={(name) => {
                                       // Handle name change if needed
                                     }}
-                                    onDelete={() => handleRemoveTimeSlot(index + 1)}
+                                    onDelete={() => removeTimeSlot(index + 1)}
                                   />
                                   <div className="mt-4">
+                                    <div className="flex items-center justify-between mb-4">
+                                      <h5 className="text-sm font-medium text-gray-900">
+                                        Delivery Methods
+                                      </h5>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenDialog(index + 1)}
+                                        className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                                      >
+                                        <PlusIcon className="h-4 w-4 mr-1" />
+                                        Add Method
+                                      </button>
+                                    </div>
                                     <DeliveryMethodSelector
+                                      ref={(ref) => methodSelectorRefs.current[index + 1] = ref}
                                       value={slot.deliveryMethods}
-                                      onChange={(deliveryMethods) =>
-                                        handleTimeSlotChange(index + 1, {
-                                          ...slot,
-                                          deliveryMethods,
-                                        })
+                                      onChange={(deliveryMethods) => 
+                                        handleDeliveryMethodsChange(index + 1, deliveryMethods)
                                       }
+                                      hideAddButton={true}
                                     />
                                   </div>
                                 </div>
@@ -257,16 +251,23 @@ export default function DeliveryChannelModal({
                                   <h5 className="text-sm font-medium text-gray-900">
                                     Fallback Time Slot
                                   </h5>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenDialog(0)}
+                                    className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                                  >
+                                    <PlusIcon className="h-4 w-4 mr-1" />
+                                    Add Method
+                                  </button>
                                 </div>
                                 <div className="mt-4">
                                   <DeliveryMethodSelector
+                                    ref={(ref) => methodSelectorRefs.current[0] = ref}
                                     value={slots[0].deliveryMethods}
                                     onChange={(deliveryMethods) =>
-                                      handleTimeSlotChange(0, {
-                                        ...slots[0],
-                                        deliveryMethods,
-                                      })
+                                      handleDeliveryMethodsChange(0, deliveryMethods)
                                     }
+                                    hideAddButton={true}
                                   />
                                 </div>
                               </div>
@@ -276,13 +277,10 @@ export default function DeliveryChannelModal({
                             slots.map((slot, index) => (
                               <div key={index} className="rounded-lg border border-gray-200 p-4">
                                 <DeliveryMethodSelector
-                                  ref={methodSelectorRef}
+                                  ref={(ref) => methodSelectorRefs.current[index] = ref}
                                   value={slot.deliveryMethods}
                                   onChange={(deliveryMethods) =>
-                                    handleTimeSlotChange(index, {
-                                      ...slot,
-                                      deliveryMethods,
-                                    })
+                                    handleDeliveryMethodsChange(index, deliveryMethods)
                                   }
                                   hideAddButton={true}
                                 />

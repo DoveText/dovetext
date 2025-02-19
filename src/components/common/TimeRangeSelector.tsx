@@ -29,21 +29,25 @@ export default function TimeRangeSelector({
   const [isAllDay, setIsAllDay] = useState(value?.startTime === null && value?.endTime === null);
   const [selectedDays, setSelectedDays] = useState(
     value?.daysOfWeek?.length === 0 
-      ? DAYS_OF_WEEK.map(d => d.value) 
-      : value?.daysOfWeek || DAYS_OF_WEEK.map(d => d.value)
+      ? ALL_DAYS 
+      : value?.daysOfWeek || ALL_DAYS
   );
   const [startTime, setStartTime] = useState(value?.startTime || '09:00');
   const [endTime, setEndTime] = useState(value?.endTime || '17:00');
 
   // Update parent when values change
   useEffect(() => {
-    onChange({
-      ...value,
+    const newValue: TimeRange = {
+      daysOfWeek: isEveryDay ? ALL_DAYS : selectedDays,
       startTime: isAllDay ? null : startTime,
       endTime: isAllDay ? null : endTime,
-      daysOfWeek: isEveryDay ? ALL_DAYS : selectedDays,
-    });
-  }, [isAllDay, isEveryDay, selectedDays, startTime, endTime, value]);
+    };
+    
+    // Only update if values actually changed
+    if (JSON.stringify(newValue) !== JSON.stringify(value)) {
+      onChange(newValue);
+    }
+  }, [isAllDay, isEveryDay, selectedDays, startTime, endTime, onChange, value]);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -129,7 +133,7 @@ export default function TimeRangeSelector({
         <button
           type="button"
           onClick={() => setSelectedDays(selectedDays.length === DAYS_OF_WEEK.length ? [] : DAYS_OF_WEEK.map(d => d.value))}
-          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+          className="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
         >
           {selectedDays.length === DAYS_OF_WEEK.length ? 'Uncheck all' : 'Check all'}
         </button>
