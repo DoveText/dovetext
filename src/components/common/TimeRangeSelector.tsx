@@ -25,11 +25,15 @@ export default function TimeRangeSelector({
   onDelete,
   className = '',
 }: TimeRangeSelectorProps) {
-  const [isEveryDay, setIsEveryDay] = useState(value.daysOfWeek.length === 0);
-  const [isAllDay, setIsAllDay] = useState(value.startTime === null && value.endTime === null);
-  const [selectedDays, setSelectedDays] = useState(value.daysOfWeek.length === 0 ? DAYS_OF_WEEK.map(d => d.value) : value.daysOfWeek);
-  const [startTime, setStartTime] = useState(value.startTime || '09:00');
-  const [endTime, setEndTime] = useState(value.endTime || '17:00');
+  const [isEveryDay, setIsEveryDay] = useState(value?.daysOfWeek?.length === 0);
+  const [isAllDay, setIsAllDay] = useState(value?.startTime === null && value?.endTime === null);
+  const [selectedDays, setSelectedDays] = useState(
+    value?.daysOfWeek?.length === 0 
+      ? DAYS_OF_WEEK.map(d => d.value) 
+      : value?.daysOfWeek || DAYS_OF_WEEK.map(d => d.value)
+  );
+  const [startTime, setStartTime] = useState(value?.startTime || '09:00');
+  const [endTime, setEndTime] = useState(value?.endTime || '17:00');
 
   // Update parent when values change
   useEffect(() => {
@@ -39,7 +43,7 @@ export default function TimeRangeSelector({
       endTime: isAllDay ? null : endTime,
       daysOfWeek: isEveryDay ? ALL_DAYS : selectedDays,
     });
-  }, [isAllDay, isEveryDay, selectedDays, startTime, endTime]);
+  }, [isAllDay, isEveryDay, selectedDays, startTime, endTime, value]);
 
   return (
     <div className={`space-y-4 ${className}`}>

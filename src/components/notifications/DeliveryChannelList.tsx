@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { DeliveryChannel, DeliveryChannelType } from '@/types/delivery-channel';
 import { 
-  EnvelopeIcon, 
-  GlobeAltIcon,
-  PhoneIcon,
-  ChatBubbleLeftIcon,
   TrashIcon,
   PencilIcon,
-  PlusIcon
+  PlusIcon,
+  BellIcon,
+  ClockIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import DeliveryChannelModal from './DeliveryChannelModal';
 import { deliveryChannelsApi } from '@/api/delivery-channels';
@@ -19,17 +18,78 @@ interface DeliveryChannelListProps {
 }
 
 const channelIcons: Record<DeliveryChannelType, React.ComponentType<any>> = {
-  EMAIL: EnvelopeIcon,
-  SLACK: ChatBubbleLeftIcon,
-  WEBHOOK: GlobeAltIcon,
-  SMS: PhoneIcon,
+  SIMPLE: BellIcon,
+  TIME_BASED: ClockIcon,
 };
+
+// Helper function to get descriptive text for channel type
+function getChannelTypeDescription(type: DeliveryChannelType): string {
+  return type === 'TIME_BASED' 
+    ? 'A time-based channel'
+    : 'A simple channel';
+}
+
+function ChannelCard({ 
+  channel, 
+  onEdit, 
+  onDelete 
+}: { 
+  channel: DeliveryChannel;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const Icon = channelIcons[channel.type];
+
+  return (
+    <div className="bg-white border rounded-lg shadow-sm hover:shadow transition-all duration-200">
+      <div className="relative flex justify-between gap-x-6 py-5 px-4">
+        <div className="flex min-w-0 gap-x-4">
+          <div className="h-12 w-12 flex items-center justify-center rounded-lg bg-gray-50">
+            {Icon && <Icon className="h-6 w-6 text-gray-600" aria-hidden="true" />}
+          </div>
+          <div className="min-w-0 flex-auto">
+            <div className="flex items-center gap-x-2">
+              <p className="text-sm font-semibold leading-6 text-gray-900">{channel.name}</p>
+              <span className="text-xs text-gray-500">{getChannelTypeDescription(channel.type)}</span>
+            </div>
+            {channel.description && (
+              <p className="mt-1 text-xs text-gray-500 line-clamp-2">{channel.description}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-x-4">
+          <div className="flex gap-x-2">
+            <button
+              type="button"
+              className="rounded p-1 hover:bg-gray-100 group relative"
+            >
+              <InformationCircleIcon className="h-5 w-5 text-gray-400" />
+            </button>
+            <button
+              type="button"
+              onClick={onEdit}
+              className="rounded p-1 hover:bg-gray-100 group relative"
+            >
+              <PencilIcon className="h-5 w-5 text-gray-400" />
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="rounded p-1 hover:bg-gray-100 group relative"
+            >
+              <TrashIcon className="h-5 w-5 text-gray-400" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function DeliveryChannelList({
   channels,
   onChannelsChange,
 }: DeliveryChannelListProps) {
-  const [hoveredChannel, setHoveredChannel] = useState<string | null>(null);
   const [editingChannel, setEditingChannel] = useState<DeliveryChannel | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [channelToDelete, setChannelToDelete] = useState<DeliveryChannel | null>(null);
@@ -74,57 +134,18 @@ export default function DeliveryChannelList({
 
   return (
     <div>
-      <div className="mt-4 divide-y divide-gray-200">
-        {channels.map((channel) => {
-          const Icon = channelIcons[channel.type];
-          const isHovered = hoveredChannel === channel.id.toString();
-
-          return (
-            <div
-              key={channel.id}
-              className="flex items-center py-4 hover:bg-gray-50"
-              onMouseEnter={() => setHoveredChannel(channel.id.toString())}
-              onMouseLeave={() => setHoveredChannel(null)}
-            >
-              <div className="flex-shrink-0 mr-4">
-                <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-gray-100">
-                  <Icon className="h-6 w-6 text-gray-600" />
-                </div>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">
-                      {channel.name}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {channel.description || 'No description'}
-                    </p>
-                  </div>
-                  <div className={`flex space-x-2 transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(channel)}
-                      className="p-1 rounded-md hover:bg-gray-200"
-                    >
-                      <PencilIcon className="h-5 w-5 text-gray-500" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setChannelToDelete(channel);
-                        setShowDeleteConfirm(true);
-                      }}
-                      className="p-1 rounded-md hover:bg-gray-200"
-                    >
-                      <TrashIcon className="h-5 w-5 text-gray-500" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+      <div className="mt-4 space-y-2">
+        {channels.map((channel) => (
+          <ChannelCard
+            key={channel.id}
+            channel={channel}
+            onEdit={() => handleEdit(channel)}
+            onDelete={() => {
+              setChannelToDelete(channel);
+              setShowDeleteConfirm(true);
+            }}
+          />
+        ))}
       </div>
 
       <button
