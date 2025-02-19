@@ -1,10 +1,18 @@
 import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
-import { DeliveryChannel, DeliveryChannelType } from '@/types/delivery-channel';
+import { XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { 
+  DeliveryChannel, 
+  DeliveryChannelType, 
+  DeliveryChannelSlot,
+  createSimpleChannelSlot,
+  createFallbackSlot,
+} from '@/types/delivery-channel';
 import { deliveryChannelsApi } from '@/api/delivery-channels';
 import Select from '@/components/common/Select';
 import { FormField, FormInput, FormTextArea } from '@/components/common/form';
+import DeliveryMethodSelector from './DeliveryMethodSelector';
+import TimeRangeSelector from '@/components/common/TimeRangeSelector';
 
 interface DeliveryChannelModalProps {
   channel?: DeliveryChannel | null;
@@ -13,10 +21,8 @@ interface DeliveryChannelModalProps {
 }
 
 const channelTypeOptions = [
-  { value: 'EMAIL' as DeliveryChannelType, label: 'Email' },
-  { value: 'SLACK' as DeliveryChannelType, label: 'Slack' },
-  { value: 'WEBHOOK' as DeliveryChannelType, label: 'Webhook' },
-  { value: 'SMS' as DeliveryChannelType, label: 'SMS' },
+  { value: 'SIMPLE' as DeliveryChannelType, label: 'Simple' },
+  { value: 'TIME_BASED' as DeliveryChannelType, label: 'Time-based' },
 ];
 
 export default function DeliveryChannelModal({
@@ -25,10 +31,51 @@ export default function DeliveryChannelModal({
   onSave,
 }: DeliveryChannelModalProps) {
   const [name, setName] = useState(channel?.name || '');
-  const [type, setType] = useState<DeliveryChannelType>(channel?.type || 'EMAIL');
+  const [type, setType] = useState<DeliveryChannelType>(channel?.type || 'SIMPLE');
   const [description, setDescription] = useState(channel?.description || '');
   const [settings, setSettings] = useState(channel?.settings || '{}');
+  const [slots, setSlots] = useState<DeliveryChannelSlot[]>(
+    channel?.slots || [type === 'SIMPLE' ? createSimpleChannelSlot() : createFallbackSlot()]
+  );
   const [error, setError] = useState<string | null>(null);
+
+  const handleTypeChange = (newType: DeliveryChannelType) => {
+    setType(newType);
+    // Reset slots when changing type
+    if (newType === 'SIMPLE') {
+      setSlots([createSimpleChannelSlot()]);
+    } else {
+      setSlots([createFallbackSlot()]);
+    }
+  };
+
+  const handleSlotMethodsChange = (slotIndex: number, methodIds: number[]) => {
+    setSlots(currentSlots => 
+      currentSlots.map((slot, index) => 
+        index === slotIndex ? { ...slot, methodIds } : slot
+      )
+    );
+  };
+
+  const handleSlotTimeRangeChange = (slotIndex: number, timeslot: any) => {
+    setSlots(currentSlots => 
+      currentSlots.map((slot, index) => 
+        index === slotIndex ? { ...slot, timeslot } : slot
+      )
+    );
+  };
+
+  const addNewTimeSlot = () => {
+    setSlots(currentSlots => [...currentSlots, createSimpleChannelSlot()]);
+  };
+
+  const removeTimeSlot = (index: number) => {
+    if (index === 0 && type === 'TIME_BASED') {
+      // Don't remove fallback slot
+      return;
+    }
+    setSlots(currentSlots => currentSlots.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,20 +85,18 @@ export default function DeliveryChannelModal({
       // Validate settings JSON
       JSON.parse(settings);
 
+      const data = {
+        name,
+        type,
+        description,
+        settings,
+        slots: slots.map(({ id, channelId, ...slot }) => slot), // Remove id and channelId for API
+      };
+
       if (channel) {
-        await deliveryChannelsApi.update(channel.id, {
-          name,
-          type,
-          description,
-          settings,
-        });
+        await deliveryChannelsApi.update(channel.id, data);
       } else {
-        await deliveryChannelsApi.create({
-          name,
-          type,
-          description,
-          settings,
-        });
+        await deliveryChannelsApi.create(data);
       }
       onSave();
     } catch (err) {
@@ -124,8 +169,9 @@ export default function DeliveryChannelModal({
                           <Select
                             id="type"
                             value={type}
-                            onChange={setType}
+                            onChange={handleTypeChange}
                             options={channelTypeOptions}
+                            disabled={!!channel} // Disable type change for existing channels
                           />
                         </FormField>
 
@@ -138,6 +184,58 @@ export default function DeliveryChannelModal({
                             placeholder="Enter a description for this channel"
                           />
                         </FormField>
+
+                        <div className="space-y-4">
+                          <h4 className="text-sm font-medium text-gray-900">
+                            {type === 'SIMPLE' ? 'Delivery Methods' : 'Time Slots'}
+                          </h4>
+                          
+                          {slots.map((slot, index) => (
+                            <div key={index} className="rounded-lg border border-gray-200 p-4">
+                              {type === 'TIME_BASED' && (
+                                <>
+                                  <div className="flex items-center justify-between mb-4">
+                                    <h5 className="text-sm font-medium text-gray-900">
+                                      {index === 0 ? 'Default Time Slot' : `Time Slot ${index}`}
+                                    </h5>
+                                    {index !== 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeTimeSlot(index)}
+                                        className="text-red-600 hover:text-red-800"
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
+                                  </div>
+                                  {index !== 0 && (
+                                    <div className="mb-4">
+                                      <TimeRangeSelector
+                                        value={slot.timeslot}
+                                        onChange={(value) => handleSlotTimeRangeChange(index, value)}
+                                      />
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                              <DeliveryMethodSelector
+                                selectedMethodIds={slot.methodIds}
+                                onChange={(methodIds) => handleSlotMethodsChange(index, methodIds)}
+                              />
+                            </div>
+                          ))}
+                          
+                          {type === 'TIME_BASED' && (
+                            <button
+                              type="button"
+                              onClick={addNewTimeSlot}
+                              className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800"
+                            >
+                              <PlusIcon className="h-5 w-5 mr-1" />
+                              Add Time Slot
+                            </button>
+                          )}
+                        </div>
 
                         <FormField label="Settings (JSON)" htmlFor="settings" error={error}>
                           <FormTextArea
