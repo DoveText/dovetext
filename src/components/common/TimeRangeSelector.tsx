@@ -3,193 +3,132 @@
 import { useEffect, useState } from 'react';
 import { 
   TimeRange, 
-  DAYS_OF_WEEK, 
-  TIME_OPTIONS,
+  DAYS_OF_WEEK,
   ALL_DAYS,
-  ALL_DAY_START,
-  ALL_DAY_END,
-  isAllDay,
-  isAllDays,
-  getEffectiveDays,
-  getEffectiveTime,
 } from '@/types/time-range';
-import Select from '@/components/common/Select';
-import { ClockIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
-import { Switch } from '@headlessui/react';
+import { TrashIcon } from '@heroicons/react/24/outline';
 
 interface TimeRangeSelectorProps {
   value: TimeRange;
   onChange: (value: TimeRange) => void;
+  name?: string;
+  onNameChange?: (name: string) => void;
+  onDelete?: () => void;
   className?: string;
 }
 
 export default function TimeRangeSelector({
   value,
   onChange,
+  name,
+  onNameChange,
+  onDelete,
   className = '',
 }: TimeRangeSelectorProps) {
-  const [localTimezone, setLocalTimezone] = useState('');
-  const [isAllDayEnabled, setIsAllDayEnabled] = useState(isAllDay(value.startTime, value.endTime));
-  const [isAllDaysEnabled, setIsAllDaysEnabled] = useState(isAllDays(value.daysOfWeek));
+  const [isEveryDay, setIsEveryDay] = useState(value.daysOfWeek.length === 0);
+  const [isAllDay, setIsAllDay] = useState(value.startTime === null && value.endTime === null);
+  const [selectedDays, setSelectedDays] = useState(value.daysOfWeek.length === 0 ? DAYS_OF_WEEK.map(d => d.value) : value.daysOfWeek);
+  const [startTime, setStartTime] = useState(value.startTime || '09:00');
+  const [endTime, setEndTime] = useState(value.endTime || '17:00');
 
+  // Update parent when values change
   useEffect(() => {
-    setLocalTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  }, []);
-
-  const handleTimeChange = (field: keyof Pick<TimeRange, 'startTime' | 'endTime'>) => (newTime: string) => {
     onChange({
       ...value,
-      [field]: newTime,
+      startTime: isAllDay ? null : startTime,
+      endTime: isAllDay ? null : endTime,
+      daysOfWeek: isEveryDay ? ALL_DAYS : selectedDays,
     });
-  };
-
-  const handleDaysChange = (selectedDays: string) => {
-    const newDays = selectedDays ? selectedDays.split(',').map(Number).sort((a, b) => a - b) : ALL_DAYS;
-    onChange({
-      ...value,
-      daysOfWeek: newDays,
-    });
-  };
-
-  const handleTimezoneChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    onChange({
-      ...value,
-      timezone: event.target.value,
-    });
-  };
-
-  const toggleAllDay = (enabled: boolean) => {
-    setIsAllDayEnabled(enabled);
-    onChange({
-      ...value,
-      startTime: enabled ? ALL_DAY_START : '09:00',
-      endTime: enabled ? ALL_DAY_END : '17:00',
-    });
-  };
-
-  const toggleAllDays = (enabled: boolean) => {
-    setIsAllDaysEnabled(enabled);
-    onChange({
-      ...value,
-      daysOfWeek: enabled ? ALL_DAYS : [1, 2, 3, 4, 5], // Mon-Fri by default
-    });
-  };
-
-  const isValidTimeRange = (start: string, end: string): boolean => {
-    const [startHour, startMinute] = start.split(':').map(Number);
-    const [endHour, endMinute] = end.split(':').map(Number);
-    const startMinutes = startHour * 60 + startMinute;
-    const endMinutes = endHour * 60 + endMinute;
-    return endMinutes > startMinutes;
-  };
+  }, [isAllDay, isEveryDay, selectedDays, startTime, endTime]);
 
   return (
     <div className={`space-y-4 ${className}`}>
-      <div className="flex items-center justify-between">
-        <Switch.Group as="div" className="flex items-center">
-          <Switch
-            checked={isAllDayEnabled}
-            onChange={toggleAllDay}
-            className={`${
-              isAllDayEnabled ? 'bg-indigo-600' : 'bg-gray-200'
-            } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2`}
+      {/* First Row: Delete, Name, All Day, Time Range */}
+      <div className="flex items-center space-x-4">
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="text-gray-400 hover:text-gray-500"
           >
-            <span
-              className={`${
-                isAllDayEnabled ? 'translate-x-5' : 'translate-x-0'
-              } pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
-            />
-          </Switch>
-          <Switch.Label as="span" className="ml-3 text-sm">
-            <span className="font-medium text-gray-900">All Day</span>
-          </Switch.Label>
-        </Switch.Group>
+            <TrashIcon className="h-5 w-5" />
+          </button>
+        )}
 
-        <Switch.Group as="div" className="flex items-center">
-          <Switch
-            checked={isAllDaysEnabled}
-            onChange={toggleAllDays}
-            className={`${
-              isAllDaysEnabled ? 'bg-indigo-600' : 'bg-gray-200'
-            } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2`}
-          >
-            <span
-              className={`${
-                isAllDaysEnabled ? 'translate-x-5' : 'translate-x-0'
-              } pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
-            />
-          </Switch>
-          <Switch.Label as="span" className="ml-3 text-sm">
-            <span className="font-medium text-gray-900">Every Day</span>
-          </Switch.Label>
-        </Switch.Group>
-      </div>
-
-      {!isAllDayEnabled && (
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Start Time</label>
-            <div className="mt-1 relative">
-              <Select<string>
-                value={getEffectiveTime(value.startTime, true)}
-                onChange={handleTimeChange('startTime')}
-                options={TIME_OPTIONS.filter(time => 
-                  !value.endTime || isValidTimeRange(time.value, getEffectiveTime(value.endTime, false))
-                )}
-                placeholder="Select start time"
-                className="w-full"
-              />
-              <ClockIcon className="absolute right-8 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">End Time</label>
-            <div className="mt-1 relative">
-              <Select<string>
-                value={getEffectiveTime(value.endTime, false)}
-                onChange={handleTimeChange('endTime')}
-                options={TIME_OPTIONS.filter(time => 
-                  !value.startTime || isValidTimeRange(getEffectiveTime(value.startTime, true), time.value)
-                )}
-                placeholder="Select end time"
-                className="w-full"
-              />
-              <ClockIcon className="absolute right-8 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!isAllDaysEnabled && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Days of Week</label>
-          <div className="mt-1">
-            <Select<string>
-              value={getEffectiveDays(value.daysOfWeek).join(',')}
-              onChange={handleDaysChange}
-              options={DAYS_OF_WEEK.map(day => ({
-                value: day.value.toString(),
-                label: day.label,
-              }))}
-              placeholder="Select days"
-              multiple
-              className="w-full"
-            />
-          </div>
-        </div>
-      )}
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Timezone</label>
-        <div className="mt-1 relative">
+        <div className="relative rounded-md shadow-sm">
           <input
             type="text"
-            value={value.timezone}
-            onChange={handleTimezoneChange}
-            className="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+            value={name}
+            onChange={(e) => onNameChange?.(e.target.value)}
+            className="block w-40 rounded-md border-0 px-3 py-1.5 text-sm text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+            placeholder="Time Slot Name"
           />
-          <GlobeAltIcon className="absolute right-3 top-2 h-5 w-5 text-gray-400" />
         </div>
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            checked={isAllDay}
+            onChange={(e) => setIsAllDay(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            id="all-day"
+          />
+          <label htmlFor="all-day" className="text-sm text-gray-700 whitespace-nowrap">All Day</label>
+        </div>
+
+        {!isAllDay && (
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-700">From</span>
+            <div className="relative rounded-md shadow-sm w-24">
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="block w-full rounded-md border-0 py-1.5 text-sm text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 px-2"
+              />
+            </div>
+            <span className="text-sm text-gray-700">to</span>
+            <div className="relative rounded-md shadow-sm w-24">
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="block w-full rounded-md border-0 py-1.5 text-sm text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 px-2"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Second Row: Days Selection */}
+      <div className="flex items-center justify-between pl-[37px]">
+        <div className="flex items-center space-x-4">
+          {DAYS_OF_WEEK.map((day) => (
+            <label key={day.value} className="flex items-center space-x-1">
+              <input
+                type="checkbox"
+                checked={selectedDays.includes(day.value)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedDays([...selectedDays, day.value]);
+                  } else {
+                    setSelectedDays(selectedDays.filter(d => d !== day.value));
+                  }
+                }}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="text-sm text-gray-700">{day.label.slice(0, 3)}</span>
+            </label>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setSelectedDays(selectedDays.length === DAYS_OF_WEEK.length ? [] : DAYS_OF_WEEK.map(d => d.value))}
+          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+        >
+          {selectedDays.length === DAYS_OF_WEEK.length ? 'Uncheck all' : 'Check all'}
+        </button>
       </div>
     </div>
   );

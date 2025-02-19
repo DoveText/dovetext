@@ -109,6 +109,18 @@ export default function DeliveryChannelModal({
     }
   };
 
+  const handleTimeSlotChange = (index: number, slot: any) => {
+    setSlots(currentSlots => 
+      currentSlots.map((s, i) => 
+        i === index ? slot : s
+      )
+    );
+  };
+
+  const handleRemoveTimeSlot = (index: number) => {
+    setSlots(currentSlots => currentSlots.filter((_, i) => i !== index));
+  };
+
   return (
     <Transition.Root show={true} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={() => {}}>
@@ -175,6 +187,92 @@ export default function DeliveryChannelModal({
                           />
                         </FormField>
 
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-medium text-gray-900">
+                              {type === 'SIMPLE' ? 'Delivery Methods' : 'Time Slots'}
+                            </h4>
+                            {type === 'TIME_BASED' && (
+                              <button
+                                type="button"
+                                onClick={addNewTimeSlot}
+                                className="text-sm text-indigo-600 hover:text-indigo-500"
+                              >
+                                Add Time Slot
+                              </button>
+                            )}
+                          </div>
+
+                          {type === 'TIME_BASED' && (
+                            <div className="space-y-4">
+                              {slots.slice(1).map((slot, index) => (
+                                <div key={index + 1} className="rounded-lg border border-gray-200 p-4">
+                                  <TimeRangeSelector
+                                    value={slot.timeRange}
+                                    onChange={(timeRange) =>
+                                      handleTimeSlotChange(index + 1, {
+                                        ...slot,
+                                        timeRange,
+                                      })
+                                    }
+                                    name={`Time Slot ${index + 1}`}
+                                    onNameChange={(name) => {
+                                      // Handle name change if needed
+                                    }}
+                                    onDelete={() => handleRemoveTimeSlot(index + 1)}
+                                  />
+                                  <div className="mt-4">
+                                    <DeliveryMethodSelector
+                                      value={slot.deliveryMethods}
+                                      onChange={(deliveryMethods) =>
+                                        handleTimeSlotChange(index + 1, {
+                                          ...slot,
+                                          deliveryMethods,
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                              
+                              {/* Fallback Time Slot */}
+                              <div className="rounded-lg border border-gray-200 p-4">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h5 className="text-sm font-medium text-gray-900">
+                                    Fallback Time Slot
+                                  </h5>
+                                </div>
+                                <div className="mt-4">
+                                  <DeliveryMethodSelector
+                                    value={slots[0].deliveryMethods}
+                                    onChange={(deliveryMethods) =>
+                                      handleTimeSlotChange(0, {
+                                        ...slots[0],
+                                        deliveryMethods,
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {type === 'SIMPLE' && (
+                            slots.map((slot, index) => (
+                              <div key={index} className="rounded-lg border border-gray-200 p-4">
+                                <DeliveryMethodSelector
+                                  value={slot.deliveryMethods}
+                                  onChange={(deliveryMethods) =>
+                                    handleTimeSlotChange(index, {
+                                      ...slot,
+                                      deliveryMethods,
+                                    })
+                                  }
+                                />
+                              </div>
+                            ))
+                          )}
+                        </div>
+
                         <FormField label="Description" htmlFor="description">
                           <FormTextArea
                             id="description"
@@ -182,70 +280,6 @@ export default function DeliveryChannelModal({
                             onChange={(e) => setDescription(e.target.value)}
                             rows={3}
                             placeholder="Enter a description for this channel"
-                          />
-                        </FormField>
-
-                        <div className="space-y-4">
-                          <h4 className="text-sm font-medium text-gray-900">
-                            {type === 'SIMPLE' ? 'Delivery Methods' : 'Time Slots'}
-                          </h4>
-                          
-                          {slots.map((slot, index) => (
-                            <div key={index} className="rounded-lg border border-gray-200 p-4">
-                              {type === 'TIME_BASED' && (
-                                <>
-                                  <div className="flex items-center justify-between mb-4">
-                                    <h5 className="text-sm font-medium text-gray-900">
-                                      {index === 0 ? 'Default Time Slot' : `Time Slot ${index}`}
-                                    </h5>
-                                    {index !== 0 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => removeTimeSlot(index)}
-                                        className="text-red-600 hover:text-red-800"
-                                      >
-                                        Remove
-                                      </button>
-                                    )}
-                                  </div>
-                                  {index !== 0 && (
-                                    <div className="mb-4">
-                                      <TimeRangeSelector
-                                        value={slot.timeslot}
-                                        onChange={(value: any) => handleSlotTimeRangeChange(index, value)}
-                                      />
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                              <DeliveryMethodSelector
-                                selectedMethodIds={slot.methodIds}
-                                onChange={(methodIds) => handleSlotMethodsChange(index, methodIds)}
-                              />
-                            </div>
-                          ))}
-                          
-                          {type === 'TIME_BASED' && (
-                            <button
-                              type="button"
-                              onClick={addNewTimeSlot}
-                              className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800"
-                            >
-                              <PlusIcon className="h-5 w-5 mr-1" />
-                              Add Time Slot
-                            </button>
-                          )}
-                        </div>
-
-                        <FormField label="Settings (JSON)" htmlFor="settings" error={error}>
-                          <FormTextArea
-                            id="settings"
-                            value={settings}
-                            onChange={(e) => setSettings(e.target.value)}
-                            rows={6}
-                            className="font-mono"
-                            placeholder="{}"
-                            required
                           />
                         </FormField>
                       </div>

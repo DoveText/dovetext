@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { DeliveryMethod, DeliveryMethodType } from '@/types/delivery-method';
 import { deliveryMethodsApi } from '@/api/delivery-methods';
 import { Dialog, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
 import { 
   PlusIcon, 
   XMarkIcon, 
@@ -178,58 +177,52 @@ function MethodCard({ method, onRemove, onClick, className = '', isButton = fals
 }
 
 interface DeliveryMethodSelectorProps {
-  selectedMethodIds: number[];
-  onChange: (methodIds: number[]) => void;
+  value: DeliveryMethod[];
+  onChange: (value: DeliveryMethod[]) => void;
   className?: string;
 }
 
 export default function DeliveryMethodSelector({
-  selectedMethodIds,
+  value = [],
   onChange,
   className = '',
 }: DeliveryMethodSelectorProps) {
-  const [methods, setMethods] = useState<DeliveryMethod[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedMethods, setSelectedMethods] = useState<DeliveryMethod[]>([]);
+  const [methods, setMethods] = useState<DeliveryMethod[]>([]);
 
   useEffect(() => {
     const fetchMethods = async () => {
       try {
-        const data = await deliveryMethodsApi.getAll();
-        setMethods(data);
-        setSelectedMethods(data.filter(method => selectedMethodIds.includes(method.id)));
+        const response = await deliveryMethodsApi.getAll();
+        setMethods(response);
       } catch (error) {
         console.error('Failed to fetch delivery methods:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchMethods();
-  }, [selectedMethodIds]);
+  }, []);
 
-  const handleAdd = (methodId: number) => {
-    const newSelectedIds = [...selectedMethodIds, methodId];
-    onChange(newSelectedIds);
-    setIsOpen(false);
+  const handleAdd = (methodId: string) => {
+    const method = methods.find(m => m.id === methodId);
+    if (method) {
+      onChange([...value, method]);
+      setIsOpen(false);
+    }
   };
 
-  const handleRemove = (methodId: number) => {
-    onChange(selectedMethodIds.filter(id => id !== methodId));
+  const handleRemove = (methodId: string) => {
+    onChange(value.filter(method => method.id !== methodId));
   };
 
-  if (loading) {
-    return <div className="text-sm text-gray-500">Loading delivery methods...</div>;
-  }
-
-  const availableMethods = methods.filter(method => !selectedMethodIds.includes(method.id));
+  // Filter out already selected methods
+  const availableMethods = methods.filter(method => !value.some(m => m.id === method.id));
 
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Selected Methods List */}
       <div className="space-y-2">
-        {selectedMethods.map((method) => (
+        {value.map((method) => (
           <MethodCard
             key={method.id}
             method={method}
