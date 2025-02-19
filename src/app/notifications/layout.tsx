@@ -4,7 +4,10 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { 
   BellIcon, 
-  ArrowPathIcon,
+  Cog6ToothIcon, 
+  Square3Stack3DIcon,
+  ArrowPathIcon, 
+  RocketLaunchIcon,
   BoltIcon,
 } from '@heroicons/react/24/outline';
 
@@ -25,6 +28,12 @@ export default function NotificationsLayout({
       href: '/notifications/delivery-methods',
       icon: BellIcon,
       current: pathname === '/notifications/delivery-methods',
+    },
+    {
+      name: 'Delivery Channels',
+      href: '/notifications/delivery-channels',
+      icon: Square3Stack3DIcon,
+      current: pathname === '/notifications/delivery-channels',
     },
     {
       name: 'Escalation Chains',
