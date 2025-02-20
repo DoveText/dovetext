@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useState, useEffect, useRef } from 'react';
+import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog as HeadlessDialog, Transition } from '@headlessui/react';
 import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import Select from '@/components/common/Select';
@@ -27,36 +27,10 @@ interface DeliveryRuleModalProps {
 }
 
 const priorityOptions = [
-  { value: '0', label: 'Low' },
-  { value: '1', label: 'Medium' },
-  { value: '2', label: 'High' },
-];
-
-const timeOptions = [
-  { value: '00:00', label: '12:00 AM' },
-  { value: '01:00', label: '1:00 AM' },
-  { value: '02:00', label: '2:00 AM' },
-  { value: '03:00', label: '3:00 AM' },
-  { value: '04:00', label: '4:00 AM' },
-  { value: '05:00', label: '5:00 AM' },
-  { value: '06:00', label: '6:00 AM' },
-  { value: '07:00', label: '7:00 AM' },
-  { value: '08:00', label: '8:00 AM' },
-  { value: '09:00', label: '9:00 AM' },
-  { value: '10:00', label: '10:00 AM' },
-  { value: '11:00', label: '11:00 AM' },
-  { value: '12:00', label: '12:00 PM' },
-  { value: '13:00', label: '1:00 PM' },
-  { value: '14:00', label: '2:00 PM' },
-  { value: '15:00', label: '3:00 PM' },
-  { value: '16:00', label: '4:00 PM' },
-  { value: '17:00', label: '5:00 PM' },
-  { value: '18:00', label: '6:00 PM' },
-  { value: '19:00', label: '7:00 PM' },
-  { value: '20:00', label: '8:00 PM' },
-  { value: '21:00', label: '9:00 PM' },
-  { value: '22:00', label: '10:00 PM' },
-  { value: '23:00', label: '11:00 PM' },
+  { value: '1', label: 'Low' },
+  { value: '2', label: 'Medium' },
+  { value: '3', label: 'High' },
+  { value: '4', label: 'Critical' },
 ];
 
 export default function DeliveryRuleModal({
@@ -68,7 +42,7 @@ export default function DeliveryRuleModal({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [conditions, setConditions] = useState<Record<string, any>>({});
-  const [settings, setSettings] = useState<Record<string, any>>({
+  const [settings, setSettings] = useState<{ isActive: boolean; priority: number }>({
     isActive: true,
     priority: 1
   });
@@ -89,7 +63,10 @@ export default function DeliveryRuleModal({
       setName(rule.name);
       setDescription(rule.description || '');
       setConditions(rule.conditions);
-      setSettings(rule.settings);
+      setSettings({
+        isActive: rule.settings?.isActive ?? true,
+        priority: rule.settings?.priority ?? 1
+      });
       setSlots(rule.slots.map(slot => ({
         ...slot,
         methodIds: slot.methodIds || [],
@@ -210,55 +187,53 @@ export default function DeliveryRuleModal({
     }
   };
 
-  const addSlot = () => {
-    setSlots([
-      ...slots,
-      {
-        methodIds: [],
-        channelIds: [],
-        chainIds: [],
-        timeslot: {
-          startTime: '09:00',
-          endTime: '17:00',
-          daysOfWeek: ALL_DAYS,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        },
-        settings: {
-          priority: 1
-        }
+  const addSlot = useCallback(() => {
+    setSlots(slots => [...slots, {
+      methodIds: [],
+      channelIds: [],
+      chainIds: [],
+      timeslot: {
+        startTime: '09:00',
+        endTime: '17:00',
+        daysOfWeek: ALL_DAYS,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      },
+      settings: {
+        priority: 1
       }
-    ]);
-  };
+    }]);
+  }, []);
 
-  const removeSlot = (index: number) => {
-    const newSlots = [...slots];
-    newSlots.splice(index, 1);
-    setSlots(newSlots);
+  const removeSlot = useCallback((index: number) => {
+    setSlots(slots => {
+      const newSlots = [...slots];
+      newSlots.splice(index, 1);
+      return newSlots;
+    });
     
     // Clean up refs
     methodSelectorRefs.current.splice(index, 1);
     channelSelectorRefs.current.splice(index, 1);
     chainSelectorRefs.current.splice(index, 1);
-  };
+  }, []);
 
-  const updateSlot = (index: number, updates: Partial<DeliveryRuleSlot>) => {
-    setSlots(slots.map((slot, i) => 
+  const updateSlot = useCallback((index: number, updates: Partial<DeliveryRuleSlot>) => {
+    setSlots(slots => slots.map((slot, i) => 
       i === index 
         ? { ...slot, ...updates }
         : slot
     ));
-  };
+  }, []);
 
-  const updateSlotTimeRange = (index: number, timeRange: TimeRange) => {
+  const handleTimeSlotChange = useCallback((index: number, timeRange: TimeRange) => {
     updateSlot(index, {
       timeslot: {
         ...slots[index].timeslot,
-        startTime: timeRange.startTime || '00:00',
-        endTime: timeRange.endTime || '23:59',
-        daysOfWeek: timeRange.daysOfWeek || ALL_DAYS,
+        ...timeRange,
+        timezone: slots[index].timeslot.timezone
       }
     });
-  };
+  }, [updateSlot]);
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -396,12 +371,9 @@ export default function DeliveryRuleModal({
 
                           <div className="space-y-4">
                             <TimeRangeSelector
-                              value={{
-                                startTime: slot.timeslot.startTime,
-                                endTime: slot.timeslot.endTime,
-                                daysOfWeek: slot.timeslot.daysOfWeek,
-                              }}
-                              onChange={(timeRange) => updateSlotTimeRange(index, timeRange)}
+                              value={slot.timeslot}
+                              onChange={(timeRange) => handleTimeSlotChange(index, timeRange)}
+                              onDelete={() => removeSlot(index)}
                             />
 
                             <FormField
