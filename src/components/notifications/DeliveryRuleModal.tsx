@@ -188,25 +188,33 @@ export default function DeliveryRuleModal({
   };
 
   const addSlot = useCallback(() => {
-    setSlots(slots => [...slots, {
-      methodIds: [],
-      channelIds: [],
-      chainIds: [],
-      timeslot: {
-        startTime: '09:00',
-        endTime: '17:00',
-        daysOfWeek: ALL_DAYS,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      },
-      settings: {
-        priority: 1
-      }
-    }]);
+    setSlots(currentSlots => {
+      const newSlot = {
+        methodIds: [],
+        channelIds: [],
+        chainIds: [],
+        timeslot: {
+          startTime: '09:00',
+          endTime: '17:00',
+          daysOfWeek: ALL_DAYS,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        },
+        settings: {
+          priority: 1
+        }
+      };
+      return currentSlots ? [...currentSlots, newSlot] : [newSlot];
+    });
   }, []);
 
   const removeSlot = useCallback((index: number) => {
-    setSlots(slots => {
-      const newSlots = [...slots];
+    setSlots(currentSlots => {
+      if (!currentSlots) return [];
+      if (currentSlots.length <= 1) {
+        // Don't remove the last slot
+        return currentSlots;
+      }
+      const newSlots = [...currentSlots];
       newSlots.splice(index, 1);
       return newSlots;
     });
@@ -226,14 +234,31 @@ export default function DeliveryRuleModal({
   }, []);
 
   const handleTimeSlotChange = useCallback((index: number, timeRange: TimeRange) => {
-    updateSlot(index, {
-      timeslot: {
-        ...slots[index].timeslot,
-        ...timeRange,
-        timezone: slots[index].timeslot.timezone
+    setSlots(currentSlots => {
+      if (!currentSlots) return [];
+      const currentSlot = currentSlots[index];
+      if (!currentSlot) return currentSlots;
+
+      const updatedSlots = currentSlots.map((slot, i) => 
+        i === index 
+          ? {
+              ...slot,
+              timeslot: {
+                ...timeRange,
+                timezone: slot.timeslot?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+              }
+            }
+          : slot
+      );
+
+      // Only update if there's an actual change
+      if (JSON.stringify(updatedSlots[index].timeslot) === JSON.stringify(currentSlot.timeslot)) {
+        return currentSlots;
       }
+
+      return updatedSlots;
     });
-  }, [updateSlot]);
+  }, []);
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -371,9 +396,14 @@ export default function DeliveryRuleModal({
 
                           <div className="space-y-4">
                             <TimeRangeSelector
-                              value={slot.timeslot}
+                              value={slot?.timeslot || {
+                                startTime: '09:00',
+                                endTime: '17:00',
+                                daysOfWeek: ALL_DAYS,
+                                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                              }}
                               onChange={(timeRange) => handleTimeSlotChange(index, timeRange)}
-                              onDelete={() => removeSlot(index)}
+                              onDelete={slots?.length > 1 ? () => removeSlot(index) : undefined}
                             />
 
                             <FormField

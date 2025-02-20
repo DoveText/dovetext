@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { 
   TimeRange, 
   DAYS_OF_WEEK,
@@ -25,29 +25,39 @@ export default function TimeRangeSelector({
   onDelete,
   className = '',
 }: TimeRangeSelectorProps) {
-  const [isEveryDay, setIsEveryDay] = useState(value?.daysOfWeek?.length === 0);
-  const [isAllDay, setIsAllDay] = useState(value?.startTime === null && value?.endTime === null);
-  const [selectedDays, setSelectedDays] = useState(
-    value?.daysOfWeek?.length === 0 
-      ? ALL_DAYS 
-      : value?.daysOfWeek || ALL_DAYS
-  );
-  const [startTime, setStartTime] = useState(value?.startTime || '09:00');
-  const [endTime, setEndTime] = useState(value?.endTime || '17:00');
+  const [isEveryDay, setIsEveryDay] = useState(false);
+  const [isAllDay, setIsAllDay] = useState(false);
+  const [selectedDays, setSelectedDays] = useState(ALL_DAYS);
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('17:00');
 
-  // Update parent when values change
+  // Initialize state from props
   useEffect(() => {
+    setIsEveryDay(value?.daysOfWeek?.length === 0);
+    setIsAllDay(value?.startTime === null && value?.endTime === null);
+    setSelectedDays(
+      value?.daysOfWeek?.length === 0 
+        ? ALL_DAYS 
+        : value?.daysOfWeek || ALL_DAYS
+    );
+    setStartTime(value?.startTime || '09:00');
+    setEndTime(value?.endTime || '17:00');
+  }, [value]); // Only run when value prop changes
+
+  // Handle local state changes
+  const updateParent = useCallback(() => {
     const newValue: TimeRange = {
       daysOfWeek: isEveryDay ? ALL_DAYS : selectedDays,
       startTime: isAllDay ? null : startTime,
       endTime: isAllDay ? null : endTime,
     };
-    
-    // Only update if values actually changed
-    if (JSON.stringify(newValue) !== JSON.stringify(value)) {
-      onChange(newValue);
-    }
-  }, [isAllDay, isEveryDay, selectedDays, startTime, endTime, onChange, value]);
+    onChange(newValue);
+  }, [isAllDay, isEveryDay, selectedDays, startTime, endTime, onChange]);
+
+  // Update parent when local state changes
+  useEffect(() => {
+    updateParent();
+  }, [updateParent]);
 
   return (
     <div className={`space-y-4 ${className}`}>
