@@ -329,19 +329,6 @@ export default function DeliveryRuleModal({
                     </FormField>
 
                     <FormField
-                      label="Description"
-                      htmlFor="description"
-                    >
-                      <FormTextArea
-                        id="description"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Enter rule description"
-                        rows={3}
-                      />
-                    </FormField>
-
-                    <FormField
                       label="Settings"
                       htmlFor="settings"
                     >
@@ -431,7 +418,8 @@ export default function DeliveryRuleModal({
                                   hideAddButton
                                 />
                               </FormField>
-
+                            </div>
+                            <div>
                               <FormField 
                                 label={
                                   <div className="flex items-center justify-between">
@@ -456,7 +444,8 @@ export default function DeliveryRuleModal({
                                   hideAddButton
                                 />
                               </FormField>
-
+                            </div>
+                            <div>
                               <FormField 
                                 label={
                                   <div className="flex items-center justify-between">
@@ -481,7 +470,8 @@ export default function DeliveryRuleModal({
                                   hideAddButton
                                 />
                               </FormField>
-
+                            </div>
+                            <div>
                               <FormField label="Priority">
                                 <Select
                                   value={slot.settings.priority.toString()}
@@ -496,6 +486,19 @@ export default function DeliveryRuleModal({
                         </div>
                       ))}
                     </div>
+
+                    <FormField
+                      label="Description"
+                      htmlFor="description"
+                    >
+                      <FormTextArea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Enter rule description"
+                        rows={3}
+                      />
+                    </FormField>
 
                     <div className="mt-6 flex justify-end space-x-3">
                       <button
