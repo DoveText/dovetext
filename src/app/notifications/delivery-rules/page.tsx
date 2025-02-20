@@ -38,7 +38,19 @@ export default function DeliveryRulesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="md:flex md:items-center md:justify-between">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+              Delivery Rules
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Configure rules to determine how notifications are delivered
+            </p>
+          </div>
+        </div>
+
         {/* Error Message */}
         {error && (
           <div className="mt-4 rounded-md bg-red-50 p-4">
@@ -52,16 +64,11 @@ export default function DeliveryRulesPage() {
 
         {/* Loading State */}
         {isLoading ? (
-          <div className="mt-6 text-center">
+          <div className="mt-4 text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
           </div>
         ) : (
-          <div className="mt-6">
-            <DeliveryRuleList
-              rules={rules}
-              onRulesChange={loadDeliveryRules}
-            />
-          </div>
+          <DeliveryRuleList rules={rules} onUpdate={loadDeliveryRules} />
         )}
       </div>
     </div>
