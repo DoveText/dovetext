@@ -4,10 +4,16 @@ import { Fragment, useState, useEffect } from 'react';
 import { Dialog as HeadlessDialog, Transition } from '@headlessui/react';
 import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import Select from '@/components/common/Select';
-import { DeliveryRule, DeliveryRuleTarget } from '@/types/delivery-rule';
+import { FormField, FormInput, FormTextArea } from '@/components/common/form';
+import DeliveryMethodSelector from './DeliveryMethodSelector';
+import DeliveryChannelSelector from './DeliveryChannelSelector';
+import EscalationChainSelector from './EscalationChainSelector';
+import { DeliveryRule, DeliveryRuleSlot } from '@/types/delivery-rule';
 import { DeliveryMethod } from '@/types/delivery-method';
+import { DeliveryChannel } from '@/types/delivery-channel';
 import { EscalationChain } from '@/types/escalation-chain';
 import { deliveryMethodsApi } from '@/api/delivery-methods';
+import { deliveryChannelsApi } from '@/api/delivery-channels';
 import { escalationChainsApi } from '@/api/escalation-chains';
 import { deliveryRulesApi } from '@/api/delivery-rules';
 
@@ -51,16 +57,6 @@ const timeOptions = [
   { value: '23:00', label: '11:00 PM' },
 ];
 
-const daysOfWeek = [
-  { value: '0', label: 'Sunday' },
-  { value: '1', label: 'Monday' },
-  { value: '2', label: 'Tuesday' },
-  { value: '3', label: 'Wednesday' },
-  { value: '4', label: 'Thursday' },
-  { value: '5', label: 'Friday' },
-  { value: '6', label: 'Saturday' },
-];
-
 export default function DeliveryRuleModal({
   isOpen,
   onClose,
@@ -69,91 +65,103 @@ export default function DeliveryRuleModal({
 }: DeliveryRuleModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('0');
-  const [conditions, setConditions] = useState('{}');
-  const [targets, setTargets] = useState<DeliveryRuleTarget[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [conditions, setConditions] = useState<Record<string, any>>({});
+  const [settings, setSettings] = useState<Record<string, any>>({
+    isActive: true,
+    priority: 1
+  });
+  const [slots, setSlots] = useState<DeliveryRuleSlot[]>([]);
+  const [methods, setMethods] = useState<DeliveryMethod[]>([]);
+  const [channels, setChannels] = useState<DeliveryChannel[]>([]);
+  const [chains, setChains] = useState<EscalationChain[]>([]);
   const [error, setError] = useState<string | null>(null);
-
-  const [deliveryMethods, setDeliveryMethods] = useState<DeliveryMethod[]>([]);
-  const [escalationChains, setEscalationChains] = useState<EscalationChain[]>([]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [methodsResponse, chainsResponse] = await Promise.all([
-          deliveryMethodsApi.getAll(),
-          escalationChainsApi.getAll(),
-        ]);
-        setDeliveryMethods(methodsResponse);
-        setEscalationChains(chainsResponse);
-      } catch (err) {
-        console.error('Failed to fetch data:', err);
-        setError('Failed to load delivery methods and escalation chains');
-      }
-    };
-
-    fetchData();
-  }, []);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (rule) {
       setName(rule.name);
       setDescription(rule.description || '');
-      setPriority(rule.priority.toString());
-      setConditions(JSON.stringify(rule.conditions, null, 2));
-      setTargets(rule.targets);
+      setConditions(rule.conditions);
+      setSettings(rule.settings);
+      setSlots(rule.slots);
     } else {
-      setName('');
-      setDescription('');
-      setPriority('0');
-      setConditions('{}');
-      setTargets([]);
+      resetForm();
     }
   }, [rule]);
 
-  const handleAddTarget = () => {
-    setTargets([
-      ...targets,
-      {
-        methodId: '',
-        chainId: '',
-        startTime: '09:00',
-        endTime: '17:00',
-        daysOfWeek: [1, 2, 3, 4, 5],
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        priority: targets.length,
-      },
-    ]);
+  useEffect(() => {
+    loadOptions();
+  }, []);
+
+  const loadOptions = async () => {
+    try {
+      const [methodsData, channelsData, chainsData] = await Promise.all([
+        deliveryMethodsApi.getAll(),
+        deliveryChannelsApi.getAll(),
+        escalationChainsApi.getAll()
+      ]);
+      setMethods(methodsData);
+      setChannels(channelsData);
+      setChains(chainsData);
+    } catch (err) {
+      setError('Failed to load options');
+      console.error(err);
+    }
   };
 
-  const handleRemoveTarget = (index: number) => {
-    setTargets(targets.filter((_, i) => i !== index));
+  const resetForm = () => {
+    setName('');
+    setDescription('');
+    setConditions({});
+    setSettings({
+      isActive: true,
+      priority: 1
+    });
+    setSlots([]);
+    setError(null);
+    setFormErrors({});
   };
 
-  const handleUpdateTarget = (index: number, updates: Partial<DeliveryRuleTarget>) => {
-    setTargets(
-      targets.map((target, i) =>
-        i === index ? { ...target, ...updates } : target
-      )
-    );
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!name.trim()) {
+      errors.name = 'Name is required';
+    }
+    
+    if (slots.length === 0) {
+      errors.slots = 'At least one delivery slot is required';
+    }
+
+    for (let i = 0; i < slots.length; i++) {
+      const slot = slots[i];
+      if (!slot.methodIds.length && !slot.channelIds.length && !slot.chainIds.length) {
+        errors[`slot${i}`] = 'At least one delivery method, channel, or chain is required';
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async () => {
-    try {
-      setIsSubmitting(true);
-      setError(null);
+    if (!validateForm()) {
+      return;
+    }
 
-      const ruleData = {
+    try {
+      const ruleData: DeliveryRule = {
+        id: rule?.id,
         name,
         description,
-        priority: parseInt(priority),
-        conditions: JSON.parse(conditions),
-        targets: targets.map(({ method, chain, ...target }) => target),
-        isActive: true,
+        conditions,
+        settings,
+        slots,
+        createdAt: rule?.createdAt,
+        updatedAt: new Date().toISOString()
       };
 
-      if (rule) {
+      if (rule?.id) {
         await deliveryRulesApi.update(rule.id, ruleData);
       } else {
         await deliveryRulesApi.create(ruleData);
@@ -161,16 +169,47 @@ export default function DeliveryRuleModal({
 
       onSave();
       onClose();
+      resetForm();
     } catch (err) {
       console.error('Failed to save delivery rule:', err);
       setError('Failed to save delivery rule');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
+  const addSlot = () => {
+    setSlots([
+      ...slots,
+      {
+        methodIds: [],
+        channelIds: [],
+        chainIds: [],
+        timeslot: {
+          startTime: '09:00',
+          endTime: '17:00',
+          daysOfWeek: [1, 2, 3, 4, 5],
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        },
+        settings: {
+          priority: 1
+        }
+      }
+    ]);
+  };
+
+  const removeSlot = (index: number) => {
+    setSlots(slots.filter((_, i) => i !== index));
+  };
+
+  const updateSlot = (index: number, updates: Partial<DeliveryRuleSlot>) => {
+    setSlots(
+      slots.map((slot, i) => 
+        i === index ? { ...slot, ...updates } : slot
+      )
+    );
+  };
+
   return (
-    <Transition.Root show={isOpen} as={Fragment}>
+    <Transition appear show={isOpen} as={Fragment}>
       <HeadlessDialog as="div" className="relative z-10" onClose={onClose}>
         <Transition.Child
           as={Fragment}
@@ -181,234 +220,215 @@ export default function DeliveryRuleModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+          <div className="fixed inset-0 bg-black bg-opacity-25" />
         </Transition.Child>
 
-        <div className="fixed inset-0 z-10 overflow-y-auto">
-          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"
-              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-              enterTo="opacity-100 translate-y-0 sm:scale-100"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
               leave="ease-in duration-200"
-              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
             >
-              <HeadlessDialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
-                <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+              <HeadlessDialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                <HeadlessDialog.Title
+                  as="h3"
+                  className="text-lg font-medium leading-6 text-gray-900 flex justify-between items-center"
+                >
+                  {rule ? 'Edit Delivery Rule' : 'New Delivery Rule'}
                   <button
                     type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    className="rounded-md text-gray-400 hover:text-gray-500"
                     onClick={onClose}
                   >
-                    <span className="sr-only">Close</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                    <XMarkIcon className="h-6 w-6" />
                   </button>
-                </div>
+                </HeadlessDialog.Title>
 
-                <div>
-                  <HeadlessDialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
-                    {rule ? 'Edit Delivery Rule' : 'Create Delivery Rule'}
-                  </HeadlessDialog.Title>
-
-                  <div className="mt-6 space-y-6">
-                    {/* Error Message */}
-                    {error && (
-                      <div className="rounded-md bg-red-50 p-4">
-                        <div className="flex">
-                          <div className="ml-3">
-                            <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Name */}
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900">
-                        Name
-                      </label>
-                      <div className="mt-2">
-                        <input
-                          type="text"
-                          name="name"
-                          id="name"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="Enter rule name"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Priority */}
-                    <div>
-                      <label htmlFor="priority" className="block text-sm font-medium leading-6 text-gray-900">
-                        Priority
-                      </label>
-                      <div className="mt-2">
-                        <Select<string>
-                          value={priority}
-                          onChange={setPriority}
-                          options={priorityOptions}
-                          placeholder="Select priority"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Conditions */}
-                    <div>
-                      <label htmlFor="conditions" className="block text-sm font-medium leading-6 text-gray-900">
-                        Conditions
-                      </label>
-                      <div className="mt-2">
-                        <textarea
-                          id="conditions"
-                          name="conditions"
-                          rows={4}
-                          value={conditions}
-                          onChange={(e) => setConditions(e.target.value)}
-                          className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="Enter conditions in JSON format"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                      <label htmlFor="description" className="block text-sm font-medium leading-6 text-gray-900">
-                        Description
-                      </label>
-                      <div className="mt-2">
-                        <textarea
-                          id="description"
-                          name="description"
-                          rows={3}
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="Enter a description for this rule"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Targets */}
-                    <div>
-                      <label className="block text-sm font-medium leading-6 text-gray-900">
-                        Targets
-                      </label>
-                      <div className="mt-2">
-                        {targets.map((target, index) => (
-                          <div key={index} className="mb-4">
-                            <div className="flex justify-between">
-                              <h4 className="text-sm font-medium leading-6 text-gray-900">
-                                Target {index + 1}
-                              </h4>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveTarget(index)}
-                                className="rounded-md bg-red-50 px-2 py-1 text-sm font-semibold text-red-800 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                            <div className="mt-2">
-                              <Select<string>
-                                value={target.methodId}
-                                onChange={(value) => handleUpdateTarget(index, { methodId: value })}
-                                options={deliveryMethods.map((method) => ({ value: method.id, label: method.name }))}
-                                placeholder="Select delivery method"
-                              />
-                            </div>
-                            <div className="mt-2">
-                              <Select<string>
-                                value={target.chainId}
-                                onChange={(value) => handleUpdateTarget(index, { chainId: value })}
-                                options={escalationChains.map((chain) => ({ value: chain.id, label: chain.name }))}
-                                placeholder="Select escalation chain"
-                              />
-                            </div>
-                            <div className="mt-2">
-                              <Select<string>
-                                value={target.startTime}
-                                onChange={(value) => handleUpdateTarget(index, { startTime: value })}
-                                options={timeOptions}
-                                placeholder="Select start time"
-                              />
-                            </div>
-                            <div className="mt-2">
-                              <Select<string>
-                                value={target.endTime}
-                                onChange={(value) => handleUpdateTarget(index, { endTime: value })}
-                                options={timeOptions}
-                                placeholder="Select end time"
-                              />
-                            </div>
-                            <div className="mt-2">
-                              <Select<string>
-                                value={target.daysOfWeek.join(',')}
-                                onChange={(value) => handleUpdateTarget(index, { daysOfWeek: value.split(',').map(Number) })}
-                                options={daysOfWeek.map((day) => ({ value: day.value, label: day.label }))}
-                                placeholder="Select days of week"
-                                multiple
-                              />
-                            </div>
-                            <div className="mt-2">
-                              <input
-                                type="text"
-                                value={target.timezone}
-                                onChange={(e) => handleUpdateTarget(index, { timezone: e.target.value })}
-                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                placeholder="Enter timezone"
-                              />
-                            </div>
-                            <div className="mt-2">
-                              <input
-                                type="number"
-                                value={target.priority}
-                                onChange={(e) => handleUpdateTarget(index, { priority: Number(e.target.value) })}
-                                className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                placeholder="Enter priority"
-                              />
-                            </div>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={handleAddTarget}
-                          className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                        >
-                          Add Target
-                        </button>
+                {error && (
+                  <div className="mt-2 rounded-md bg-red-50 p-4">
+                    <div className="flex">
+                      <div className="ml-3">
+                        <h3 className="text-sm font-medium text-red-800">{error}</h3>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                <div className="mt-8 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:col-start-2"
+                <div className="mt-4 space-y-4">
+                  <FormField
+                    label="Name"
+                    htmlFor="name"
+                    error={formErrors.name}
                   >
-                    {isSubmitting ? 'Saving...' : rule ? 'Save Changes' : 'Create Rule'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    disabled={isSubmitting}
-                    className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0"
+                    <FormInput
+                      id="name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter rule name"
+                      error={formErrors.name}
+                    />
+                  </FormField>
+
+                  <FormField
+                    label="Description"
+                    htmlFor="description"
                   >
-                    Cancel
-                  </button>
+                    <FormTextArea
+                      id="description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Enter rule description"
+                      rows={3}
+                    />
+                  </FormField>
+
+                  <FormField
+                    label="Settings"
+                    htmlFor="settings"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="isActive"
+                          checked={settings.isActive}
+                          onChange={(e) => setSettings({ ...settings, isActive: e.target.checked })}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                        />
+                        <label htmlFor="isActive" className="ml-2 text-sm text-gray-900">
+                          Active
+                        </label>
+                      </div>
+                      <Select
+                        value={settings.priority.toString()}
+                        onChange={(value) => setSettings({ ...settings, priority: parseInt(value) })}
+                        options={priorityOptions}
+                        className="mt-1"
+                      />
+                    </div>
+                  </FormField>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-sm font-medium text-gray-900">Delivery Slots</h4>
+                      <button
+                        type="button"
+                        onClick={addSlot}
+                        className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                      >
+                        <PlusIcon className="h-4 w-4 mr-1" />
+                        Add Slot
+                      </button>
+                    </div>
+                    
+                    {formErrors.slots && (
+                      <p className="mt-2 text-sm text-red-500">{formErrors.slots}</p>
+                    )}
+
+                    {slots.map((slot, index) => (
+                      <div key={index} className="relative rounded-lg border border-gray-200 p-4">
+                        <button
+                          type="button"
+                          onClick={() => removeSlot(index)}
+                          className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField label="Start Time">
+                              <Select
+                                value={slot.timeslot.startTime}
+                                onChange={(value) => updateSlot(index, {
+                                  timeslot: { ...slot.timeslot, startTime: value }
+                                })}
+                                options={timeOptions}
+                              />
+                            </FormField>
+                            <FormField label="End Time">
+                              <Select
+                                value={slot.timeslot.endTime}
+                                onChange={(value) => updateSlot(index, {
+                                  timeslot: { ...slot.timeslot, endTime: value }
+                                })}
+                                options={timeOptions}
+                              />
+                            </FormField>
+                          </div>
+
+                          <FormField
+                            label="Methods"
+                            error={formErrors[`slot${index}`]}
+                          >
+                            <DeliveryMethodSelector
+                              value={methods.filter(m => slot.methodIds.includes(m.id))}
+                              onChange={(selected) => updateSlot(index, {
+                                methodIds: selected.map(m => m.id)
+                              })}
+                            />
+                          </FormField>
+
+                          <FormField label="Channels">
+                            <DeliveryChannelSelector
+                              value={channels.filter(c => slot.channelIds.includes(c.id))}
+                              onChange={(selected) => updateSlot(index, {
+                                channelIds: selected.map(c => c.id)
+                              })}
+                            />
+                          </FormField>
+
+                          <FormField label="Escalation Chains">
+                            <EscalationChainSelector
+                              value={chains.filter(c => slot.chainIds.includes(c.id))}
+                              onChange={(selected) => updateSlot(index, {
+                                chainIds: selected.map(c => c.id)
+                              })}
+                            />
+                          </FormField>
+
+                          <FormField label="Priority">
+                            <Select
+                              value={slot.settings.priority.toString()}
+                              onChange={(value) => updateSlot(index, {
+                                settings: { ...slot.settings, priority: parseInt(value) }
+                              })}
+                              options={priorityOptions}
+                            />
+                          </FormField>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                    >
+                      {rule ? 'Save Changes' : 'Create Rule'}
+                    </button>
+                  </div>
                 </div>
               </HeadlessDialog.Panel>
             </Transition.Child>
           </div>
         </div>
       </HeadlessDialog>
-    </Transition.Root>
+    </Transition>
   );
 }

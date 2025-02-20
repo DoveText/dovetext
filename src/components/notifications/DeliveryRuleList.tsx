@@ -50,127 +50,184 @@ export default function DeliveryRuleList({
 
   const handleToggleEnabled = async (rule: DeliveryRule) => {
     try {
-      await deliveryRulesApi.update(rule.id, {
-        isActive: !rule.isActive,
-      });
+      if (rule.settings.isActive) {
+        await deliveryRulesApi.disable(rule.id);
+      } else {
+        await deliveryRulesApi.enable(rule.id);
+      }
       onRulesChange();
     } catch (err) {
-      setError('Failed to update delivery rule');
+      setError('Failed to toggle rule status');
       console.error(err);
     }
   };
 
-  const renderRuleCard = (rule: DeliveryRule) => {
-    const isHovered = hoveredRule === rule.id;
-
-    return (
-      <div
-        key={rule.id}
-        className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4 hover:shadow-md transition-shadow duration-200"
-        onMouseEnter={() => setHoveredRule(rule.id)}
-        onMouseLeave={() => setHoveredRule(null)}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <h3 className="text-lg font-medium text-gray-900">{rule.name}</h3>
-            {!rule.isActive && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                Disabled
-              </span>
-            )}
-          </div>
-          <div className="flex items-center space-x-2">
-            {isHovered && (
-              <>
-                <button
-                  onClick={() => handleToggleEnabled(rule)}
-                  className="p-1 rounded-full hover:bg-gray-100"
-                  title={rule.isActive ? 'Disable' : 'Enable'}
-                >
-                  {rule.isActive ? (
-                    <PauseIcon className="h-5 w-5 text-gray-500" />
-                  ) : (
-                    <PlayIcon className="h-5 w-5 text-gray-500" />
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingRule(rule);
-                    setIsModalOpen(true);
-                  }}
-                  className="p-1 rounded-full hover:bg-gray-100"
-                  title="Edit"
-                >
-                  <PencilIcon className="h-5 w-5 text-gray-500" />
-                </button>
-                <button
-                  onClick={() => handleDelete(rule)}
-                  className="p-1 rounded-full hover:bg-gray-100"
-                  title="Delete"
-                >
-                  <TrashIcon className="h-5 w-5 text-gray-500" />
-                </button>
-              </>
-            )}
-            <ChevronRightIcon
-              className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${
-                isHovered ? 'opacity-100' : 'opacity-0'
-              }`}
-            />
-          </div>
-        </div>
-
-        {rule.description && (
-          <p className="mt-1 text-sm text-gray-500">{rule.description}</p>
-        )}
-
-        <div className="mt-2 flex items-center text-sm text-gray-500 space-x-4">
-          <div className="flex items-center space-x-1">
-            <ClockIcon className="h-4 w-4" />
-            <span>{rule.targets.length} target{rule.targets.length !== 1 ? 's' : ''}</span>
-          </div>
-          {rule.priority !== 0 && (
-            <>
-              <span>•</span>
-              <span>Priority: {rule.priority}</span>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Delivery Rules</h2>
-        <button
-          onClick={() => {
-            setEditingRule(null);
-            setIsModalOpen(true);
-          }}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-          New Rule
-        </button>
-      </div>
+    <div className="bg-white shadow rounded-lg">
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="sm:flex sm:items-center">
+          <div className="sm:flex-auto">
+            <h2 className="text-xl font-semibold text-gray-900">Delivery Rules</h2>
+            <p className="mt-2 text-sm text-gray-700">
+              Configure rules to determine how notifications are delivered
+            </p>
+          </div>
+          <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingRule(null);
+                setIsModalOpen(true);
+              }}
+              className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+            >
+              <PlusIcon className="h-4 w-4 mr-1" />
+              Add Rule
+            </button>
+          </div>
+        </div>
 
-      <div className="space-y-4">
-        {rules.map(renderRuleCard)}
-        {rules.length === 0 && (
-          <p className="text-gray-500 text-center py-8">
-            No delivery rules yet. Create one to get started!
-          </p>
+        {error && (
+          <div className="mt-4 rounded-md bg-red-50 p-4">
+            <div className="flex">
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">{error}</h3>
+              </div>
+            </div>
+          </div>
         )}
+
+        <div className="mt-8 flow-root">
+          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+              <table className="min-w-full divide-y divide-gray-300">
+                <thead>
+                  <tr>
+                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">
+                      Name
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Status
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Priority
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Slots
+                    </th>
+                    <th scope="col" className="relative py-3.5 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {rules.map((rule) => (
+                    <tr
+                      key={rule.id}
+                      onMouseEnter={() => setHoveredRule(rule.id)}
+                      onMouseLeave={() => setHoveredRule(null)}
+                      className="hover:bg-gray-50"
+                    >
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                        <div>
+                          <div className="font-medium text-gray-900">{rule.name}</div>
+                          {rule.description && (
+                            <div className="text-gray-500">{rule.description}</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <button
+                          onClick={() => handleToggleEnabled(rule)}
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            rule.settings.isActive
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {rule.settings.isActive ? (
+                            <>
+                              <PauseIcon className="mr-1 h-4 w-4" />
+                              Active
+                            </>
+                          ) : (
+                            <>
+                              <PlayIcon className="mr-1 h-4 w-4" />
+                              Inactive
+                            </>
+                          )}
+                        </button>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {rule.settings.priority === 2 ? (
+                          <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                            High
+                          </span>
+                        ) : rule.settings.priority === 1 ? (
+                          <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
+                            Medium
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                            Low
+                          </span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {rule.slots.map((slot, index) => (
+                          <div key={index} className="flex items-center space-x-1 text-xs">
+                            <ClockIcon className="h-4 w-4 text-gray-400" />
+                            <span>
+                              {slot.timeslot.startTime} - {slot.timeslot.endTime}
+                            </span>
+                            <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                            <span>
+                              {[
+                                slot.methodIds.length > 0 && `${slot.methodIds.length} methods`,
+                                slot.channelIds.length > 0 && `${slot.channelIds.length} channels`,
+                                slot.chainIds.length > 0 && `${slot.chainIds.length} chains`
+                              ]
+                                .filter(Boolean)
+                                .join(', ')}
+                            </span>
+                          </div>
+                        ))}
+                      </td>
+                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
+                        <div
+                          className={`absolute right-0 flex space-x-2 ${
+                            hoveredRule === rule.id ? 'opacity-100' : 'opacity-0'
+                          } transition-opacity duration-200`}
+                        >
+                          <button
+                            onClick={() => {
+                              setEditingRule(rule);
+                              setIsModalOpen(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(rule)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
 
       <DeliveryRuleModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingRule(null);
-        }}
+        onClose={() => setIsModalOpen(false)}
         rule={editingRule}
         onSave={onRulesChange}
       />
@@ -182,27 +239,6 @@ export default function DeliveryRuleList({
         title="Delete Delivery Rule"
         message={`Are you sure you want to delete "${deletingRule?.name}"? This action cannot be undone.`}
       />
-
-      {error && (
-        <Dialog
-          open={!!error}
-          onClose={() => setError(null)}
-          className="fixed z-10 inset-0 overflow-y-auto"
-        >
-          <div className="flex items-center justify-center min-h-screen">
-            <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
-            <div className="relative bg-white rounded-lg p-4">
-              <p className="text-red-600">{error}</p>
-              <button
-                onClick={() => setError(null)}
-                className="mt-4 px-4 py-2 bg-gray-100 rounded"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </Dialog>
-      )}
     </div>
   );
 }
