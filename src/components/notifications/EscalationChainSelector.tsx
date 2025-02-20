@@ -191,7 +191,7 @@ const EscalationChainSelector = forwardRef<EscalationChainSelectorRef, Escalatio
         <button
           type="button"
           onClick={openDialog}
-          className="mt-2 inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+          className="mt-2 inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
         >
           <PlusIcon className="h-4 w-4 mr-1" />
           Add Chain

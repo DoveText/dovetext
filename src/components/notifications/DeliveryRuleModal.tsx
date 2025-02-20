@@ -373,10 +373,9 @@ export default function DeliveryRuleModal({
                         <button
                           type="button"
                           onClick={addSlot}
-                          className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                          className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
                         >
-                          <PlusIcon className="h-4 w-4 mr-1" />
-                          Add Slot
+                          + Add slot
                         </button>
                       </div>
                       
@@ -406,48 +405,93 @@ export default function DeliveryRuleModal({
                               onDelete={slots?.length > 1 ? () => removeSlot(index) : undefined}
                             />
 
-                            <FormField
-                              label="Methods"
-                              error={formErrors[`slot${index}`]}
-                            >
-                              <DeliveryMethodSelector
-                                ref={(ref) => (methodSelectorRefs.current[index] = ref)}
-                                value={methods.filter(m => slot.methodIds.includes(m.id))}
-                                onChange={(selected) => updateSlot(index, {
-                                  methodIds: selected.map(m => m.id)
-                                })}
-                              />
-                            </FormField>
+                            <div>
+                              <FormField 
+                                label={
+                                  <div className="flex items-center justify-between">
+                                    <span>Methods</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => methodSelectorRefs.current[index]?.openDialog()}
+                                      className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                                    >
+                                      <PlusIcon className="h-4 w-4 mr-1" />
+                                      Add Method
+                                    </button>
+                                  </div>
+                                }
+                                error={formErrors[`slot${index}`]}
+                              >
+                                <DeliveryMethodSelector
+                                  ref={(ref) => (methodSelectorRefs.current[index] = ref)}
+                                  value={methods.filter(m => slot.methodIds.includes(m.id))}
+                                  onChange={(selected) => updateSlot(index, {
+                                    methodIds: selected.map(m => m.id)
+                                  })}
+                                  hideAddButton
+                                />
+                              </FormField>
 
-                            <FormField label="Channels">
-                              <DeliveryChannelSelector
-                                ref={(ref) => (channelSelectorRefs.current[index] = ref)}
-                                value={channels.filter(c => slot.channelIds.includes(c.id))}
-                                onChange={(selected) => updateSlot(index, {
-                                  channelIds: selected.map(c => c.id)
-                                })}
-                              />
-                            </FormField>
+                              <FormField 
+                                label={
+                                  <div className="flex items-center justify-between">
+                                    <span>Channels</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => channelSelectorRefs.current[index]?.openDialog()}
+                                      className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                                    >
+                                      <PlusIcon className="h-4 w-4 mr-1" />
+                                      Add Channel
+                                    </button>
+                                  </div>
+                                }
+                              >
+                                <DeliveryChannelSelector
+                                  ref={(ref) => (channelSelectorRefs.current[index] = ref)}
+                                  value={channels.filter(c => slot.channelIds.includes(c.id))}
+                                  onChange={(selected) => updateSlot(index, {
+                                    channelIds: selected.map(c => c.id)
+                                  })}
+                                  hideAddButton
+                                />
+                              </FormField>
 
-                            <FormField label="Escalation Chains">
-                              <EscalationChainSelector
-                                ref={(ref) => (chainSelectorRefs.current[index] = ref)}
-                                value={chains.filter(c => slot.chainIds.includes(c.id))}
-                                onChange={(selected) => updateSlot(index, {
-                                  chainIds: selected.map(c => c.id)
-                                })}
-                              />
-                            </FormField>
+                              <FormField 
+                                label={
+                                  <div className="flex items-center justify-between">
+                                    <span>Escalation Chains</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => chainSelectorRefs.current[index]?.openDialog()}
+                                      className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                                    >
+                                      <PlusIcon className="h-4 w-4 mr-1" />
+                                      Add Chain
+                                    </button>
+                                  </div>
+                                }
+                              >
+                                <EscalationChainSelector
+                                  ref={(ref) => (chainSelectorRefs.current[index] = ref)}
+                                  value={chains.filter(c => slot.chainIds.includes(c.id))}
+                                  onChange={(selected) => updateSlot(index, {
+                                    chainIds: selected.map(c => c.id)
+                                  })}
+                                  hideAddButton
+                                />
+                              </FormField>
 
-                            <FormField label="Priority">
-                              <Select
-                                value={slot.settings.priority.toString()}
-                                onChange={(value) => updateSlot(index, {
-                                  settings: { ...slot.settings, priority: parseInt(value) }
-                                })}
-                                options={priorityOptions}
-                              />
-                            </FormField>
+                              <FormField label="Priority">
+                                <Select
+                                  value={slot.settings.priority.toString()}
+                                  onChange={(value) => updateSlot(index, {
+                                    settings: { ...slot.settings, priority: parseInt(value) }
+                                  })}
+                                  options={priorityOptions}
+                                />
+                              </FormField>
+                            </div>
                           </div>
                         </div>
                       ))}

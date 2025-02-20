@@ -255,10 +255,10 @@ const DeliveryMethodSelector = forwardRef<DeliveryMethodSelectorRef, DeliveryMet
           type="button"
           onClick={() => setIsOpen(true)}
           disabled={availableMethods.length === 0}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          className="mt-2 inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
         >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Add Delivery Method
+          <PlusIcon className="h-4 w-4 mr-1" />
+          Add Method
         </button>
       )}
 
