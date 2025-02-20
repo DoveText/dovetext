@@ -22,7 +22,7 @@ export const deliveryRulesApi = {
   },
 
   update: async (id: string, data: UpdateDeliveryRuleRequest): Promise<DeliveryRule> => {
-    const response = await apiClient.patch(`/api/v1/rules/${id}`, data);
+    const response = await apiClient.put(`/api/v1/rules/${id}`, data);
     return response.data;
   },
 
