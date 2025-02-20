@@ -62,39 +62,76 @@ function ChannelCard({ channel, onRemove, onClick, className = '', isButton = fa
   const Component = isButton ? 'button' : 'div';
   const description = getChannelDescription(channel);
   const Icon = channelIcons[channel.type];
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  // Different styles for dialog vs selected list
+  const containerStyles = isButton
+    ? 'p-4 hover:bg-gray-50'  // More padding for dialog items
+    : 'p-2';  // Compact for selected list
+
+  const iconStyles = isButton
+    ? 'h-6 w-6'  // Larger icons in dialog
+    : 'h-5 w-5';  // Smaller icons in selected list
+
+  const nameStyles = isButton
+    ? 'text-base'  // Larger text in dialog
+    : 'text-sm';   // Smaller text in selected list
+
+  const descriptionStyles = isButton
+    ? 'text-sm text-gray-500'  // Larger text in dialog
+    : 'text-xs text-gray-500';  // Compact in selected list
 
   return (
     <Component
       onClick={onClick}
-      className={`relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400 ${isButton ? 'w-full text-left focus:outline-none' : ''} ${className}`}
+      className={`flex items-start space-x-3 bg-white rounded-lg border border-gray-200 ${isButton ? 'w-full text-left hover:bg-gray-50' : ''} ${containerStyles} ${className}`}
+      {...(isButton ? { type: 'button' } : {})}
     >
       <div className="flex-shrink-0">
-        <Icon className="h-6 w-6 text-gray-400" aria-hidden="true" />
+        <Icon className={`${iconStyles} text-gray-400`} aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="focus:outline-none">
-          <div className="flex items-center space-x-1">
-            <TruncatedText text={channel.name} className="text-sm font-medium text-gray-900" />
-            <span className="text-sm text-gray-500">
-              ({getChannelTypeDescription(channel.type)})
-            </span>
+        <div className="flex flex-col">
+          <div className="flex items-baseline">
+            <span className={`${nameStyles} font-medium text-gray-900`}>{channel.name}</span>
+            <span className={`${descriptionStyles} ml-1`}>({getChannelTypeDescription(channel.type)})</span>
           </div>
-          <TruncatedText text={description} className="text-sm text-gray-500" />
+          {description ? (
+            <div 
+              className="relative mt-0.5"
+              onMouseEnter={() => setShowTooltip(true)}
+              onMouseLeave={() => setShowTooltip(false)}
+            >
+              <p className={`${descriptionStyles} truncate max-w-[300px]`}>
+                {description}
+              </p>
+              {showTooltip && description.length > 50 && (
+                <div className="absolute z-10 px-2 py-1 text-sm text-white bg-gray-900 rounded shadow-lg -mt-1 transform -translate-y-full max-w-xs">
+                  {description}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center mt-0.5 text-gray-400">
+              <InformationCircleIcon className="h-4 w-4 mr-1" />
+              <span className={`${descriptionStyles} italic`}>
+                No description available
+              </span>
+            </div>
+          )}
         </div>
       </div>
       {onRemove && (
-        <div className="flex-shrink-0">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            className="inline-flex items-center rounded hover:bg-gray-50 p-1 text-gray-400 hover:text-gray-500"
-          >
-            <TrashIcon className="h-5 w-5" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-500"
+        >
+          <TrashIcon className="h-4 w-4" />
+        </button>
       )}
     </Component>
   );
