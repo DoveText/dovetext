@@ -19,37 +19,8 @@ function getChainDescription(chain: EscalationChain): string {
   if (chain.description) {
     description = chain.description;
   }
-  if (chain.stages && chain.stages.length > 0) {
-    const stageCount = chain.stages.length;
-    if (description) {
-      description += ` (${stageCount} stage${stageCount > 1 ? 's' : ''})`;
-    } else {
-      description = `${stageCount} stage${stageCount > 1 ? 's' : ''}`;
-    }
-  }
+
   return description || 'No description';
-}
-
-// Truncate text with tooltip
-function TruncatedText({ text, className = '' }: { text: string; className?: string }) {
-  const [showTooltip, setShowTooltip] = useState(false);
-
-  return (
-    <div 
-      className="relative"
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
-    >
-      <div className={`truncate ${className}`}>
-        {text}
-      </div>
-      {showTooltip && text.length > 40 && (
-        <div className="absolute z-10 px-2 py-1 text-sm text-white bg-gray-900 rounded shadow-lg -mt-1 transform -translate-y-full max-w-xs">
-          {text}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // Chain Card Component
@@ -66,69 +37,84 @@ function ChainCard({
   className?: string;
   isButton?: boolean;
 }) {
-  const [showTooltip, setShowTooltip] = useState(false);
+  const Component = isButton ? 'button' : 'div';
   const description = getChainDescription(chain);
+  const [showTooltip, setShowTooltip] = useState(false);
 
-  const cardContent = (
-    <>
-      <div className="flex items-center">
-        <ClockIcon className="h-5 w-5 text-gray-400 mr-2" />
-        <div className="flex-1 min-w-0">
-          <TruncatedText 
-            text={chain.name} 
-            className="font-medium text-gray-900"
-          />
-          <TruncatedText 
-            text={description}
-            className="text-sm text-gray-500"
-          />
-        </div>
-        {onRemove && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            className="ml-2 text-gray-400 hover:text-gray-600"
-          >
-            <TrashIcon className="h-4 w-4" />
-          </button>
-        )}
-        {isButton && <ChevronRightIcon className="h-4 w-4 text-gray-400 ml-2" />}
-      </div>
-      {chain.stages && chain.stages.length > 0 && (
-        <div className="mt-1 flex items-center text-xs text-gray-500">
-          <div className="flex items-center">
-            <span>{chain.stages.length} stage{chain.stages.length !== 1 ? 's' : ''}</span>
-          </div>
-        </div>
-      )}
-    </>
-  );
+  // Different styles for dialog vs selected list
+  const containerStyles = isButton
+    ? 'p-4 hover:bg-gray-50'  // More padding for dialog items
+    : 'p-2';  // Compact for selected list
 
-  const cardClasses = `
-    relative rounded-lg border border-gray-200 bg-white p-3
-    ${isButton ? 'hover:bg-gray-50 cursor-pointer' : ''}
-    ${className}
-  `;
+  const iconStyles = isButton
+    ? 'h-6 w-6'  // Larger icons in dialog
+    : 'h-5 w-5';  // Smaller icons in selected list
 
-  if (isButton) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className={cardClasses}
-      >
-        {cardContent}
-      </button>
-    );
-  }
+  const nameStyles = isButton
+    ? 'text-base'  // Larger text in dialog
+    : 'text-sm';   // Smaller text in selected list
+
+  const descriptionStyles = isButton
+    ? 'text-sm text-gray-500'  // Larger text in dialog
+    : 'text-xs text-gray-500';  // Compact in selected list
 
   return (
-    <div className={cardClasses}>
-      {cardContent}
-    </div>
+    <Component
+      onClick={onClick}
+      className={`flex items-start space-x-3 bg-white rounded-lg border border-gray-200 ${isButton ? 'w-full text-left hover:bg-gray-50' : ''} ${containerStyles} ${className}`}
+      {...(isButton ? { type: 'button' } : {})}
+    >
+      <div className="flex-shrink-0">
+        <ClockIcon className={`${iconStyles} text-gray-400`} aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-col">
+          <div className="flex items-baseline">
+            <span className={`${nameStyles} font-medium text-gray-900`}>{chain.name}</span>
+            {chain.stages && chain.stages.length > 0 && (
+              <span className={`${descriptionStyles} ml-1`}>
+                (A chain with {chain.stages.length} stage{chain.stages.length !== 1 ? 's' : ''})
+              </span>
+            )}
+          </div>
+          {description ? (
+            <div 
+              className="relative mt-0.5"
+              onMouseEnter={() => setShowTooltip(true)}
+              onMouseLeave={() => setShowTooltip(false)}
+            >
+              <p className={`${descriptionStyles} truncate max-w-[300px]`}>
+                {description}
+              </p>
+              {showTooltip && description.length > 50 && (
+                <div className="absolute z-10 px-2 py-1 text-sm text-white bg-gray-900 rounded shadow-lg -mt-1 transform -translate-y-full max-w-xs">
+                  {description}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center mt-0.5 text-gray-400">
+              <InformationCircleIcon className="h-4 w-4 mr-1" />
+              <span className={`${descriptionStyles} italic`}>
+                No description available
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-500"
+        >
+          <TrashIcon className="h-4 w-4" />
+        </button>
+      )}
+    </Component>
   );
 }
 
