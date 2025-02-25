@@ -59,11 +59,15 @@ export default function EmailValidationPage() {
 
   useEffect(() => {
     // If user is already validated, redirect to dashboard
-    if (user?.settings?.validated && user?.is_active) {
+    if (user?.settings?.validated) {
+      console.log('validate-email: User is validated, redirecting to dashboard');
       router.push('/dashboard');
+    } else if (user?.settings) {
+      console.log('validate-email: User settings present but not validated:', user.settings);
     }
     // If no user, redirect to signin
     if (!user) {
+      console.log('validate-email: No user, redirecting to signin');
       router.push('/signin');
     }
   }, [user, router]);
@@ -95,14 +99,18 @@ export default function EmailValidationPage() {
     if (refreshCooldown > 0 || !user) return;
     
     try {
+      console.log('validate-email: Refreshing status');
       setIsRefreshing(true);
       setError(null);
       setSuccess(null);
       const userData = await refreshUserStatus();
+      console.log('validate-email: Refresh complete, userData:', userData);
       
-      if (userData?.settings?.validated && userData?.is_active) {
+      if (userData?.settings?.validated) {
+        console.log('validate-email: User is now validated, redirecting to dashboard');
         router.push('/dashboard');
       } else {
+        console.log('validate-email: User still not validated after refresh');
         setError('Email is not verified yet. Please check your inbox and click the verification link.');
         setRefreshCooldown(5); // 5 second cooldown for refresh
       }

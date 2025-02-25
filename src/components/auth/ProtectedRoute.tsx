@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, needsValidation } = useAuth();
+  const { user, loading, needsValidation, isActive } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -13,17 +13,20 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       if (!user) {
         router.push('/signin');
       } else if (needsValidation) {
-        console.log('User needs validation');
+        console.log('User needs email validation');
         router.push('/auth/validate-email');
+      } else if (!isActive) {
+        console.log('User is not active');
+        router.push('/inactive');
       }
     }
-  }, [user, loading, needsValidation, router]);
+  }, [user, loading, needsValidation, isActive, router]);
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  if (!user || needsValidation) {
+  if (!user || needsValidation || !isActive) {
     return null;
   }
 
