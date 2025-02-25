@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 export default function EmailValidationPage() {
   const { user, sendVerificationEmail, getIdToken, refreshUserStatus } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [cooldownTime, setCooldownTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -24,14 +23,6 @@ export default function EmailValidationPage() {
       router.push('/signin');
     }
   }, [user, router]);
-
-  useEffect(() => {
-    // Auto resend if resend parameter is present and no cooldown
-    const shouldResend = searchParams.get('resend') === 'true' && cooldownTime === 0;
-    if (shouldResend && user) {
-      handleResendEmail();
-    }
-  }, [user, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -75,14 +66,8 @@ export default function EmailValidationPage() {
         }
       });
 
-      // Only set success and cooldown if everything succeeded
       setSuccess('Verification email sent! Please check your inbox.');
       setCooldownTime(60); // 60 second cooldown
-      
-      // Clear the resend parameter from URL
-      const url = new URL(window.location.href);
-      url.searchParams.delete('resend');
-      window.history.replaceState({}, '', url.toString());
     } catch (error: any) {
       console.error('Error sending verification email:', error);
       if (error.code === 'auth/too-many-requests') {
@@ -91,11 +76,6 @@ export default function EmailValidationPage() {
       } else {
         setError('Failed to send verification email. Please try again later.');
       }
-      
-      // Clear the resend parameter from URL even on error
-      const url = new URL(window.location.href);
-      url.searchParams.delete('resend');
-      window.history.replaceState({}, '', url.toString());
     }
   };
 
