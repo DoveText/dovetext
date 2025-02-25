@@ -12,11 +12,11 @@ function classNames(...classes: string[]) {
 }
 
 export default function Navigation() {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await logout();
     } catch (error) {
       console.error('Error signing out:', error);
     }

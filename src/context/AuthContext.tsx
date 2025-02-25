@@ -70,7 +70,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // Check if user needs validation
-  const needsValidation = user && !user.settings?.validated;
+  const needsValidation = user && 
+    user.settings?.provider === 'email' && 
+    !user.settings?.validated;
 
   // Check if user is active
   const isActive = user?.is_active ?? false;
@@ -107,7 +109,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (error: any) {
+      throw new Error(getAuthErrorMessage(error.code));
+    }
   };
 
   const sendVerificationEmail = async () => {
@@ -203,8 +209,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const value = {
     user,
     loading,
-    signUp,
     signIn,
+    signUp,
     signInWithGoogle,
     logout,
     sendVerificationEmail,
