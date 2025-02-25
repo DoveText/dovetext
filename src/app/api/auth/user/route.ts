@@ -14,38 +14,51 @@ export async function GET(request: Request) {
     }
 
     const token = authHeader.split(' ')[1];
+    console.log('Attempting to verify token...');
     
     // Verify the Firebase token
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    if (!decodedToken.uid) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
-      );
+    try {
+      const decodedToken = await adminAuth.verifyIdToken(token);
+      console.log('Token verified successfully:', decodedToken.uid);
+      
+      if (!decodedToken.uid) {
+        return NextResponse.json(
+          { error: 'Invalid token' },
+          { status: 401 }
+        );
+      }
+
+      // Get user data from database
+      const user = await db.oneOrNone(`
+        SELECT 
+          id,
+          email,
+          firebase_uid,
+          settings,
+          is_active,
+          created_at,
+          updated_at
+        FROM users 
+        WHERE firebase_uid = $1
+      `, [decodedToken.uid]);
+
+      if (!user) {
+        return NextResponse.json(
+          { error: 'User not found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(user);
+    } catch (verifyError) {
+      console.error('Token verification error details:', {
+        error: verifyError,
+        message: verifyError.message,
+        code: verifyError.code,
+        stack: verifyError.stack
+      });
+      throw verifyError;
     }
-
-    // Get user data from database
-    const user = await db.oneOrNone(`
-      SELECT 
-        id,
-        email,
-        firebase_uid,
-        settings,
-        is_active,
-        created_at,
-        updated_at
-      FROM users 
-      WHERE firebase_uid = $1
-    `, [decodedToken.uid]);
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(user);
 
   } catch (error) {
     console.error('Error getting user data:', error);

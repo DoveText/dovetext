@@ -39,11 +39,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     return onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Get the ID token
-        const token = await firebaseUser.getIdToken();
-        
-        // Fetch user data from our backend
         try {
+          // Get the ID token without forcing refresh
+          const token = await firebaseUser.getIdToken(false);
+          
+          // Fetch user data from our backend
           const response = await fetch('/api/auth/user', {
             headers: {
               'Authorization': `Bearer ${token}`
@@ -145,7 +145,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const getIdToken = async () => {
     if (!user) return null;
-    return user.getIdToken(true);  // Force refresh to ensure token is fresh
+    return user.getIdToken(false);  // Don't force refresh
   };
 
   const value = {
