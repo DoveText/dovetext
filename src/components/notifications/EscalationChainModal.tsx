@@ -98,14 +98,16 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
     setError(null);
 
-    // Validate stages
+    // Validate required fields
+    if (!name.trim()) {
+      setError('Name is required');
+      return;
+    }
+
     if (stages.length === 0) {
       setError('Please add at least one stage');
-      setIsSubmitting(false);
       return;
     }
 
@@ -114,12 +116,12 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
       if ((!stage.channelIds || stage.channelIds.length === 0) && 
           (!stage.methodIds || stage.methodIds.length === 0)) {
         setError(`Please select at least one channel or method for stage ${stage.stageOrder}`);
-        setIsSubmitting(false);
         return;
       }
     }
 
     try {
+      setIsSubmitting(true);
       const chainData = {
         name,
         description,
@@ -262,6 +264,9 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                   <PlusIcon className="h-4 w-4 mr-1" />
                                   Add your first stage
                                 </button>
+                                {error && (
+                                  <p className="mt-2 text-sm text-red-600">{error}</p>
+                                )}
                               </div>
                             ) : (
                               stages.map((stage, index) => (
@@ -387,6 +392,12 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                         />
                                       </FormField>
                                     </div>
+                                    {/* Show stage-specific error */}
+                                    {error && error.includes(`stage ${stage.stageOrder}`) && (
+                                      <div className="mt-2">
+                                        <p className="text-sm text-red-600">{error}</p>
+                                      </div>
+                                    )}
                                   </div>
 
                                   <button
@@ -412,13 +423,6 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                             placeholder="Enter a description for this escalation chain"
                           />
                         </FormField>
-
-                        {/* Error Message */}
-                        {error && (
-                          <div className="mt-4">
-                            <p className="text-sm text-red-600">{error}</p>
-                          </div>
-                        )}
 
                         {/* Submit and Cancel Buttons */}
                         <div className="mt-8 flex flex-row-reverse space-x-3 space-x-reverse">
