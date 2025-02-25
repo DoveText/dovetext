@@ -15,7 +15,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       } else if (needsValidation) {
         router.push('/auth/validate-email');
       } else if (!isActive) {
-        router.push('/inactive');
+        router.push('/auth/activate');
       }
     }
   }, [user, loading, needsValidation, isActive, router]);
