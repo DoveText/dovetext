@@ -5,10 +5,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function EmailValidationPage() {
-  const { user, sendVerificationEmail, getIdToken } = useAuth();
+  const { user, sendVerificationEmail, getIdToken, refreshUserStatus } = useAuth();
   const router = useRouter();
   const [cooldownTime, setCooldownTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshCooldown, setRefreshCooldown] = useState(0);
 
   useEffect(() => {
     // If user is already validated, redirect to dashboard
@@ -30,6 +32,16 @@ export default function EmailValidationPage() {
     }
     return () => clearInterval(timer);
   }, [cooldownTime]);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (refreshCooldown > 0) {
+      timer = setInterval(() => {
+        setRefreshCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [refreshCooldown]);
 
   const handleResendEmail = async () => {
     if (cooldownTime > 0 || !user) return;
@@ -61,9 +73,30 @@ export default function EmailValidationPage() {
     }
   };
 
-  if (!user) {
-    return null;
-  }
+  const handleRefreshStatus = async () => {
+    if (refreshCooldown > 0 || !user) return;
+    
+    try {
+      setIsRefreshing(true);
+      setError(null);
+      const userData = await refreshUserStatus();
+      
+      if (userData?.settings?.validated && userData?.is_active) {
+        router.push('/dashboard');
+      } else {
+        setError('Email is not verified yet. Please check your inbox and click the verification link.');
+        setRefreshCooldown(5); // 5 second cooldown for refresh
+      }
+    } catch (error) {
+      console.error('Error refreshing status:', error);
+      setError('Failed to check verification status. Please try again.');
+      setRefreshCooldown(5);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -90,7 +123,7 @@ export default function EmailValidationPage() {
                 </div>
               </div>
             )}
-            <div>
+            <div className="space-y-3">
               <button
                 onClick={handleResendEmail}
                 disabled={cooldownTime > 0}
@@ -98,6 +131,15 @@ export default function EmailValidationPage() {
                   ${cooldownTime > 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
               >
                 {cooldownTime > 0 ? `Resend in ${cooldownTime}s` : 'Resend Verification Email'}
+              </button>
+              
+              <button
+                onClick={handleRefreshStatus}
+                disabled={refreshCooldown > 0 || isRefreshing}
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white 
+                  ${refreshCooldown > 0 || isRefreshing ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+              >
+                {isRefreshing ? 'Checking...' : refreshCooldown > 0 ? `Check Again in ${refreshCooldown}s` : `I've Verified My Email`}
               </button>
             </div>
           </div>

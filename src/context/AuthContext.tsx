@@ -28,6 +28,7 @@ interface AuthContextType {
   auth: any;
   getIdToken: () => Promise<string | null>;
   needsValidation: boolean;
+  refreshUserStatus: () => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -149,6 +150,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return auth.currentUser.getIdToken(false);  // Don't force refresh
   };
 
+  const refreshUserStatus = async () => {
+    if (!auth.currentUser) return null;
+    
+    try {
+      // Force refresh the token to get latest claims
+      await auth.currentUser.reload();
+      const token = await auth.currentUser.getIdToken(false);
+      
+      // Fetch latest user data
+      const response = await fetch('/api/auth/user', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+      
+      const userData = await response.json();
+      setUser(prev => ({
+        ...auth.currentUser!,
+        ...userData
+      }));
+      
+      return userData;
+    } catch (error) {
+      console.error('Error refreshing user status:', error);
+      return null;
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -162,6 +195,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     auth,
     getIdToken,
     needsValidation,
+    refreshUserStatus,
   };
 
   return (
