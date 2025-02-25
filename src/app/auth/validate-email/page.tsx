@@ -1,17 +1,61 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function EmailValidationPage() {
   const { user, sendVerificationEmail, getIdToken, refreshUserStatus } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [cooldownTime, setCooldownTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshCooldown, setRefreshCooldown] = useState(0);
+  const [hasTriedResend, setHasTriedResend] = useState(false);
+  const resendAttempted = useRef(false);
+
+  const handleResendEmail = useCallback(async () => {
+    if (cooldownTime > 0 || !user) return;
+
+    try {
+      setError(null);
+      setSuccess(null);
+      // Send verification email using AuthContext function
+      await sendVerificationEmail();
+      
+      // Update last sent timestamp
+      const token = await getIdToken();
+      await fetch('/api/auth/update-validation-sent', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      setSuccess('Verification email sent! Please check your inbox.');
+      setCooldownTime(60); // 60 second cooldown
+    } catch (error: any) {
+      console.error('Error sending verification email:', error);
+      if (error.code === 'auth/too-many-requests') {
+        setError('Too many attempts. Please wait a few minutes before trying again.');
+        setCooldownTime(300); // 5 minute cooldown on rate limit
+      } else {
+        setError('Failed to send verification email. Please try again later.');
+      }
+    }
+  }, [cooldownTime, user, sendVerificationEmail, getIdToken]);
+
+  // Handle automatic resend when coming from verify page
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'resend' && !cooldownTime && !resendAttempted.current) {
+      resendAttempted.current = true;
+      handleResendEmail();
+    }
+  }, [searchParams, cooldownTime, handleResendEmail]);
 
   useEffect(() => {
     // If user is already validated, redirect to dashboard
@@ -46,38 +90,6 @@ export default function EmailValidationPage() {
     }
     return () => clearInterval(timer);
   }, [refreshCooldown]);
-
-  const handleResendEmail = async () => {
-    if (cooldownTime > 0 || !user) return;
-
-    try {
-      setError(null);
-      setSuccess(null);
-      // Send verification email using AuthContext function
-      await sendVerificationEmail();
-      
-      // Update last sent timestamp
-      const token = await getIdToken();
-      await fetch('/api/auth/update-validation-sent', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      setSuccess('Verification email sent! Please check your inbox.');
-      setCooldownTime(60); // 60 second cooldown
-    } catch (error: any) {
-      console.error('Error sending verification email:', error);
-      if (error.code === 'auth/too-many-requests') {
-        setError('Too many attempts. Please wait a few minutes before trying again.');
-        setCooldownTime(300); // 5 minute cooldown on rate limit
-      } else {
-        setError('Failed to send verification email. Please try again later.');
-      }
-    }
-  };
 
   const handleRefreshStatus = async () => {
     if (refreshCooldown > 0 || !user) return;
