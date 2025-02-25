@@ -155,20 +155,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const refreshUserStatus = async () => {
-    if (!auth.currentUser) {
-      console.log('refreshUserStatus: No current user');
-      return null;
-    }
+    if (!auth.currentUser) return null;
     
     try {
       // Force refresh the token to get latest claims
       await auth.currentUser.reload();
       const token = await auth.currentUser.getIdToken(false);
-      console.log('refreshUserStatus: User email verified status:', auth.currentUser.emailVerified);
       
       // If email is verified, update the database
       if (auth.currentUser.emailVerified) {
-        console.log('refreshUserStatus: Calling verify-email endpoint');
         const verifyResponse = await fetch('/api/auth/verify-email', {
           method: 'POST',
           headers: {
@@ -177,15 +172,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         });
         
         if (!verifyResponse.ok) {
-          console.error('Failed to update email verification status in database:', await verifyResponse.text());
-        } else {
-          const verifyData = await verifyResponse.json();
-          console.log('refreshUserStatus: Database updated successfully:', verifyData);
+          console.error('Failed to update email verification status in database');
         }
       }
       
       // Fetch latest user data
-      console.log('refreshUserStatus: Fetching latest user data');
       const response = await fetch('/api/auth/user', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -197,15 +188,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       const userData = await response.json();
-      console.log('refreshUserStatus: Latest user data:', userData);
-      
-      // Set user state with latest data
-      const newUserState = {
+      setUser({
         ...auth.currentUser!,
         ...userData
-      };
-      console.log('refreshUserStatus: Setting new user state:', newUserState);
-      setUser(newUserState);
+      });
       
       return userData;
     } catch (error) {

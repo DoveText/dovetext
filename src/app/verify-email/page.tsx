@@ -33,7 +33,6 @@ export default function VerifyEmailPage() {
       try {
         // Try to apply the action code
         await applyActionCode(auth, oobCode);
-        console.log('Action code applied successfully');
       } catch (error: any) {
         console.error('Error applying action code:', error);
         // Don't set error yet - we'll check if verification succeeded anyway
@@ -42,12 +41,9 @@ export default function VerifyEmailPage() {
       // Check verification status regardless of applyActionCode result
       if (auth.currentUser) {
         await auth.currentUser.reload();
-        console.log('verify-email: User email verified status:', auth.currentUser.emailVerified);
         if (auth.currentUser.emailVerified) {
-          console.log('verify-email: Email verified successfully');
           // Refresh user status to sync with backend
-          const userData = await refreshUserStatus();
-          console.log('verify-email: User data after refresh:', userData);
+          await refreshUserStatus();
           router.push('/auth/validate-email');
           return;
         }

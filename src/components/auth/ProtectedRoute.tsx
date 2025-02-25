@@ -13,10 +13,8 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       if (!user) {
         router.push('/signin');
       } else if (needsValidation) {
-        console.log('User needs email validation');
         router.push('/auth/validate-email');
       } else if (!isActive) {
-        console.log('User is not active');
         router.push('/inactive');
       }
     }
