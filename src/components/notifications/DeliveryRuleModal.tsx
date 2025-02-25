@@ -23,7 +23,7 @@ interface DeliveryRuleModalProps {
   isOpen: boolean;
   onClose: () => void;
   editingRule: DeliveryRule | null;
-  onSubmit: () => void;
+  onSave: () => void;
 }
 
 const priorityOptions = [
@@ -38,7 +38,7 @@ export default function DeliveryRuleModal({
   isOpen,
   onClose,
   editingRule,
-  onSubmit,
+  onSave,
 }: DeliveryRuleModalProps) {
   const [name, setName] = useState(editingRule?.name || '');
   const [description, setDescription] = useState(editingRule?.description || '');
@@ -68,13 +68,18 @@ export default function DeliveryRuleModal({
     if (editingRule) {
       setName(editingRule.name);
       setDescription(editingRule.description || '');
-      setPriority(editingRule.priority);
-      setTimeslot(editingRule.timeslot);
-      setMethodIds(editingRule.methodIds);
-      setChannelIds(editingRule.channelIds);
-      setChainIds(editingRule.chainIds);
-      setConditions(editingRule.conditions);
-      setSettings(editingRule.settings);
+      setPriority(editingRule.priority || 10);
+      setTimeslot(editingRule.timeslot || {
+        startTime: '09:00',
+        endTime: '17:00',
+        daysOfWeek: ALL_DAYS,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
+      setMethodIds(editingRule.methodIds || []);
+      setChannelIds(editingRule.channelIds || []);
+      setChainIds(editingRule.chainIds || []);
+      setConditions(editingRule.conditions || {});
+      setSettings(editingRule.settings || { isActive: true });
     } else {
       setName('');
       setDescription('');
@@ -91,6 +96,7 @@ export default function DeliveryRuleModal({
       setConditions({});
       setSettings({ isActive: true });
     }
+    setFormErrors({});
   }, [editingRule]);
 
   useEffect(() => {
@@ -135,7 +141,7 @@ export default function DeliveryRuleModal({
         await deliveryRulesApi.create(request);
       }
 
-      onSubmit();
+      onSave();
       onClose();
     } catch (err) {
       console.error('Failed to save rule:', err);

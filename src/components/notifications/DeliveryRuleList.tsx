@@ -18,12 +18,12 @@ import DeliveryRuleModal from './DeliveryRuleModal';
 
 interface DeliveryRuleListProps {
   rules: DeliveryRule[];
-  onRulesChange: () => void;
+  onUpdate: () => void;
 }
 
 export default function DeliveryRuleList({
   rules,
-  onRulesChange,
+  onUpdate,
 }: DeliveryRuleListProps) {
   const [hoveredRule, setHoveredRule] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,7 +40,7 @@ export default function DeliveryRuleList({
 
     try {
       await deliveryRulesApi.delete(deletingRule.id);
-      onRulesChange();
+      onUpdate();
       setDeletingRule(null);
     } catch (err) {
       setError('Failed to delete delivery rule');
@@ -55,7 +55,7 @@ export default function DeliveryRuleList({
       } else {
         await deliveryRulesApi.enable(rule.id);
       }
-      onRulesChange();
+      onUpdate();
     } catch (err) {
       setError('Failed to toggle rule status');
       console.error(err);
@@ -158,7 +158,7 @@ export default function DeliveryRuleList({
         onSave={() => {
           setIsModalOpen(false);
           setEditingRule(null);
-          onRulesChange();
+          onUpdate();
         }}
         rule={editingRule}
       />
