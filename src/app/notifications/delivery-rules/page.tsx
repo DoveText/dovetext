@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { DeliveryRule } from '@/types/delivery-rule';
 import DeliveryRuleList from '@/components/notifications/DeliveryRuleList';
 import { deliveryRulesApi } from '@/api/delivery-rules';
-import { auth } from '@/lib/firebase/config';
+import { auth } from '@/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 
 export default function DeliveryRulesPage() {

@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { config, devConfig } from '../../../scripts/db/config';
+import { config, devConfig } from '../../scripts/db/config';
 
 class DatabasePool {
   private static instance: Pool;

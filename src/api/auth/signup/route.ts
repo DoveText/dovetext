@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { hashPassword } from '@/lib/auth/password';
+import { hashPassword } from '@/api/password';
 
 interface UserSettings {
   provider: 'email' | 'google' | 'github';

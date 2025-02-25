@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { withAuth, type NextRequestWithAuth } from '@/lib/api/withAuth';
+import { withAuth, type NextRequestWithAuth } from '@/api/withAuth';
 
 // Get user settings
 export const GET = withAuth(async (request: NextRequestWithAuth) => {
