@@ -106,9 +106,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const sendVerificationEmail = async () => {
-    if (user) {
-      await sendEmailVerification(user);
+    if (!auth.currentUser) {
+      throw new Error('No authenticated user');
     }
+    await sendEmailVerification(auth.currentUser);
   };
 
   const sendPasswordResetEmail = async (email: string) => {
@@ -144,8 +145,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getIdToken = async () => {
-    if (!user) return null;
-    return user.getIdToken(false);  // Don't force refresh
+    if (!auth.currentUser) return null;
+    return auth.currentUser.getIdToken(false);  // Don't force refresh
   };
 
   const value = {

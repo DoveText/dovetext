@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getAuth } from '@/lib/firebase/admin';
+import { adminAuth } from '@/lib/firebase/admin';
 
 export async function POST(request: Request) {
   try {
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const token = authHeader.split(' ')[1];
     
     // Verify the Firebase token
-    const decodedToken = await getAuth().verifyIdToken(token);
+    const decodedToken = await adminAuth.verifyIdToken(token);
     if (!decodedToken.uid) {
       return NextResponse.json(
         { error: 'Invalid token' },

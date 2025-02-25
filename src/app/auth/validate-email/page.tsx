@@ -5,9 +5,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function EmailValidationPage() {
-  const { user } = useAuth();
+  const { user, sendVerificationEmail, getIdToken } = useAuth();
   const router = useRouter();
   const [cooldownTime, setCooldownTime] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // If user is already validated, redirect to dashboard
@@ -34,11 +35,12 @@ export default function EmailValidationPage() {
     if (cooldownTime > 0 || !user) return;
 
     try {
-      // Send verification email
-      await user.sendEmailVerification();
+      setError(null);
+      // Send verification email using AuthContext function
+      await sendVerificationEmail();
       
       // Update last sent timestamp
-      const token = await user.getIdToken();
+      const token = await getIdToken();
       await fetch('/api/auth/update-validation-sent', {
         method: 'POST',
         headers: {
@@ -48,8 +50,14 @@ export default function EmailValidationPage() {
       });
 
       setCooldownTime(60); // 60 second cooldown
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending verification email:', error);
+      if (error.code === 'auth/too-many-requests') {
+        setError('Too many attempts. Please wait a few minutes before trying again.');
+        setCooldownTime(300); // 5 minute cooldown on rate limit
+      } else {
+        setError('Failed to send verification email. Please try again later.');
+      }
     }
   };
 
@@ -71,6 +79,17 @@ export default function EmailValidationPage() {
                 Please check your inbox and click the verification link.
               </p>
             </div>
+            {error && (
+              <div className="rounded-md bg-red-50 p-4">
+                <div className="flex">
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">
+                      {error}
+                    </h3>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <button
                 onClick={handleResendEmail}
