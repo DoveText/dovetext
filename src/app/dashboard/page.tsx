@@ -2,17 +2,11 @@
 
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
-export default function Dashboard() {
+function DashboardContent() {
   const { user, logout } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    if (!user) {
-      router.push('/signin');
-    }
-  }, [user, router]);
 
   const handleLogout = async () => {
     try {
@@ -23,14 +17,10 @@ export default function Dashboard() {
     }
   };
 
-  if (!user) {
-    return null; // or a loading spinner
-  }
-
   return (
     <div className="max-w-4xl mx-auto mt-8 p-6">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Welcome, {user.email}</h1>
+        <h1 className="text-2xl font-bold">Welcome, {user?.email}</h1>
         <button
           onClick={handleLogout}
           className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
@@ -44,5 +34,13 @@ export default function Dashboard() {
         <p>You&apos;re successfully logged in!</p>
       </div>
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
   );
 }

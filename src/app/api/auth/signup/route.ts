@@ -5,6 +5,8 @@ import { validateEmailFormat } from '@/lib/validation/email';
 
 interface UserSettings {
   provider: 'email' | 'google' | 'github';
+  validated: boolean;
+  validationSentAt?: string;
   [key: string]: any;
 }
 
@@ -52,6 +54,8 @@ export async function POST(request: Request) {
       // Use the provided provider in settings
       const settings: UserSettings = {
         provider,
+        validated: provider !== 'email', // Google/Github logins are pre-validated
+        validationSentAt: provider === 'email' ? new Date().toISOString() : undefined
       };
 
       // Create user with encrypted password (null for Google sign-in)

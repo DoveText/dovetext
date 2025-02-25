@@ -27,6 +27,7 @@ interface AuthContextType {
   confirmPasswordReset: (oobCode: string, newPassword: string, email: string) => Promise<void>;
   auth: any;
   getIdToken: () => Promise<string | null>;
+  needsValidation: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -34,35 +35,40 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isSigningUp, setIsSigningUp] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user && !isSigningUp) {
+    return onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Get the ID token
+        const token = await firebaseUser.getIdToken();
+        
+        // Fetch user data from our backend
         try {
-          // Only update last_login_at if not in signup process
-          const response = await fetch('/api/auth/signin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: user.email,
-              firebaseUid: user.uid,
-            }),
+          const response = await fetch('/api/auth/user', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
           });
-
-          if (!response.ok) {
-            console.error('Failed to update user login time');
-          }
+          const userData = await response.json();
+          
+          // Combine Firebase user with our user data
+          setUser({
+            ...firebaseUser,
+            ...userData,
+          });
         } catch (error) {
-          console.error('Error updating user login time:', error);
+          console.error('Error fetching user data:', error);
+          setUser(firebaseUser);
         }
+      } else {
+        setUser(null);
       }
-      setUser(user);
       setLoading(false);
     });
+  }, []);
 
-    return () => unsubscribe();
-  }, [isSigningUp]);
+  // Check if user needs validation
+  const needsValidation = user && (!user.settings?.validated || !user.is_active);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -73,7 +79,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string) => {
-    setIsSigningUp(true);
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       if (result.user) {
@@ -82,22 +87,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return result;
     } catch (error: any) {
       throw new Error(getAuthErrorMessage(error.code));
-    } finally {
-      setIsSigningUp(false);
     }
   };
 
   const signInWithGoogle = async () => {
     try {
-      setIsSigningUp(true);
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       return result;
     } catch (error: any) {
       console.error('Google sign-in error:', error);
       throw new Error(getAuthErrorMessage(error.code) || 'Failed to sign in with Google');
-    } finally {
-      setIsSigningUp(false);
     }
   };
 
@@ -160,6 +160,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     confirmPasswordReset,
     auth,
     getIdToken,
+    needsValidation,
   };
 
   return (
