@@ -44,21 +44,9 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
   editingChain,
   onSave,
 }) => {
-  const [name, setName] = useState(editingChain?.name || '');
-  const [description, setDescription] = useState(editingChain?.description || '');
-  const [stages, setStages] = useState<Omit<EscalationStage, 'id' | 'createdAt' | 'updatedAt'>[]>(
-    editingChain?.stages ? editingChain.stages.map(stage => ({
-      name: stage.name || `Stage ${stage.stageOrder}`,
-      stageOrder: stage.stageOrder,
-      channelIds: stage.channelIds || [],
-      methodIds: stage.methodIds || [],
-      settings: {
-        stageDelay: stage.settings?.stageDelay || 0,
-        maxRetries: stage.settings?.maxRetries || 3,
-        retryInterval: stage.settings?.retryInterval || 300,
-      }
-    })) : []
-  );
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [stages, setStages] = useState<Omit<EscalationStage, 'id' | 'createdAt' | 'updatedAt'>[]>([]);
   const [channels, setChannels] = useState<DeliveryChannel[]>([]);
   const [methods, setMethods] = useState<DeliveryMethod[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -71,17 +59,19 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
     if (editingChain) {
       setName(editingChain.name);
       setDescription(editingChain.description || '');
-      setStages(editingChain.stages ? editingChain.stages.map(stage => ({
-        name: stage.name || `Stage ${stage.stageOrder}`,
-        stageOrder: stage.stageOrder,
-        channelIds: stage.channelIds || [],
-        methodIds: stage.methodIds || [],
-        settings: {
-          stageDelay: stage.settings?.stageDelay || 0,
-          maxRetries: stage.settings?.maxRetries || 3,
-          retryInterval: stage.settings?.retryInterval || 300,
-        }
-      })) : []);
+      setStages(
+        editingChain.stages.map(stage => ({
+          name: stage.name || `Stage ${stage.stageOrder}`,
+          stageOrder: stage.stageOrder,
+          channelIds: stage.channelIds || [],
+          methodIds: stage.methodIds || [],
+          settings: {
+            stageDelay: stage.settings?.stageDelay || 0,
+            maxRetries: stage.settings?.maxRetries || 3,
+            retryInterval: stage.settings?.retryInterval || 300,
+          }
+        }))
+      );
     } else {
       setName('');
       setDescription('');

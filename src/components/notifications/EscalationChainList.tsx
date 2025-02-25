@@ -181,7 +181,7 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
           setIsModalOpen(false);
           setEditingChain(null);
         }}
-        chain={editingChain}
+        editingChain={editingChain}
       />
 
       <ConfirmDialog
