@@ -70,9 +70,9 @@ export default function DeliveryRuleList({
   return (
     <div>
       <div className="mt-4 space-y-2">
-        {rules.map((rule) => (
+        {rules.map((editingRule) => (
           <div
-            key={rule.id}
+            key={editingRule.id}
             className="bg-white border rounded-lg shadow-sm hover:shadow transition-all duration-200"
           >
             <div className="relative flex justify-between gap-x-6 py-5 px-4">
@@ -82,29 +82,29 @@ export default function DeliveryRuleList({
                 </div>
                 <div className="min-w-0 flex-auto">
                   <div className="flex items-center gap-x-2">
-                    <p className="text-sm font-semibold leading-6 text-gray-900">{rule.name}</p>
+                    <p className="text-sm font-semibold leading-6 text-gray-900">{editingRule.name}</p>
                     <button
-                      onClick={() => handleToggleEnabled(rule)}
+                      onClick={() => handleToggleEnabled(editingRule)}
                       className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                        rule.settings.isActive
+                        editingRule.settings.isActive
                           ? 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20'
                           : 'bg-gray-50 text-gray-600 ring-1 ring-inset ring-gray-500/10'
                       }`}
                     >
-                      {rule.settings.isActive ? 'Active' : 'Inactive'}
+                      {editingRule.settings.isActive ? 'Active' : 'Inactive'}
                     </button>
-                    {rule.settings.priority && (
+                    {editingRule.settings.priority && (
                       <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
-                        Priority {rule.settings.priority}
+                        Priority {editingRule.settings.priority}
                       </span>
                     )}
                   </div>
-                  {rule.description && (
-                    <p className="mt-1 text-sm leading-5 text-gray-500">{rule.description}</p>
+                  {editingRule.description && (
+                    <p className="mt-1 text-sm leading-5 text-gray-500">{editingRule.description}</p>
                   )}
-                  {rule.slots && rule.slots.length > 0 && (
+                  {editingRule.slots && editingRule.slots.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {rule.slots.map((slot, index) => (
+                      {editingRule.slots.map((slot, index) => (
                         <span
                           key={index}
                           className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10"
@@ -119,14 +119,14 @@ export default function DeliveryRuleList({
               <div className="flex items-center gap-x-4">
                 <button
                   type="button"
-                  onClick={() => handleEdit(rule)}
+                  onClick={() => handleEdit(editingRule)}
                   className="rounded-md bg-white p-2 text-gray-400 hover:text-gray-500"
                 >
                   <PencilIcon className="h-5 w-5" />
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(rule)}
+                  onClick={() => handleDelete(editingRule)}
                   className="rounded-md bg-white p-2 text-gray-400 hover:text-red-500"
                 >
                   <TrashIcon className="h-5 w-5" />
@@ -160,7 +160,7 @@ export default function DeliveryRuleList({
           setEditingRule(null);
           onUpdate();
         }}
-        rule={editingRule}
+        editingRule={editingRule}
       />
 
       <ConfirmDialog

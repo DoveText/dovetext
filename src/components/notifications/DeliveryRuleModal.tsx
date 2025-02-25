@@ -119,10 +119,26 @@ export default function DeliveryRuleModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setFormErrors({});
+    
+    // Validate required fields
+    const errors: Record<string, string> = {};
+    if (!name.trim()) {
+      errors.name = 'Name is required';
+    }
+
+    // Validate at least one delivery option is selected
+    if (methodIds.length === 0 && channelIds.length === 0 && chainIds.length === 0) {
+      errors.delivery = 'At least one delivery method, channel, or escalation chain must be selected';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
 
     try {
+      setIsSubmitting(true);
       const request: any = {
         name,
         description,
@@ -254,6 +270,7 @@ export default function DeliveryRuleModal({
                                 </button>
                               </div>
                             }
+                            error={formErrors.delivery}
                           >
                             <DeliveryMethodSelector
                               ref={methodSelectorRef}
@@ -279,6 +296,7 @@ export default function DeliveryRuleModal({
                                 </button>
                               </div>
                             }
+                            error={formErrors.delivery}
                           >
                             <DeliveryChannelSelector
                               ref={channelSelectorRef}
@@ -304,6 +322,7 @@ export default function DeliveryRuleModal({
                                 </button>
                               </div>
                             }
+                            error={formErrors.delivery}
                           >
                             <EscalationChainSelector
                               ref={chainSelectorRef}

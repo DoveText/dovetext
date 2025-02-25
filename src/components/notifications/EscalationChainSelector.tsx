@@ -178,13 +178,19 @@ const EscalationChainSelector = forwardRef<EscalationChainSelectorRef, Escalatio
   return (
     <div className={className}>
       <div className="space-y-2">
-        {value.map((chain) => (
-          <ChainCard
-            key={chain.id}
-            chain={chain}
-            onRemove={() => handleRemove(chain.id)}
-          />
-        ))}
+        {value.length > 0 ? (
+          value.map((chain) => (
+            <ChainCard
+              key={chain.id}
+              chain={chain}
+              onRemove={() => handleRemove(chain.id)}
+            />
+          ))
+        ) : (
+          <div className="rounded-lg border border-dashed border-gray-300 p-4">
+            <p className="text-sm text-gray-500 text-center text-italic">No escalation chain is selected</p>
+          </div>
+        )}
       </div>
 
       {!hideAddButton && (
