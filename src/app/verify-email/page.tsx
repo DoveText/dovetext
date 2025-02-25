@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { applyActionCode } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
@@ -9,12 +9,19 @@ import { useAuth } from '@/context/AuthContext';
 export default function VerifyEmailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, refreshUserStatus } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(true);
+  const verificationAttempted = useRef(false);
 
   useEffect(() => {
     const verifyEmail = async () => {
+      // Only attempt verification once
+      if (verificationAttempted.current) {
+        return;
+      }
+      verificationAttempted.current = true;
+
       const oobCode = searchParams.get('oobCode');
       
       if (!oobCode) {
@@ -24,37 +31,36 @@ export default function VerifyEmailPage() {
       }
 
       try {
+        // Try to apply the action code
         await applyActionCode(auth, oobCode);
-        // Force reload the user to get new token with email verified
-        if (auth.currentUser) {
-          await auth.currentUser.reload();
-          if (auth.currentUser.emailVerified) {
-            console.log('Email verified successfully');
-            router.push('/auth/validate-email');
-            return;
-          }
-        }
-        setError('Failed to verify email. Please try again or request a new verification email.');
-        setIsVerifying(false);
+        console.log('Action code applied successfully');
       } catch (error: any) {
-        console.error('Error verifying email:', error);
-        
-        if (error.code === 'auth/invalid-action-code') {
-          setError(
-            'This verification link has expired or has already been used. ' +
-            'Please request a new verification email.'
-          );
-        } else if (error.code === 'auth/user-not-found') {
-          setError('User account not found. Please sign up again.');
-        } else {
-          setError('Failed to verify email. Please try again or request a new verification email.');
-        }
-        setIsVerifying(false);
+        console.error('Error applying action code:', error);
+        // Don't set error yet - we'll check if verification succeeded anyway
       }
+
+      // Check verification status regardless of applyActionCode result
+      if (auth.currentUser) {
+        await auth.currentUser.reload();
+        if (auth.currentUser.emailVerified) {
+          console.log('Email verified successfully');
+          // Refresh user status to sync with backend
+          await refreshUserStatus();
+          router.push('/auth/validate-email');
+          return;
+        }
+      }
+
+      // Only show error if we actually failed to verify
+      setError(
+        'Failed to verify your email. The link may have expired or already been used. ' +
+        'Please request a new verification email.'
+      );
+      setIsVerifying(false);
     };
 
     verifyEmail();
-  }, [router, searchParams]);
+  }, [router, searchParams, refreshUserStatus]);
 
   if (error) {
     return (
