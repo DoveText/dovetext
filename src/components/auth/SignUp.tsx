@@ -10,7 +10,6 @@ export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [invitationCode, setInvitationCode] = useState('');
   const [error, setError] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [isSigningUpWithGoogle, setIsSigningUpWithGoogle] = useState(false);
@@ -18,9 +17,6 @@ export default function SignUp() {
   
   // Field-specific states
   const [emailError, setEmailError] = useState('');
-  const [emailChecking, setEmailChecking] = useState(false);
-  const [invitationError, setInvitationError] = useState('');
-  const [invitationChecking, setInvitationChecking] = useState(false);
   
   const { signUp, signInWithGoogle, user } = useAuth();
   const router = useRouter();
@@ -54,7 +50,6 @@ export default function SignUp() {
           email,
           firebaseUid,
           password,
-          invitationCode,
           provider
         })
       });
@@ -103,42 +98,11 @@ export default function SignUp() {
     await validateEmail(emailToValidate);
   };
 
-  const handleInvitationBlur = async () => {
-    if (!invitationCode) {
-      setInvitationError('Invitation code is required');
-      return false;
-    }
-    
-    setInvitationChecking(true);
-    setInvitationError('');
-    
-    try {
-      const response = await fetch('/api/auth/check-invitation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: invitationCode })
-      });
-      const data = await response.json();
-      
-      if (!response.ok) {
-        setInvitationError(data.error || 'Invalid invitation code');
-        return false;
-      }
-
-      return true;
-    } catch (err) {
-      setInvitationError('Failed to verify invitation code');
-      return false;
-    } finally {
-      setInvitationChecking(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Check for validation errors
-    if (emailError || invitationError) {
+    if (emailError) {
       setError('Please fix the errors before submitting');
       return;
     }
@@ -172,23 +136,9 @@ export default function SignUp() {
   };
 
   const handleGoogleSignUp = async () => {
-    if (!invitationCode) {
-      setInvitationError('Please enter an invitation code');
-      setError('Please enter an invitation code');
-      return;
-    }
-
     try {
       setError('');
       setIsSigningUpWithGoogle(true);
-
-      // Check invitation code first
-      const isValidCode = await handleInvitationBlur();
-      if (!isValidCode) {
-        setError('Please fix the invitation code error before continuing');
-        setIsSigningUpWithGoogle(false);
-        return;
-      }
 
       // Sign in with Google
       const result = await signInWithGoogle().catch(error => {
@@ -200,7 +150,7 @@ export default function SignUp() {
         throw new Error('Failed to get email from Google account');
       }
 
-      // Complete signup in local database (no password for Google sign-in)
+      // Complete signup in local database
       await completeSignup(result.user.email, result.user.uid, null, 'google');
       
       router.push('/dashboard');
@@ -238,32 +188,6 @@ export default function SignUp() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="invitationCode" className="block text-gray-700 text-sm font-bold mb-2">
-            Invitation Code
-          </label>
-          <input
-            id="invitationCode"
-            type="text"
-            value={invitationCode}
-            onChange={(e) => {
-              setInvitationCode(e.target.value.trim());
-              setInvitationError('');
-            }}
-            onBlur={handleInvitationBlur}
-            className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
-              invitationError ? 'border-red-300' : 'border-gray-300'
-            }`}
-            required
-          />
-          {invitationChecking && (
-            <p className="text-sm text-gray-500">Checking invitation code...</p>
-          )}
-          {invitationError && (
-            <p className="text-sm text-red-600">{invitationError}</p>
-          )}
-        </div>
-
         <div>
           <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">
             Email Address
