@@ -1,16 +1,25 @@
 import * as admin from 'firebase-admin';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 // Initialize Firebase Admin SDK (if not already initialized)
 if (!admin.apps.length) {
   try {
-    admin.initializeApp({
+    const config: admin.AppOptions = {
       credential: admin.credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
         privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
-      } as admin.ServiceAccount)
-    });
+      } as admin.ServiceAccount),
+    };
+
+    // Configure proxy if available
+    if (process.env.NEXT_PUBLIC_PROXY_URL) {
+      const proxyAgent = new HttpsProxyAgent(process.env.NEXT_PUBLIC_PROXY_URL);
+      config.httpAgent = proxyAgent;
+    }
+
+    admin.initializeApp(config);
   } catch (error) {
     console.error('Error initializing Firebase Admin:', error);
     throw error;
