@@ -4,7 +4,7 @@
  * in Authorization: Bearer xxx
  */
 import axios from 'axios';
-import { auth } from '@/firebase/config';
+import { auth } from '@/lib/firebase/config';
 
 // Create axios instance with relative base URL
 export const apiClient = axios.create({

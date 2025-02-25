@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
+import { db } from '../../../lib/db';
 import { hashPassword } from '@/api/password';
 
 export async function POST(request: Request) {

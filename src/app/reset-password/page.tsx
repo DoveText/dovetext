@@ -1,5 +1,5 @@
 import { applyActionCode } from 'firebase/auth';
-import { auth } from '@/firebase/config';
+import { auth } from '@/lib/firebase/config';
 import ResetPassword from '@/components/auth/ResetPassword';
 
 export default async function ResetPasswordPage({

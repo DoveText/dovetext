@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
+import { db } from '../../../lib/db';
 import { hashPassword } from '@/api/password';
+import { validateEmailFormat } from '@/lib/validation/email';
 
 interface UserSettings {
   provider: 'email' | 'google' | 'github';
@@ -17,6 +18,17 @@ export async function POST(request: Request) {
         { error: 'Invalid authentication provider' },
         { status: 400 }
       );
+    }
+
+    // Validate email format if provider is email
+    if (provider === 'email') {
+      const emailValidation = validateEmailFormat(email);
+      if (!emailValidation.isValid) {
+        return NextResponse.json(
+          { error: emailValidation.error },
+          { status: 400 }
+        );
+      }
     }
 
     // Start a transaction

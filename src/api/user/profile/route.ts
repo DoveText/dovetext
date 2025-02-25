@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
+import { db } from '../../../lib/db';
 import { withAuth, type NextRequestWithAuth } from '@/api/withAuth';
 
 export const dynamic = 'force-dynamic';

@@ -13,7 +13,7 @@ import {
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   confirmPasswordReset as firebaseConfirmPasswordReset,
 } from 'firebase/auth';
-import { auth } from '@/firebase/config';
+import { auth } from '@/lib/firebase/config';
 
 interface AuthContextType {
   user: User | null;
