@@ -35,14 +35,14 @@ interface EscalationChainModalProps {
   isOpen: boolean;
   onClose: () => void;
   editingChain?: EscalationChain | null;
-  onSubmit: () => void;
+  onSave: () => void;
 }
 
 const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
   isOpen,
   onClose,
   editingChain,
-  onSubmit,
+  onSave,
 }) => {
   const [name, setName] = useState(editingChain?.name || '');
   const [description, setDescription] = useState(editingChain?.description || '');
@@ -148,7 +148,7 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
       } else {
         await escalationChainsApi.create(chainData);
       }
-      onSubmit();
+      onSave();
       onClose();
     } catch (err) {
       console.error('Failed to save chain:', err);

@@ -19,12 +19,12 @@ import EscalationChainModal from './EscalationChainModal';
 
 interface EscalationChainListProps {
   chains: EscalationChain[];
-  onChainsChange: () => void;
+  onUpdate: () => void;
 }
 
 const EscalationChainList: React.FC<EscalationChainListProps> = ({
   chains,
-  onChainsChange,
+  onUpdate,
 }) => {
   const [hoveredChain, setHoveredChain] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,7 +41,7 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
 
     try {
       await escalationChainsApi.delete(deletingChain.id);
-      onChainsChange();
+      onUpdate();
       setDeletingChain(null);
     } catch (err) {
       setError('Failed to delete escalation chain');
@@ -56,7 +56,7 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
       } else {
         await escalationChainsApi.enable(chain.id);
       }
-      onChainsChange();
+      onUpdate();
     } catch (err) {
       setError('Failed to toggle escalation chain');
       console.error(err);
@@ -177,9 +177,9 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
           setEditingChain(null);
         }}
         onSave={() => {
+          onUpdate();
           setIsModalOpen(false);
           setEditingChain(null);
-          onChainsChange();
         }}
         chain={editingChain}
       />
