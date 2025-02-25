@@ -20,12 +20,13 @@ export function validateEmailFormat(email: string): EmailValidationResult {
     return { isValid: false, error: 'Email is required' };
   }
 
-  // Let Firebase handle email format validation
-  const domain = email.split('@')[1]?.toLowerCase();
-  if (!domain) {
+  // Basic email format validation using regex
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email)) {
     return { isValid: false, error: 'Invalid email format' };
   }
 
+  const domain = email.split('@')[1].toLowerCase();
   if (DISPOSABLE_DOMAINS.includes(domain)) {
     return { isValid: false, error: 'Disposable email addresses are not allowed' };
   }
