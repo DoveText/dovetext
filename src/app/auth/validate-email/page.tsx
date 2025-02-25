@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function EmailValidationPage() {
   const { user, sendVerificationEmail, getIdToken, refreshUserStatus } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [cooldownTime, setCooldownTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshCooldown, setRefreshCooldown] = useState(0);
 
@@ -24,11 +26,22 @@ export default function EmailValidationPage() {
   }, [user, router]);
 
   useEffect(() => {
+    // Auto resend if resend parameter is present and no cooldown
+    const shouldResend = searchParams.get('resend') === 'true' && cooldownTime === 0;
+    if (shouldResend && user) {
+      handleResendEmail();
+    }
+  }, [user, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     let timer: NodeJS.Timeout;
     if (cooldownTime > 0) {
       timer = setInterval(() => {
         setCooldownTime((prev) => prev - 1);
       }, 1000);
+    } else {
+      // Clear success message when cooldown ends
+      setSuccess(null);
     }
     return () => clearInterval(timer);
   }, [cooldownTime]);
@@ -48,6 +61,7 @@ export default function EmailValidationPage() {
 
     try {
       setError(null);
+      setSuccess(null);
       // Send verification email using AuthContext function
       await sendVerificationEmail();
       
@@ -61,7 +75,14 @@ export default function EmailValidationPage() {
         }
       });
 
+      // Only set success and cooldown if everything succeeded
+      setSuccess('Verification email sent! Please check your inbox.');
       setCooldownTime(60); // 60 second cooldown
+      
+      // Clear the resend parameter from URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('resend');
+      window.history.replaceState({}, '', url.toString());
     } catch (error: any) {
       console.error('Error sending verification email:', error);
       if (error.code === 'auth/too-many-requests') {
@@ -70,6 +91,11 @@ export default function EmailValidationPage() {
       } else {
         setError('Failed to send verification email. Please try again later.');
       }
+      
+      // Clear the resend parameter from URL even on error
+      const url = new URL(window.location.href);
+      url.searchParams.delete('resend');
+      window.history.replaceState({}, '', url.toString());
     }
   };
 
@@ -79,6 +105,7 @@ export default function EmailValidationPage() {
     try {
       setIsRefreshing(true);
       setError(null);
+      setSuccess(null);
       const userData = await refreshUserStatus();
       
       if (userData?.settings?.validated && userData?.is_active) {
@@ -123,6 +150,17 @@ export default function EmailValidationPage() {
                 </div>
               </div>
             )}
+            {success && (
+              <div className="rounded-md bg-green-50 p-4">
+                <div className="flex">
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-green-800">
+                      {success}
+                    </h3>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="space-y-3">
               <button
                 onClick={handleResendEmail}
@@ -130,7 +168,7 @@ export default function EmailValidationPage() {
                 className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white 
                   ${cooldownTime > 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
               >
-                {cooldownTime > 0 ? `Resend in ${cooldownTime}s` : 'Resend Verification Email'}
+                {cooldownTime > 0 ? `Wait ${cooldownTime}s to resend` : 'Resend Verification Email'}
               </button>
               
               <button
@@ -139,7 +177,7 @@ export default function EmailValidationPage() {
                 className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white 
                   ${refreshCooldown > 0 || isRefreshing ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
               >
-                {isRefreshing ? 'Checking...' : refreshCooldown > 0 ? `Check Again in ${refreshCooldown}s` : `I've Verified My Email`}
+                {isRefreshing ? 'Checking...' : refreshCooldown > 0 ? `Wait ${refreshCooldown}s to check again` : `I've Verified My Email`}
               </button>
             </div>
           </div>
