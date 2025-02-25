@@ -17,7 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import DeliveryMethodModal from './DeliveryMethodModal';
-import { deliveryMethodsApi } from '@/api/delivery-methods';
+import { deliveryMethodsApi } from '@/app/api/delivery-methods';
 import CopyButton from '@/components/common/CopyButton';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { Dialog } from '@headlessui/react';

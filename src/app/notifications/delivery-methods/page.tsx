@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { DeliveryMethod } from '@/types/delivery-method';
 import DeliveryMethodList from '@/components/notifications/DeliveryMethodList';
-import { deliveryMethodsApi } from '@/api/delivery-methods';
+import { deliveryMethodsApi } from '@/app/api/delivery-methods';
 import { auth } from '@/lib/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { PlusIcon } from '@heroicons/react/24/outline';

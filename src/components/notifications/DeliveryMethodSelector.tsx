@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Fragment, forwardRef, useImperativeHandle } from 'react';
 import { DeliveryMethod, DeliveryMethodType } from '@/types/delivery-method';
-import { deliveryMethodsApi } from '@/api/delivery-methods';
+import { deliveryMethodsApi } from '@/app/api/delivery-methods';
 import { Dialog, Transition } from '@headlessui/react';
 import { 
   PlusIcon, 

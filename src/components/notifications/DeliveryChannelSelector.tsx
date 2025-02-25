@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Fragment, forwardRef, useImperativeHandle } from 'react';
 import { DeliveryChannel } from '@/types/delivery-channel';
-import { deliveryChannelsApi } from '@/api/delivery-channels';
+import { deliveryChannelsApi } from '@/app/api/delivery-channels';
 import { Dialog, Transition } from '@headlessui/react';
 import { 
   PlusIcon, 

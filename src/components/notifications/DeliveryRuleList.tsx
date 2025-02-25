@@ -11,7 +11,7 @@ import {
   ChevronRightIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
-import { deliveryRulesApi } from '@/api/delivery-rules';
+import { deliveryRulesApi } from '@/app/api/delivery-rules';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { Dialog } from '@headlessui/react';
 import DeliveryRuleModal from './DeliveryRuleModal';

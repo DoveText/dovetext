@@ -13,7 +13,7 @@ import {
   BellIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
-import { escalationChainsApi } from '@/api/escalation-chains';
+import { escalationChainsApi } from '@/app/api/escalation-chains';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import EscalationChainModal from './EscalationChainModal';
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { EscalationChain } from '@/types/escalation-chain';
 import EscalationChainList from '@/components/notifications/EscalationChainList';
-import { escalationChainsApi } from '@/api/escalation-chains';
+import { escalationChainsApi } from '@/app/api/escalation-chains';
 import { auth } from '@/lib/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 

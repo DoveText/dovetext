@@ -14,10 +14,10 @@ import { DeliveryMethod } from '@/types/delivery-method';
 import { DeliveryChannel } from '@/types/delivery-channel';
 import { EscalationChain } from '@/types/escalation-chain';
 import { TimeRange, ALL_DAYS } from '@/types/time-range';
-import { deliveryMethodsApi } from '@/api/delivery-methods';
-import { deliveryChannelsApi } from '@/api/delivery-channels';
-import { escalationChainsApi } from '@/api/escalation-chains';
-import { deliveryRulesApi } from '@/api/delivery-rules';
+import { deliveryMethodsApi } from '@/app/api/delivery-methods';
+import { deliveryChannelsApi } from '@/app/api/delivery-channels';
+import { escalationChainsApi } from '@/app/api/escalation-chains';
+import { deliveryRulesApi } from '@/app/api/delivery-rules';
 
 interface DeliveryRuleModalProps {
   isOpen: boolean;

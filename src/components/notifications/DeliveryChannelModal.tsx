@@ -8,8 +8,8 @@ import {
   createSimpleChannelSlot,
   createFallbackSlot,
 } from '@/types/delivery-channel';
-import { deliveryChannelsApi } from '@/api/delivery-channels';
-import { deliveryMethodsApi } from '@/api/delivery-methods';
+import { deliveryChannelsApi } from '@/app/api/delivery-channels';
+import { deliveryMethodsApi } from '@/app/api/delivery-methods';
 import Select from '@/components/common/Select';
 import { FormField, FormInput, FormTextArea } from '@/components/common/form';
 import DeliveryMethodSelector from './DeliveryMethodSelector';

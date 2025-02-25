@@ -9,7 +9,7 @@ import {
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import DeliveryChannelModal from './DeliveryChannelModal';
-import { deliveryChannelsApi } from '@/api/delivery-channels';
+import { deliveryChannelsApi } from '@/app/api/delivery-channels';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 export interface DeliveryChannelListProps {

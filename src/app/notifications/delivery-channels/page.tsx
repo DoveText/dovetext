@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { DeliveryChannel } from '@/types/delivery-channel';
 import DeliveryChannelList from '@/components/notifications/DeliveryChannelList';
-import { deliveryChannelsApi } from '@/api/delivery-channels';
+import { deliveryChannelsApi } from '@/app/api/delivery-channels';
 import { auth } from '@/lib/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { PlusIcon } from '@heroicons/react/24/outline';

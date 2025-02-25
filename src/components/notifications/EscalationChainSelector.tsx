@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Fragment, forwardRef, useImperativeHandle } from 'react';
 import { EscalationChain } from '@/types/escalation-chain';
-import { escalationChainsApi } from '@/api/escalation-chains';
+import { escalationChainsApi } from '@/app/api/escalation-chains';
 import { Dialog, Transition } from '@headlessui/react';
 import { 
   PlusIcon, 
