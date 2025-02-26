@@ -1,15 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
 export default function ActivatePage() {
-  const { user, getIdToken } = useAuth();
+  const { user, getIdToken, isActive } = useAuth();
   const router = useRouter();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect to dashboard if user is already activated
+  useEffect(() => {
+    if (user && isActive) {
+      router.push('/dashboard');
+    }
+  }, [user, isActive, router]);
 
   const handleActivate = async (e: React.FormEvent) => {
     e.preventDefault();

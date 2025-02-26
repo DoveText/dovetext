@@ -36,6 +36,18 @@ const getConnectionConfig = () => {
 // Global database instance using a singleton pattern
 let dbInstance: ReturnType<typeof pgp> | null = null;
 
+// Set up warning monitoring for database connections
+process.on('warning', (warning) => {
+  if (warning.name === 'MaxListenersExceededWarning' && warning.message.includes('Connection')) {
+    console.warn('[Database] MaxListenersExceededWarning detected:', {
+      name: warning.name,
+      message: warning.message,
+      stack: warning.stack,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export const db = (() => {
   if (!dbInstance) {
     dbInstance = pgp(getConnectionConfig());
