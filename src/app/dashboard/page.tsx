@@ -3,41 +3,26 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { Tab } from '@headlessui/react';
-import { CalendarIcon, ClipboardIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClipboardIcon, ArrowRightIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useAction } from '@/context/ActionContext';
 
-// Removed the embedded TaskOrientedChat component as it's now a standalone component
-
-function DashboardContent({ activeTab }: { activeTab: number }) {
+function DashboardContent() {
   const { user } = useAuth();
+  const router = useRouter();
   const actionContext = useAction();
-  const [selectedTab, setSelectedTab] = useState(activeTab);
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
-  // Keep selectedTab in sync with activeTab from parent
-  useEffect(() => {
-    setSelectedTab(activeTab);
-  }, [activeTab]);
   
   // Handle pending actions from the ActionContext
   useEffect(() => {
     if (actionContext.pendingAction === 'create-task') {
-      // Switch to tasks tab
-      setSelectedTab(1);
-      // Show create task dialog
-      setShowCreateTaskDialog(true);
+      // Navigate to tasks page
+      router.push('/tasks');
       // Clear the pending action
       actionContext.clearPendingAction();
     }
-  }, [actionContext]);
-
-  // Share the selected tab with parent component
-  useEffect(() => {
-    // This would normally use a context or prop function
-    // For now we'll use a custom event
-    window.dispatchEvent(new CustomEvent('tabChange', { detail: { tab: selectedTab } }));
-  }, [selectedTab]);
+  }, [actionContext, router]);
 
   // Mock user stats - in a real app, these would come from the backend
   const userStats = {
@@ -81,138 +66,90 @@ function DashboardContent({ activeTab }: { activeTab: number }) {
         </div>
       </div>
 
-      {/* Tabbed Interface */}
+      {/* Schedule Card */}
+      <div className="bg-white shadow rounded-lg p-4 sm:p-6 mb-4">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center">
+            <CalendarIcon className="h-6 w-6 text-blue-600 mr-2" />
+            <h2 className="text-xl font-semibold">Upcoming Schedule</h2>
+          </div>
+          <Link 
+            href="/schedule"
+            className="text-blue-600 hover:text-blue-800 flex items-center text-sm font-medium"
+          >
+            View All
+            <ArrowRightIcon className="h-4 w-4 ml-1" />
+          </Link>
+        </div>
+        
+        <div className="space-y-3">
+          {/* Mock schedule data - would be dynamic in real app */}
+          <div className="p-3 border rounded-lg flex justify-between items-center hover:bg-gray-50">
+            <div>
+              <p className="font-medium">Team Meeting</p>
+              <p className="text-sm text-gray-500">Today, 2:00 PM - 3:00 PM</p>
+            </div>
+            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">Upcoming</span>
+          </div>
+          <div className="p-3 border rounded-lg flex justify-between items-center hover:bg-gray-50">
+            <div>
+              <p className="font-medium">Project Review</p>
+              <p className="text-sm text-gray-500">Tomorrow, 10:00 AM - 11:30 AM</p>
+            </div>
+            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">Upcoming</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Tasks Card */}
       <div className="bg-white shadow rounded-lg p-4 sm:p-6">
-        <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
-          <Tab.List className="flex space-x-1 rounded-xl bg-blue-50 p-1 sticky top-0 z-10">
-            <Tab
-              className={({ selected }) =>
-                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 flex items-center justify-center
-                 ${selected
-                  ? 'bg-white shadow text-blue-700'
-                  : 'text-gray-600 hover:bg-white/[0.12] hover:text-blue-700'}`
-              }
-            >
-              <CalendarIcon className="h-5 w-5 mr-2" />
-              My Schedule
-            </Tab>
-            <Tab
-              className={({ selected }) =>
-                `w-full rounded-lg py-2.5 text-sm font-medium leading-5 flex items-center justify-center
-                 ${selected
-                  ? 'bg-white shadow text-blue-700'
-                  : 'text-gray-600 hover:bg-white/[0.12] hover:text-blue-700'}`
-              }
-            >
-              <ClipboardIcon className="h-5 w-5 mr-2" />
-              My Tasks
-            </Tab>
-          </Tab.List>
-          <Tab.Panels className="mt-4">
-            <Tab.Panel className="rounded-xl p-3">
-              <div className="bg-white p-3 sm:p-4 rounded-lg border">
-                <h2 className="text-xl font-semibold mb-4">Your Schedule</h2>
-                <div className="space-y-4">
-                  {/* Mock schedule data - would be dynamic in real app */}
-                  <div className="p-3 border rounded-lg flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">Team Meeting</p>
-                      <p className="text-sm text-gray-500">Today, 2:00 PM - 3:00 PM</p>
-                    </div>
-                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">Upcoming</span>
-                  </div>
-                  <div className="p-3 border rounded-lg flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">Project Review</p>
-                      <p className="text-sm text-gray-500">Tomorrow, 10:00 AM - 11:30 AM</p>
-                    </div>
-                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">Upcoming</span>
-                  </div>
-                  <div className="p-3 border rounded-lg flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">Client Call</p>
-                      <p className="text-sm text-gray-500">Friday, 4:00 PM - 4:30 PM</p>
-                    </div>
-                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">Upcoming</span>
-                  </div>
-                </div>
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center">
+            <ClipboardIcon className="h-6 w-6 text-yellow-600 mr-2" />
+            <h2 className="text-xl font-semibold">Active Tasks</h2>
+          </div>
+          <Link 
+            href="/tasks"
+            className="text-blue-600 hover:text-blue-800 flex items-center text-sm font-medium"
+          >
+            View All
+            <ArrowRightIcon className="h-4 w-4 ml-1" />
+          </Link>
+        </div>
+        
+        <div className="space-y-3">
+          {/* Mock task data - would be dynamic in real app */}
+          <div className="p-3 border rounded-lg flex justify-between items-center hover:bg-gray-50">
+            <div className="flex items-center">
+              <button className="mr-3 h-5 w-5 rounded-full border border-gray-300 flex items-center justify-center"></button>
+              <div>
+                <p className="font-medium">Complete project proposal</p>
+                <p className="text-sm text-gray-500">Due: Today</p>
               </div>
-              
-              {/* No embedded chat interface here anymore */}
-            </Tab.Panel>
-            <Tab.Panel className="rounded-xl p-3">
-              <div className="bg-white p-3 sm:p-4 rounded-lg border">
-                <h2 className="text-xl font-semibold mb-4">Your Tasks</h2>
-                <div className="space-y-4">
-                  {/* Mock task data - would be dynamic in real app */}
-                  <div className="p-3 border rounded-lg flex justify-between items-center">
-                    <div className="flex items-center">
-                      <input type="checkbox" className="mr-3 h-4 w-4 text-blue-600" />
-                      <div>
-                        <p className="font-medium">Complete project proposal</p>
-                        <p className="text-sm text-gray-500">Due: Today</p>
-                      </div>
-                    </div>
-                    <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded">High</span>
-                  </div>
-                  <div className="p-3 border rounded-lg flex justify-between items-center">
-                    <div className="flex items-center">
-                      <input type="checkbox" className="mr-3 h-4 w-4 text-blue-600" />
-                      <div>
-                        <p className="font-medium">Review marketing materials</p>
-                        <p className="text-sm text-gray-500">Due: Tomorrow</p>
-                      </div>
-                    </div>
-                    <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">Medium</span>
-                  </div>
-                  <div className="p-3 border rounded-lg flex justify-between items-center">
-                    <div className="flex items-center">
-                      <input type="checkbox" className="mr-3 h-4 w-4 text-blue-600" />
-                      <div>
-                        <p className="font-medium">Prepare for client meeting</p>
-                        <p className="text-sm text-gray-500">Due: Friday</p>
-                      </div>
-                    </div>
-                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Low</span>
-                  </div>
-                </div>
+            </div>
+            <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded">High</span>
+          </div>
+          <div className="p-3 border rounded-lg flex justify-between items-center hover:bg-gray-50">
+            <div className="flex items-center">
+              <button className="mr-3 h-5 w-5 rounded-full border border-gray-300 flex items-center justify-center"></button>
+              <div>
+                <p className="font-medium">Review marketing materials</p>
+                <p className="text-sm text-gray-500">Due: Tomorrow</p>
               </div>
-              
-              {/* No embedded chat interface here anymore */}
-            </Tab.Panel>
-          </Tab.Panels>
-        </Tab.Group>
+            </div>
+            <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">Medium</span>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState(0);
-  
-  // Listen for tab changes and custom events
-  useEffect(() => {
-    const handleTabChange = (e: any) => {
-      setActiveTab(e.detail.tab);
-    };
-    
-    const handleSwitchTab = (e: any) => {
-      setActiveTab(e.detail.tab);
-    };
-    
-    window.addEventListener('tabChange', handleTabChange);
-    window.addEventListener('switchTab', handleSwitchTab);
-    
-    return () => {
-      window.removeEventListener('tabChange', handleTabChange);
-      window.removeEventListener('switchTab', handleSwitchTab);
-    };
-  }, []);
-  
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
-        <DashboardContent activeTab={activeTab} />
+        <DashboardContent />
       </div>
     </ProtectedRoute>
   );

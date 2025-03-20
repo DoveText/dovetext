@@ -8,6 +8,7 @@ export type ActionType =
   | 'edit-delivery-method'
   | 'create-task'
   | 'edit-task'
+  | 'create-event'
   | 'open-settings'
   | 'none';
 

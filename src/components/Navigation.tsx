@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { BellIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { BellIcon, ChevronDownIcon, CalendarIcon, ClipboardIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
 function classNames(...classes: string[]) {
@@ -44,6 +44,32 @@ export default function Navigation() {
               <span className="ml-2 text-xl font-semibold text-gray-900">DoveText</span>
             </Link>
           </div>
+
+          {/* Main Navigation */}
+          {user && (
+            <div className="hidden md:flex items-center ml-6 space-x-6">
+              <Link
+                href="/dashboard"
+                className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/schedule"
+                className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center"
+              >
+                <CalendarIcon className="h-4 w-4 mr-1" />
+                My Schedule
+              </Link>
+              <Link
+                href="/tasks"
+                className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center"
+              >
+                <ClipboardIcon className="h-4 w-4 mr-1" />
+                My Tasks
+              </Link>
+            </div>
+          )}
 
           {/* Right Side Navigation */}
           <div className="flex items-center space-x-6">
