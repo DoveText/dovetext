@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { BellIcon, ChevronDownIcon, CalendarIcon, ClipboardIcon } from '@heroicons/react/24/outline';
+import { BellIcon, ChevronDownIcon, CalendarIcon, SparklesIcon, HomeIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
 function classNames(...classes: string[]) {
@@ -47,26 +47,27 @@ export default function Navigation() {
 
           {/* Main Navigation */}
           {user && (
-            <div className="hidden md:flex items-center ml-6 space-x-6">
+            <div className="hidden md:flex items-center ml-10 space-x-10">
               <Link
                 href="/dashboard"
-                className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center"
+                className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center px-3 py-2 rounded-md hover:bg-gray-50"
               >
+                <HomeIcon className="h-4 w-4 mr-2" />
                 Dashboard
               </Link>
               <Link
                 href="/schedule"
-                className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center"
+                className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center px-3 py-2 rounded-md hover:bg-gray-50"
               >
-                <CalendarIcon className="h-4 w-4 mr-1" />
+                <CalendarIcon className="h-4 w-4 mr-2" />
                 My Schedule
               </Link>
               <Link
                 href="/tasks"
-                className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center"
+                className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center px-3 py-2 rounded-md hover:bg-gray-50"
               >
-                <ClipboardIcon className="h-4 w-4 mr-1" />
-                My Tasks
+                <SparklesIcon className="h-4 w-4 mr-2" />
+                AI Automations
               </Link>
             </div>
           )}

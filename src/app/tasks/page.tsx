@@ -46,13 +46,14 @@ function TasksContent() {
   };
 
   return (
-    <div className="w-full h-full px-4 py-4 sm:px-6 sm:py-6">
-      {/* Header Section */}
-      <div className="bg-white shadow rounded-lg p-4 sm:p-6 mb-4">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header Section */}
+        <div className="bg-white shadow rounded-lg p-4 sm:p-6 mb-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Tasks</h1>
-            <p className="text-gray-600 mt-1">Track and manage your tasks</p>
+            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">My Tasks</h2>
+            <p className="mt-1 text-sm text-gray-500">Track and manage your tasks</p>
           </div>
           <button
             onClick={() => setShowCreateTaskDialog(true)}
@@ -153,6 +154,7 @@ function TasksContent() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

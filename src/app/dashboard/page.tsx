@@ -33,8 +33,9 @@ function DashboardContent() {
   };
 
   return (
-    <div className="w-full h-full px-4 py-4 sm:px-6 sm:py-6">
-      {/* Welcome Section with User Profile Status */}
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Welcome Section with User Profile Status */}
       <div className="bg-white shadow rounded-lg p-4 sm:p-6 mb-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
           <div>
@@ -141,6 +142,7 @@ function DashboardContent() {
           </div>
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -148,9 +150,7 @@ function DashboardContent() {
 export default function Dashboard() {
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
-        <DashboardContent />
-      </div>
+      <DashboardContent />
     </ProtectedRoute>
   );
 }
