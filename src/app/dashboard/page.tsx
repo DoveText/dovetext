@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { CalendarIcon, ClipboardIcon, ArrowRightIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, SparklesIcon, ArrowRightIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useAction } from '@/context/ActionContext';
 
 function DashboardContent() {
@@ -106,8 +106,8 @@ function DashboardContent() {
       <div className="bg-white shadow rounded-lg p-4 sm:p-6">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center">
-            <ClipboardIcon className="h-6 w-6 text-yellow-600 mr-2" />
-            <h2 className="text-xl font-semibold">Active Tasks</h2>
+            <SparklesIcon className="h-6 w-6 text-yellow-600 mr-2" />
+            <h2 className="text-xl font-semibold">AI Automations</h2>
           </div>
           <Link 
             href="/tasks"

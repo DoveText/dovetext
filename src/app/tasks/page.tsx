@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { ClipboardIcon, PlusIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { SparklesIcon, PlusIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useAction } from '@/context/ActionContext';
 
 function TasksContent() {
@@ -52,15 +52,15 @@ function TasksContent() {
         <div className="bg-white shadow rounded-lg p-4 sm:p-6 mb-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
           <div>
-            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">My Tasks</h2>
-            <p className="mt-1 text-sm text-gray-500">Track and manage your tasks</p>
+            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">AI Automations</h2>
+            <p className="mt-1 text-sm text-gray-500">Manage your web automation tasks powered by AI</p>
           </div>
           <button
             onClick={() => setShowCreateTaskDialog(true)}
             className="mt-4 md:mt-0 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             <PlusIcon className="h-5 w-5 mr-2" />
-            Add Task
+            Add Automation
           </button>
         </div>
       </div>
@@ -68,7 +68,7 @@ function TasksContent() {
       {/* Tasks Content */}
       <div className="bg-white shadow rounded-lg p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Your Tasks</h2>
+          <h2 className="text-xl font-semibold">Your Automations</h2>
           <div className="flex space-x-2">
             <button className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-md">All</button>
             <button className="px-3 py-1 text-sm bg-gray-50 text-gray-700 rounded-md">Active</button>
