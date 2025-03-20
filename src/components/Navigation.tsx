@@ -17,13 +17,18 @@ export default function Navigation() {
   const handleSignOut = async () => {
     try {
       await logout();
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Error signing out:', error);
+    }
+    finally {
+      // Redirect to home page after successful logout
+      window.location.href = '/';
     }
   };
 
   return (
-    <nav className="bg-white shadow-sm">
+    <nav className="bg-white shadow-sm relative z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
@@ -53,7 +58,7 @@ export default function Navigation() {
             {user ? (
               <div className="flex items-center space-x-4">
                 {/* Notification Menu */}
-                <Menu as="div" className="relative">
+                <Menu as="div" className="relative z-50">
                   <Menu.Button className="flex items-center text-gray-700 hover:text-gray-900">
                     <BellIcon className="h-6 w-6" aria-hidden="true" />
                   </Menu.Button>
@@ -126,7 +131,7 @@ export default function Navigation() {
                 </Menu>
 
                 {/* User Menu */}
-                <Menu as="div" className="relative">
+                <Menu as="div" className="relative z-50">
                   <Menu.Button className="flex items-center">
                     <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-100">
                       <Image
@@ -153,7 +158,7 @@ export default function Navigation() {
                     leaveFrom="transform opacity-100 scale-100"
                     leaveTo="transform opacity-0 scale-95"
                   >
-                    <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                       <div className="py-1">
                         <Menu.Item>
                           {({ active }) => (
@@ -184,7 +189,11 @@ export default function Navigation() {
                         <Menu.Item>
                           {({ active }) => (
                             <button
-                              onClick={handleSignOut}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleSignOut();
+                              }}
                               className={classNames(
                                 active ? 'bg-gray-100' : '',
                                 'block w-full text-left px-4 py-2 text-sm text-gray-700'
