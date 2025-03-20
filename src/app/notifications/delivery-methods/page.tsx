@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { DeliveryMethod } from '@/types/delivery-method';
 import DeliveryMethodList from '@/components/notifications/DeliveryMethodList';
 import { deliveryMethodsApi } from '@/app/api/delivery-methods';
@@ -9,9 +8,10 @@ import { auth } from '@/lib/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { useAction } from '@/context/ActionContext';
 
 export default function DeliveryMethodsPage() {
-  const searchParams = useSearchParams();
+  const actionContext = useAction();
   const [methods, setMethods] = useState<DeliveryMethod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,24 +24,18 @@ export default function DeliveryMethodsPage() {
       }
     });
 
-    // Check for action parameter in URL
-    const action = searchParams?.get('action');
-    if (action === 'create') {
-      setShowCreateDialog(true);
-    }
-
-    // Listen for custom event from chat component
-    const handleOpenCreateDialog = () => {
-      setShowCreateDialog(true);
-    };
-
-    window.addEventListener('openCreateMethodDialog', handleOpenCreateDialog);
-
     return () => {
       unsubscribe();
-      window.removeEventListener('openCreateMethodDialog', handleOpenCreateDialog);
     };
-  }, [searchParams]);
+  }, []);
+  
+  // Handle pending actions from the ActionContext
+  useEffect(() => {
+    if (actionContext.pendingAction === 'create-delivery-method') {
+      setShowCreateDialog(true);
+      actionContext.clearPendingAction();
+    }
+  }, [actionContext]);
 
   const loadDeliveryMethods = async () => {
     try {

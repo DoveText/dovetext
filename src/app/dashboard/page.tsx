@@ -6,16 +6,31 @@ import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { Tab } from '@headlessui/react';
 import { CalendarIcon, ClipboardIcon } from '@heroicons/react/24/outline';
+import { useAction } from '@/context/ActionContext';
 
 // Removed the embedded TaskOrientedChat component as it's now a standalone component
 
 function DashboardContent({ activeTab }: { activeTab: number }) {
   const { user } = useAuth();
+  const actionContext = useAction();
   const [selectedTab, setSelectedTab] = useState(activeTab);
+  const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
   // Keep selectedTab in sync with activeTab from parent
   useEffect(() => {
     setSelectedTab(activeTab);
   }, [activeTab]);
+  
+  // Handle pending actions from the ActionContext
+  useEffect(() => {
+    if (actionContext.pendingAction === 'create-task') {
+      // Switch to tasks tab
+      setSelectedTab(1);
+      // Show create task dialog
+      setShowCreateTaskDialog(true);
+      // Clear the pending action
+      actionContext.clearPendingAction();
+    }
+  }, [actionContext]);
 
   // Share the selected tab with parent component
   useEffect(() => {

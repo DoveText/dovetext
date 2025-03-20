@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline';
+import { useAction, ActionType } from '@/context/ActionContext';
 
 interface TaskOrientedChatProps {
   contextType?: 'schedule' | 'tasks' | 'general';
@@ -46,6 +47,7 @@ export default function TaskOrientedChat({
     };
   }, []);
   const router = useRouter();
+  const actionContext = useAction();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [message, setMessage] = useState('');
@@ -106,8 +108,8 @@ export default function TaskOrientedChat({
     // Delivery methods page commands
     if (currentPage.includes('/notifications/delivery-methods')) {
       if (/add.*method|create.*method|new method/i.test(lowerText)) {
-        // Trigger create method dialog
-        window.dispatchEvent(new CustomEvent('openCreateMethodDialog', {}));
+        // Use the action context instead of events
+        actionContext.setPendingAction('create-delivery-method');
         setChatHistory(prev => [...prev, { 
           type: 'system', 
           content: `I'm opening the dialog to create a new delivery method.` 
@@ -156,7 +158,9 @@ export default function TaskOrientedChat({
     setTimeout(() => {
       switch (action) {
         case 'create-delivery-method':
-          router.push('/notifications/delivery-methods?action=create');
+          // Set the pending action in context and navigate
+          actionContext.setPendingAction('create-delivery-method');
+          router.push('/notifications/delivery-methods');
           break;
         case 'view-delivery-methods':
           router.push('/notifications/delivery-methods');
@@ -169,9 +173,11 @@ export default function TaskOrientedChat({
               onSwitchContext('tasks');
             }
             window.dispatchEvent(new CustomEvent('switchTab', { detail: { tab: 1 } })); // Switch to Tasks tab
-            window.dispatchEvent(new CustomEvent('openTaskDialog', { detail: { action: 'create' } }));
+            actionContext.setPendingAction('create-task');
           } else {
-            router.push('/dashboard?tab=tasks&action=create');
+            // Set the pending action in context and navigate
+            actionContext.setPendingAction('create-task');
+            router.push('/dashboard');
           }
           break;
         case 'create-schedule':
@@ -182,15 +188,18 @@ export default function TaskOrientedChat({
               onSwitchContext('schedule');
             }
             window.dispatchEvent(new CustomEvent('switchTab', { detail: { tab: 0 } })); // Switch to Schedule tab
-            window.dispatchEvent(new CustomEvent('openScheduleDialog', { detail: { action: 'create' } }));
+            actionContext.setPendingAction('create-task');
           } else {
-            router.push('/dashboard?tab=schedule&action=create');
+            // Set the pending action in context and navigate
+            actionContext.setPendingAction('create-task');
+            router.push('/dashboard');
           }
           break;
         case 'dashboard':
           router.push('/dashboard');
           break;
         case 'settings':
+          actionContext.setPendingAction('open-settings');
           router.push('/settings');
           break;
         case 'profile':
