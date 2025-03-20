@@ -33,7 +33,7 @@ export default function Navigation() {
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link href="/" className="flex items-center">
+            <Link href={user ? "/dashboard" : "/"} className="flex items-center">
               <Image
                 src="/logo.svg"
                 alt="DoveText Logo"
