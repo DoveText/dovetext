@@ -6,6 +6,7 @@ import DeliveryRuleList from '@/components/notifications/DeliveryRuleList';
 import { deliveryRulesApi } from '@/app/api/delivery-rules';
 import { auth } from '@/lib/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 export default function DeliveryRulesPage() {
   const [rules, setRules] = useState<DeliveryRule[]>([]);
@@ -37,7 +38,8 @@ export default function DeliveryRulesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+      <ProtectedRoute>
+  <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="md:flex md:items-center md:justify-between">
@@ -72,5 +74,6 @@ export default function DeliveryRulesPage() {
         )}
       </div>
     </div>
+      </ProtectedRoute>
   );
 }

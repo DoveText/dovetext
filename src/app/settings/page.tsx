@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Switch } from '@headlessui/react';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
@@ -99,8 +100,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="space-y-6">
           {/* Notification Settings */}
           <div className="bg-white shadow rounded-lg">
@@ -196,7 +198,8 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 }

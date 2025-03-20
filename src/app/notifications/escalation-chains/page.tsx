@@ -6,6 +6,7 @@ import EscalationChainList from '@/components/notifications/EscalationChainList'
 import { escalationChainsApi } from '@/app/api/escalation-chains';
 import { auth } from '@/lib/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 export default function EscalationChainsPage() {
   const [chains, setChains] = useState<EscalationChain[]>([]);
@@ -37,8 +38,9 @@ export default function EscalationChainsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="md:flex md:items-center md:justify-between">
           <div className="min-w-0 flex-1">
@@ -70,7 +72,8 @@ export default function EscalationChainsPage() {
         ) : (
           <EscalationChainList chains={chains} onUpdate={loadEscalationChains} />
         )}
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 }

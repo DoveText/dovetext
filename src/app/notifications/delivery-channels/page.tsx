@@ -6,7 +6,7 @@ import DeliveryChannelList from '@/components/notifications/DeliveryChannelList'
 import { deliveryChannelsApi } from '@/app/api/delivery-channels';
 import { auth } from '@/lib/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
-import { PlusIcon } from '@heroicons/react/24/outline';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 export default function DeliveryChannelsPage() {
   const [channels, setChannels] = useState<DeliveryChannel[]>([]);
@@ -38,6 +38,7 @@ export default function DeliveryChannelsPage() {
   };
 
   return (
+      <ProtectedRoute>
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -80,5 +81,6 @@ export default function DeliveryChannelsPage() {
         </div>
       </div>
     </div>
+      </ProtectedRoute>
   );
 }
