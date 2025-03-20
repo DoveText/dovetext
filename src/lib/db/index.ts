@@ -17,10 +17,6 @@ console.log(`[Database] Using ${NODE_ENV} environment`);
 const initOptions = {
   // Disable duplicate instantiation warning
   noWarnings: true,
-  // Set explicit pool size
-  poolSize: 10,
-  // Close idle connections after 30 seconds
-  poolIdleTimeout: 30000,
   // Event handling for connection issues
   error: (err: any, e: any) => {
     if (e.cn) {
@@ -78,9 +74,18 @@ export const db = (() => {
   
   // Set max listeners to prevent warnings
   // This addresses the MaxListenersExceededWarning directly
-  const pgpConnection = instance.$pool.pool;
-  if (pgpConnection.constructor.name === 'BoundPool' && pgpConnection.options && pgpConnection.options.Client) {
-    pgpConnection.options.Client.prototype.setMaxListeners(20);
+  try {
+    // Safely attempt to increase max listeners if the pool is available
+    if (instance.$pool && instance.$pool.pool) {
+      const pg = require('pg');
+      // Set max listeners on the pg.Client prototype directly
+      if (pg && pg.Client && pg.Client.prototype) {
+        pg.Client.prototype.setMaxListeners(20);
+        console.log('Successfully set max listeners on pg.Client');
+      }
+    }
+  } catch (error) {
+    console.warn('Could not set max listeners:', error);
   }
   
   // Test the connection once
