@@ -13,11 +13,25 @@ dotenv.config({ path: localEnvPath, override: true });
 
 console.log(`[Database] Using ${NODE_ENV} environment`);
 
+// Initialization options for pg-promise
+const initOptions = {
+  // Disable duplicate instantiation warning
+  noWarnings: true,
+  // Set explicit pool size
+  poolSize: 10,
+  // Close idle connections after 30 seconds
+  poolIdleTimeout: 30000,
+  // Event handling for connection issues
+  error: (err: any, e: any) => {
+    if (e.cn) {
+      // Connection-related error
+      console.error('Database connection error:', err);
+    }
+  }
+};
+
 // Singleton instance of pg-promise
-const pgp = pgPromise({
-  // Initialization Options
-  noWarnings: true // Disable duplicate instantiation warning
-});
+const pgp = pgPromise(initOptions);
 
 // Database connection configuration
 const getConnectionConfig = () => {
@@ -33,8 +47,13 @@ const getConnectionConfig = () => {
       };
 };
 
-// Global database instance using a singleton pattern
-let dbInstance: ReturnType<typeof pgp> | null = null;
+// Create a symbol to ensure our global is unique
+declare global {
+  var __db: ReturnType<typeof pgp> | undefined;
+}
+
+// Global database instance using a singleton pattern that survives hot reloads
+// This approach works better with Next.js than a module-level variable
 
 // Set up warning monitoring for database connections
 process.on('warning', (warning) => {
@@ -49,25 +68,42 @@ process.on('warning', (warning) => {
 });
 
 export const db = (() => {
-  if (!dbInstance) {
-    dbInstance = pgp(getConnectionConfig());
-    // Test the connection
-    dbInstance.connect()
-      .then(obj => {
-        console.log(`Database connection successful (${NODE_ENV} environment)`);
-        obj.done(); // success, release the connection
-      })
-      .catch(error => {
-        console.error('ERROR:', error.message || error);
-      });
+  // If we already have a connection instance in the global object, use it
+  if (global.__db) {
+    return global.__db;
   }
-  return dbInstance;
+  
+  // Create a new database instance
+  const instance = pgp(getConnectionConfig());
+  
+  // Set max listeners to prevent warnings
+  // This addresses the MaxListenersExceededWarning directly
+  const pgpConnection = instance.$pool.pool;
+  if (pgpConnection.constructor.name === 'BoundPool' && pgpConnection.options && pgpConnection.options.Client) {
+    pgpConnection.options.Client.prototype.setMaxListeners(20);
+  }
+  
+  // Test the connection once
+  instance.connect()
+    .then(obj => {
+      console.log(`Database connection successful (${NODE_ENV} environment)`);
+      obj.done(); // success, release the connection
+    })
+    .catch(error => {
+      console.error('Database connection error:', error.message || error);
+    });
+    
+  // Store in global to survive hot reloads
+  global.__db = instance;
+  
+  return instance;
 })();
 
 // Cleanup function for testing environments
 export const closeDatabase = async () => {
-  if (dbInstance) {
-    await dbInstance.$pool.end();
-    dbInstance = null;
+  if (global.__db) {
+    await global.__db.$pool.end();
+    global.__db = undefined;
+    console.log('Database connection closed');
   }
 };
