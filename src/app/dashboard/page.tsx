@@ -1,77 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { Tab } from '@headlessui/react';
-import { CalendarIcon, ClipboardIcon, ArrowUpCircleIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClipboardIcon } from '@heroicons/react/24/outline';
+import TaskOrientedChat from '@/components/ui/TaskOrientedChat';
 
-function ChatInterface({ tabType }: { tabType: 'schedule' | 'tasks' }) {
-  const [message, setMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<{type: 'user' | 'system', content: string}[]>([]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim()) return;
-
-    // Add user message to chat
-    setChatHistory(prev => [...prev, { type: 'user', content: message }]);
-
-    // Simulate AI response based on tab type
-    setTimeout(() => {
-      let response = '';
-      if (tabType === 'schedule') {
-        response = `I'll help you manage your schedule with: "${message}". What date would you like to schedule this for?`;
-      } else {
-        response = `I'll add "${message}" to your tasks. Would you like to set a priority level or deadline?`;
-      }
-      setChatHistory(prev => [...prev, { type: 'system', content: response }]);
-    }, 1000);
-
-    setMessage('');
-  };
-
-  return (
-    <div className="mt-4 border rounded-lg overflow-hidden">
-      <div className="h-64 p-4 overflow-y-auto bg-gray-50">
-        {chatHistory.length === 0 ? (
-          <div className="text-center text-gray-500 mt-16">
-            <p>Ask me anything about your {tabType === 'schedule' ? 'schedule' : 'tasks'}!</p>
-            <p className="text-sm mt-2">For example: {tabType === 'schedule' ? '"Schedule a meeting with John tomorrow at 3pm"' : '"Add a task to review project proposal"'}</p>
-          </div>
-        ) : (
-          chatHistory.map((chat, index) => (
-            <div key={index} className={`mb-3 ${chat.type === 'user' ? 'text-right' : ''}`}>
-              <div className={`inline-block p-3 rounded-lg ${chat.type === 'user' ? 'bg-blue-500 text-white' : 'bg-white border'}`}>
-                {chat.content}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-      <form onSubmit={handleSubmit} className="flex items-center p-2 border-t">
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder={`Type a message about your ${tabType}...`}
-          className="flex-1 p-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          type="submit"
-          className="bg-blue-500 text-white p-2 rounded-r-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <ArrowUpCircleIcon className="h-6 w-6" />
-        </button>
-      </form>
-    </div>
-  );
-}
+// Removed the embedded TaskOrientedChat component as it's now a standalone component
 
 function DashboardContent() {
   const { user } = useAuth();
   const [selectedTab, setSelectedTab] = useState(0);
+  // Share the selected tab with parent component
+  useEffect(() => {
+    // This would normally use a context or prop function
+    // For now we'll use a custom event
+    window.dispatchEvent(new CustomEvent('tabChange', { detail: { tab: selectedTab } }));
+  }, [selectedTab]);
 
   // Mock user stats - in a real app, these would come from the backend
   const userStats = {
@@ -172,8 +119,7 @@ function DashboardContent() {
                 </div>
               </div>
               
-              {/* Chat Interface for Schedule */}
-              <ChatInterface tabType="schedule" />
+              {/* No embedded chat interface here anymore */}
             </Tab.Panel>
             <Tab.Panel className="rounded-xl p-3">
               <div className="bg-white p-3 sm:p-4 rounded-lg border">
@@ -213,8 +159,7 @@ function DashboardContent() {
                 </div>
               </div>
               
-              {/* Chat Interface for Tasks */}
-              <ChatInterface tabType="tasks" />
+              {/* No embedded chat interface here anymore */}
             </Tab.Panel>
           </Tab.Panels>
         </Tab.Group>
@@ -224,10 +169,43 @@ function DashboardContent() {
 }
 
 export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState(0);
+  
+  // Listen for tab changes and custom events
+  useEffect(() => {
+    const handleTabChange = (e: any) => {
+      setActiveTab(e.detail.tab);
+    };
+    
+    const handleSwitchTab = (e: any) => {
+      setActiveTab(e.detail.tab);
+    };
+    
+    window.addEventListener('tabChange', handleTabChange);
+    window.addEventListener('switchTab', handleSwitchTab);
+    
+    return () => {
+      window.removeEventListener('tabChange', handleTabChange);
+      window.removeEventListener('switchTab', handleSwitchTab);
+    };
+  }, []);
+  
+  // Handle switching context for the chat
+  const handleSwitchContext = (contextType: 'schedule' | 'tasks' | 'general') => {
+    if (contextType === 'schedule' || contextType === 'tasks') {
+      setActiveTab(contextType === 'schedule' ? 0 : 1);
+    }
+    // If 'general', no tab switching needed
+  };
+  
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
         <DashboardContent />
+        <TaskOrientedChat 
+          contextType={activeTab === 0 ? 'schedule' : 'tasks'}
+          onSwitchContext={handleSwitchContext}
+        />
       </div>
     </ProtectedRoute>
   );
