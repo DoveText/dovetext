@@ -6,13 +6,17 @@ import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { Tab } from '@headlessui/react';
 import { CalendarIcon, ClipboardIcon } from '@heroicons/react/24/outline';
-import TaskOrientedChat from '@/components/ui/TaskOrientedChat';
 
 // Removed the embedded TaskOrientedChat component as it's now a standalone component
 
-function DashboardContent() {
+function DashboardContent({ activeTab }: { activeTab: number }) {
   const { user } = useAuth();
-  const [selectedTab, setSelectedTab] = useState(0);
+  const [selectedTab, setSelectedTab] = useState(activeTab);
+  // Keep selectedTab in sync with activeTab from parent
+  useEffect(() => {
+    setSelectedTab(activeTab);
+  }, [activeTab]);
+
   // Share the selected tab with parent component
   useEffect(() => {
     // This would normally use a context or prop function
@@ -190,22 +194,10 @@ export default function Dashboard() {
     };
   }, []);
   
-  // Handle switching context for the chat
-  const handleSwitchContext = (contextType: 'schedule' | 'tasks' | 'general') => {
-    if (contextType === 'schedule' || contextType === 'tasks') {
-      setActiveTab(contextType === 'schedule' ? 0 : 1);
-    }
-    // If 'general', no tab switching needed
-  };
-  
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
-        <DashboardContent />
-        <TaskOrientedChat 
-          contextType={activeTab === 0 ? 'schedule' : 'tasks'}
-          onSwitchContext={handleSwitchContext}
-        />
+        <DashboardContent activeTab={activeTab} />
       </div>
     </ProtectedRoute>
   );

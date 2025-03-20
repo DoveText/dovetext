@@ -25,6 +25,26 @@ export default function TaskOrientedChat({
   onSwitchContext,
   className = ''
 }: TaskOrientedChatProps) {
+  // Detect current page to provide context-aware assistance
+  const [currentPage, setCurrentPage] = useState('');
+  
+  useEffect(() => {
+    // Get the current pathname to determine context
+    const pathname = window.location.pathname;
+    setCurrentPage(pathname);
+
+    // Listen for route changes
+    const handleRouteChange = () => {
+      setCurrentPage(window.location.pathname);
+    };
+
+    // Add event listener for route changes
+    window.addEventListener('popstate', handleRouteChange);
+
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+    };
+  }, []);
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isActive, setIsActive] = useState(false);
@@ -56,6 +76,47 @@ export default function TaskOrientedChat({
 
   const handleBubbleClick = () => {
     setIsExpanded(true);
+  };
+
+  // Handle page-specific commands based on current page
+  const handlePageSpecificCommand = (text: string) => {
+    const lowerText = text.toLowerCase();
+    
+    // Dashboard page commands
+    if (currentPage.includes('/dashboard')) {
+      if (/show.*schedule|view.*schedule|my schedule/i.test(lowerText)) {
+        // Switch to schedule tab
+        window.dispatchEvent(new CustomEvent('switchTab', { detail: { tab: 0 } }));
+        setChatHistory(prev => [...prev, { 
+          type: 'system', 
+          content: `I've switched to the Schedule tab for you.` 
+        }]);
+        return true;
+      } else if (/show.*tasks|view.*tasks|my tasks/i.test(lowerText)) {
+        // Switch to tasks tab
+        window.dispatchEvent(new CustomEvent('switchTab', { detail: { tab: 1 } }));
+        setChatHistory(prev => [...prev, { 
+          type: 'system', 
+          content: `I've switched to the Tasks tab for you.` 
+        }]);
+        return true;
+      }
+    }
+    
+    // Delivery methods page commands
+    if (currentPage.includes('/notifications/delivery-methods')) {
+      if (/add.*method|create.*method|new method/i.test(lowerText)) {
+        // Trigger create method dialog
+        window.dispatchEvent(new CustomEvent('openCreateMethodDialog', {}));
+        setChatHistory(prev => [...prev, { 
+          type: 'system', 
+          content: `I'm opening the dialog to create a new delivery method.` 
+        }]);
+        return true;
+      }
+    }
+    
+    return false;
   };
 
   // Helper function to detect navigation commands
@@ -164,6 +225,13 @@ export default function TaskOrientedChat({
       setMessage('');
       return;
     }
+    
+    // If we're on a specific page, handle page-specific commands
+    const pageSpecificCommand = handlePageSpecificCommand(message);
+    if (pageSpecificCommand) {
+      setMessage('');
+      return;
+    }
 
     // Determine if this is a new task or continuing
     const isNewTask = !currentTask;
@@ -229,17 +297,47 @@ export default function TaskOrientedChat({
     ${isExpanded ? 'border border-gray-200 h-96' : 'h-12 w-12'} 
     transition-all duration-300 ease-in-out`;
 
-  // Get context-specific title and examples
+  // Get context-specific title and examples based on current page and passed context
   const getContextTitle = () => {
+    // First check the explicitly passed contextType
     if (contextType === 'schedule') return 'Schedule';
     if (contextType === 'tasks') return 'Task';
+    
+    // If general, try to determine from current page
+    if (currentPage.includes('/dashboard')) {
+      return 'Dashboard';
+    } else if (currentPage.includes('/notifications/delivery-methods')) {
+      return 'Delivery Methods';
+    } else if (currentPage.includes('/notifications')) {
+      return 'Notifications';
+    } else if (currentPage.includes('/profile')) {
+      return 'Profile';
+    } else if (currentPage.includes('/settings')) {
+      return 'Settings';
+    }
+    
     return 'Assistant';
   };
 
   const getContextExample = () => {
+    // First check the explicitly passed contextType
     if (contextType === 'schedule') return '"Schedule a team meeting tomorrow"';
     if (contextType === 'tasks') return '"Add a task to review the proposal"';
-    return '"Help me find information about..."';
+    
+    // If general, try to determine from current page
+    if (currentPage.includes('/dashboard')) {
+      return '"Show me my upcoming schedule"';
+    } else if (currentPage.includes('/notifications/delivery-methods')) {
+      return '"Create a new delivery method"';
+    } else if (currentPage.includes('/notifications')) {
+      return '"Show me my notification settings"';
+    } else if (currentPage.includes('/profile')) {
+      return '"Update my profile information"';
+    } else if (currentPage.includes('/settings')) {
+      return '"Change my notification preferences"';
+    }
+    
+    return '"Help me navigate to..."';
   };
 
   // If not expanded, show just the chat bubble

@@ -8,7 +8,7 @@ import { deliveryMethodsApi } from '@/app/api/delivery-methods';
 import { auth } from '@/lib/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { PlusIcon } from '@heroicons/react/24/outline';
-import TaskOrientedChat from '@/components/ui/TaskOrientedChat';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 export default function DeliveryMethodsPage() {
   const searchParams = useSearchParams();
@@ -30,7 +30,17 @@ export default function DeliveryMethodsPage() {
       setShowCreateDialog(true);
     }
 
-    return () => unsubscribe();
+    // Listen for custom event from chat component
+    const handleOpenCreateDialog = () => {
+      setShowCreateDialog(true);
+    };
+
+    window.addEventListener('openCreateMethodDialog', handleOpenCreateDialog);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('openCreateMethodDialog', handleOpenCreateDialog);
+    };
   }, [searchParams]);
 
   const loadDeliveryMethods = async () => {
@@ -48,8 +58,9 @@ export default function DeliveryMethodsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="md:flex md:items-center md:justify-between">
           <div className="min-w-0 flex-1">
@@ -102,10 +113,10 @@ export default function DeliveryMethodsPage() {
             )}
           </div>
         )}
-      </div>
+        </div>
 
-      {/* Create Delivery Method Dialog */}
-      {showCreateDialog && (
+        {/* Create Delivery Method Dialog */}
+        {showCreateDialog && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4">
@@ -178,9 +189,7 @@ export default function DeliveryMethodsPage() {
           </div>
         </div>
       )}
-
-      {/* Add the TaskOrientedChat component */}
-      <TaskOrientedChat contextType="general" />
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }
