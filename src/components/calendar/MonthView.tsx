@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ScheduleEvent } from './Calendar';
 import { PlusIcon } from '@heroicons/react/24/outline';
+import Tooltip from '../ui/Tooltip';
 
 interface MonthViewProps {
   date: Date;
@@ -107,6 +108,16 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
       hour12: true 
     });
   };
+  
+  // Format date for tooltip display
+  const formatEventDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
 
   return (
     <div className="h-full overflow-y-auto">
@@ -168,19 +179,45 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
                       e.stopPropagation();
                       onEventClick && onEventClick(event);
                     }}
-                    className={`px-1 py-0.5 text-xs rounded cursor-pointer truncate border ${getEventColor(event.type)}`}
+                    className={`px-1 py-0.5 text-xs rounded cursor-pointer truncate border ${getEventColor(event.type)} w-full`}
                   >
-                    {!event.isAllDay && event.type !== 'all-day' && (
-                      <span className="mr-1">{formatEventTime(event.start)}</span>
-                    )}
-                    {event.title}
+                    <Tooltip
+                      content={
+                        <>
+                          <div className="font-medium">{event.title}</div>
+                          {event.description && <div className="mt-1">{event.description}</div>}
+                          <div className="mt-1 text-gray-300">
+                            {event.isAllDay || event.type === 'all-day' 
+                              ? `All day: ${formatEventDate(event.start)}` 
+                              : <>
+                                  {formatEventDate(event.start)}<br/>
+                                  {formatEventTime(event.start)} - {formatEventTime(event.end)}
+                                </>
+                            }
+                          </div>
+                        </>
+                      }
+                    >
+                      <div className="flex w-full truncate">
+                        {!event.isAllDay && event.type !== 'all-day' && (
+                          <span className="mr-1 flex-shrink-0">{formatEventTime(event.start)}</span>
+                        )}
+                        <span className="truncate">{event.title}</span>
+                      </div>
+                    </Tooltip>
                   </div>
                 ))}
                 
                 {/* Show indicator for additional events */}
                 {remainingEvents > 0 && (
-                  <div className="text-xs text-gray-500 pl-1">
-                    +{remainingEvents} more
+                  <div className="text-xs text-gray-500 pl-1 cursor-pointer hover:text-blue-500 w-full">
+                    <Tooltip
+                      content={`${remainingEvents} more event${remainingEvents > 1 ? 's' : ''} on ${formatEventDate(day)}`}
+                    >
+                      <div className="w-full">
+                        +{remainingEvents} more
+                      </div>
+                    </Tooltip>
                   </div>
                 )}
               </div>

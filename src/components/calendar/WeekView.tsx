@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ScheduleEvent } from './Calendar';
 import { PlusIcon } from '@heroicons/react/24/outline';
+import Tooltip from '../ui/Tooltip';
 
 interface WeekViewProps {
   date: Date;
@@ -140,6 +141,16 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
       hour12: true 
     });
   };
+  
+  // Format date for tooltip display
+  const formatEventDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -179,9 +190,21 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                       <div 
                         key={event.id}
                         onClick={() => onEventClick && onEventClick(event)}
-                        className={`px-1 py-1 rounded text-xs cursor-pointer border-l-2 ${getEventBorderColor(event.type)} bg-white hover:bg-gray-100 truncate`}
+                        className={`px-1 py-1 rounded text-xs cursor-pointer border-l-2 ${getEventBorderColor(event.type)} bg-white hover:bg-gray-100 truncate w-full`}
                       >
-                        {event.title}
+                        <Tooltip 
+                          content={
+                            <>
+                              <div className="font-medium">{event.title}</div>
+                              {event.description && <div className="mt-1">{event.description}</div>}
+                              <div className="mt-1 text-gray-300">All day: {formatEventDate(event.start)}</div>
+                            </>
+                          }
+                        >
+                          <div className="w-full truncate">
+                            {event.title}
+                          </div>
+                        </Tooltip>
                       </div>
                     ))}
                   </div>
@@ -272,12 +295,25 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                   }}
                   onClick={() => onEventClick && onEventClick(event)}
                 >
-                  <div className={`h-full p-1 ${event.type === 'reminder' ? 'bg-amber-50' : 'bg-blue-50'}`}>
-                    <div className="font-medium text-xs truncate">{event.title}</div>
-                    <div className="text-xs text-gray-600 truncate">
-                      {formatEventTime(event.start)}
+                  <Tooltip
+                    content={
+                      <>
+                        <div className="font-medium">{event.title}</div>
+                        <div className="text-gray-300">
+                          {formatEventTime(event.start)} - {formatEventTime(event.end)}
+                        </div>
+                        {event.description && <div className="mt-1">{event.description}</div>}
+                        <div className="mt-1 text-gray-300">{formatEventDate(event.start)}</div>
+                      </>
+                    }
+                  >
+                    <div className={`h-full p-1 ${event.type === 'reminder' ? 'bg-amber-50' : 'bg-blue-50'}`}>
+                      <div className="font-medium text-xs truncate">{event.title}</div>
+                      <div className="text-xs text-gray-600 truncate">
+                        {formatEventTime(event.start)}
+                      </div>
                     </div>
-                  </div>
+                  </Tooltip>
                 </div>
               );
             });
