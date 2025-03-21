@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ScheduleEvent } from './Calendar';
 import { PlusIcon } from '@heroicons/react/24/outline';
+import { createPortal } from 'react-dom';
 import Tooltip from '../ui/Tooltip';
 
 interface MonthViewProps {
@@ -62,6 +63,43 @@ const getDaysInMonthView = (date: Date) => {
 };
 
 export default function MonthView({ date, events, onEventClick, onDateClick, onAddEvent, currentTime }: MonthViewProps) {
+  const [tooltipContent, setTooltipContent] = useState<React.ReactNode | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Clean up any timeouts when component unmounts
+  useEffect(() => {
+    return () => {
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  const showTooltip = (content: React.ReactNode, e: React.MouseEvent) => {
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current);
+    }
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipContent(content);
+    setTooltipPosition({
+      top: rect.top,
+      left: rect.left + rect.width / 2
+    });
+    
+    tooltipTimeoutRef.current = setTimeout(() => {
+      setIsTooltipVisible(true);
+    }, 100);
+  };
+  
+  const hideTooltip = () => {
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current);
+    }
+    setIsTooltipVisible(false);
+  };
   const daysInMonth = getDaysInMonthView(date);
   
   // Check if a day is today
@@ -121,6 +159,21 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
 
   return (
     <div className="h-full overflow-y-auto">
+      {/* Custom tooltip portal */}
+      {isTooltipVisible && tooltipContent && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="fixed z-50 max-w-xs px-3 py-2 text-xs text-white bg-gray-800 rounded shadow-lg whitespace-pre-wrap"
+          style={{
+            top: `${tooltipPosition.top}px`,
+            left: `${tooltipPosition.left}px`,
+            transform: 'translate(-50%, -100%)',
+            marginTop: '-5px'
+          }}
+        >
+          {tooltipContent}
+        </div>,
+        document.body
+      )}
       {/* Weekday headers */}
       <div className="grid grid-cols-7 text-center py-2 border-b">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
@@ -180,44 +233,44 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
                       onEventClick && onEventClick(event);
                     }}
                     className={`px-1 py-0.5 text-xs rounded cursor-pointer truncate border ${getEventColor(event.type)} w-full`}
+                    onMouseEnter={(e) => showTooltip(
+                      <>
+                        <div className="font-medium">{event.title}</div>
+                        {event.description && <div className="mt-1">{event.description}</div>}
+                        <div className="mt-1 text-gray-300">
+                          {event.isAllDay || event.type === 'all-day' 
+                            ? `All day: ${formatEventDate(event.start)}` 
+                            : <>
+                                {formatEventDate(event.start)}<br/>
+                                {formatEventTime(event.start)} - {formatEventTime(event.end)}
+                              </>
+                          }
+                        </div>
+                      </>, 
+                      e
+                    )}
+                    onMouseLeave={hideTooltip}
                   >
-                    <Tooltip
-                      content={
-                        <>
-                          <div className="font-medium">{event.title}</div>
-                          {event.description && <div className="mt-1">{event.description}</div>}
-                          <div className="mt-1 text-gray-300">
-                            {event.isAllDay || event.type === 'all-day' 
-                              ? `All day: ${formatEventDate(event.start)}` 
-                              : <>
-                                  {formatEventDate(event.start)}<br/>
-                                  {formatEventTime(event.start)} - {formatEventTime(event.end)}
-                                </>
-                            }
-                          </div>
-                        </>
-                      }
-                    >
-                      <div className="flex w-full truncate">
-                        {!event.isAllDay && event.type !== 'all-day' && (
-                          <span className="mr-1 flex-shrink-0">{formatEventTime(event.start)}</span>
-                        )}
-                        <span className="truncate">{event.title}</span>
-                      </div>
-                    </Tooltip>
+                    <div className="flex w-full truncate">
+                      {!event.isAllDay && event.type !== 'all-day' && (
+                        <span className="mr-1 flex-shrink-0">{formatEventTime(event.start)}</span>
+                      )}
+                      <span className="truncate">{event.title}</span>
+                    </div>
                   </div>
                 ))}
                 
                 {/* Show indicator for additional events */}
                 {remainingEvents > 0 && (
-                  <div className="text-xs text-gray-500 pl-1 cursor-pointer hover:text-blue-500 w-full">
-                    <Tooltip
-                      content={`${remainingEvents} more event${remainingEvents > 1 ? 's' : ''} on ${formatEventDate(day)}`}
-                    >
-                      <div className="w-full">
-                        +{remainingEvents} more
-                      </div>
-                    </Tooltip>
+                  <div 
+                    className="text-xs text-gray-500 pl-1 cursor-pointer hover:text-blue-500 w-full"
+                    onMouseEnter={(e) => showTooltip(
+                      `${remainingEvents} more event${remainingEvents > 1 ? 's' : ''} on ${formatEventDate(day)}`,
+                      e
+                    )}
+                    onMouseLeave={hideTooltip}
+                  >
+                    +{remainingEvents} more
                   </div>
                 )}
               </div>

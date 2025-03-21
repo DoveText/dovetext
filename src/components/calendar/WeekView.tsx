@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ScheduleEvent } from './Calendar';
 import { PlusIcon } from '@heroicons/react/24/outline';
+import { createPortal } from 'react-dom';
 import Tooltip from '../ui/Tooltip';
 
 interface WeekViewProps {
@@ -43,6 +44,44 @@ const generateTimeSlots = () => {
 export default function WeekView({ date, events, onEventClick, onDateClick, onAddEvent, currentTime }: WeekViewProps) {
   const daysOfWeek = getDaysOfWeek(date);
   const timeSlots = generateTimeSlots();
+  
+  const [tooltipContent, setTooltipContent] = useState<React.ReactNode | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Clean up any timeouts when component unmounts
+  useEffect(() => {
+    return () => {
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  const showTooltip = (content: React.ReactNode, e: React.MouseEvent) => {
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current);
+    }
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipContent(content);
+    setTooltipPosition({
+      top: rect.top,
+      left: rect.left + rect.width / 2
+    });
+    
+    tooltipTimeoutRef.current = setTimeout(() => {
+      setIsTooltipVisible(true);
+    }, 100);
+  };
+  
+  const hideTooltip = () => {
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current);
+    }
+    setIsTooltipVisible(false);
+  };
   
   // Check if a day is today
   const isToday = (day: Date) => {
@@ -154,6 +193,21 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
 
   return (
     <div className="flex flex-col h-full">
+      {/* Custom tooltip portal */}
+      {isTooltipVisible && tooltipContent && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="fixed z-50 max-w-xs px-3 py-2 text-xs text-white bg-gray-800 rounded shadow-lg whitespace-pre-wrap"
+          style={{
+            top: `${tooltipPosition.top}px`,
+            left: `${tooltipPosition.left}px`,
+            transform: 'translate(-50%, -100%)',
+            marginTop: '-5px'
+          }}
+        >
+          {tooltipContent}
+        </div>,
+        document.body
+      )}
       {/* Week header */}
       <div className="flex border-b pr-[10px]">
         <div className="w-16 shrink-0"></div>
@@ -191,20 +245,17 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                         key={event.id}
                         onClick={() => onEventClick && onEventClick(event)}
                         className={`px-1 py-1 rounded text-xs cursor-pointer border-l-2 ${getEventBorderColor(event.type)} bg-white hover:bg-gray-100 truncate w-full`}
+                        onMouseEnter={(e) => showTooltip(
+                          <>
+                            <div className="font-medium">{event.title}</div>
+                            {event.description && <div className="mt-1">{event.description}</div>}
+                            <div className="mt-1 text-gray-300">All day: {formatEventDate(event.start)}</div>
+                          </>,
+                          e
+                        )}
+                        onMouseLeave={hideTooltip}
                       >
-                        <Tooltip 
-                          content={
-                            <>
-                              <div className="font-medium">{event.title}</div>
-                              {event.description && <div className="mt-1">{event.description}</div>}
-                              <div className="mt-1 text-gray-300">All day: {formatEventDate(event.start)}</div>
-                            </>
-                          }
-                        >
-                          <div className="w-full truncate">
-                            {event.title}
-                          </div>
-                        </Tooltip>
+                        {event.title}
                       </div>
                     ))}
                   </div>
@@ -294,26 +345,25 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                     width: `calc(${dayWidth} - 6px)`
                   }}
                   onClick={() => onEventClick && onEventClick(event)}
-                >
-                  <Tooltip
-                    content={
-                      <>
-                        <div className="font-medium">{event.title}</div>
-                        <div className="text-gray-300">
-                          {formatEventTime(event.start)} - {formatEventTime(event.end)}
-                        </div>
-                        {event.description && <div className="mt-1">{event.description}</div>}
-                        <div className="mt-1 text-gray-300">{formatEventDate(event.start)}</div>
-                      </>
-                    }
-                  >
-                    <div className={`h-full p-1 ${event.type === 'reminder' ? 'bg-amber-50' : 'bg-blue-50'}`}>
-                      <div className="font-medium text-xs truncate">{event.title}</div>
-                      <div className="text-xs text-gray-600 truncate">
-                        {formatEventTime(event.start)}
+                  onMouseEnter={(e) => showTooltip(
+                    <>
+                      <div className="font-medium">{event.title}</div>
+                      <div className="text-gray-300">
+                        {formatEventTime(event.start)} - {formatEventTime(event.end)}
                       </div>
+                      {event.description && <div className="mt-1">{event.description}</div>}
+                      <div className="mt-1 text-gray-300">{formatEventDate(event.start)}</div>
+                    </>,
+                    e
+                  )}
+                  onMouseLeave={hideTooltip}
+                >
+                  <div className={`h-full p-1 ${event.type === 'reminder' ? 'bg-amber-50' : 'bg-blue-50'}`}>
+                    <div className="font-medium text-xs truncate">{event.title}</div>
+                    <div className="text-xs text-gray-600 truncate">
+                      {formatEventTime(event.start)}
                     </div>
-                  </Tooltip>
+                  </div>
                 </div>
               );
             });
