@@ -28,6 +28,25 @@ export default function TaskOrientedChat({
 }: TaskOrientedChatProps) {
   // Detect current page to provide context-aware assistance
   const [currentPage, setCurrentPage] = useState('');
+  const router = useRouter();
+  const actionContext = useAction();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+  const [message, setMessage] = useState('');
+  const [chatHistory, setChatHistory] = useState<{type: 'user' | 'system', content: string}[]>([]);
+  const [currentTask, setCurrentTask] = useState<{complete: boolean, steps: number, currentStep: number} | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Auto-focus the input field when the dialog is expanded
+  useEffect(() => {
+    if (isExpanded && inputRef.current && !currentTask?.complete) {
+      // Short timeout to ensure the dialog is fully rendered
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [isExpanded, currentTask?.complete]);
   
   useEffect(() => {
     // Get the current pathname to determine context
@@ -63,14 +82,6 @@ export default function TaskOrientedChat({
       window.removeEventListener('triggerChatBubble', handleChatTrigger as EventListener);
     };
   }, []);
-  const router = useRouter();
-  const actionContext = useAction();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isActive, setIsActive] = useState(false);
-  const [message, setMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<{type: 'user' | 'system', content: string}[]>([]);
-  const [currentTask, setCurrentTask] = useState<{complete: boolean, steps: number, currentStep: number} | null>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
   
   // Scroll to bottom of chat when history changes
   useEffect(() => {
@@ -95,6 +106,7 @@ export default function TaskOrientedChat({
 
   const handleBubbleClick = () => {
     setIsExpanded(true);
+    // Input focus will be handled by the useEffect
   };
 
   // Handle page-specific commands based on current page
@@ -385,12 +397,13 @@ export default function TaskOrientedChat({
   };
 
   // Determine classes based on state
-  const containerClasses = `fixed ${isExpanded ? 'bottom-4 right-4 w-80 sm:w-96' : 'bottom-4 right-4 w-12 h-12'} 
-    transition-all duration-300 ease-in-out z-50 ${className}`;
+  const containerClasses = isExpanded
+    ? `fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 ${className} transition-opacity duration-300 ease-in-out`
+    : `fixed bottom-4 right-4 w-12 h-12 z-50 ${className}`;
   
-  const chatClasses = `bg-white rounded-2xl shadow-lg overflow-hidden 
-    ${isExpanded ? 'border border-gray-200 h-96' : 'h-12 w-12'} 
-    transition-all duration-300 ease-in-out`;
+  const chatClasses = isExpanded
+    ? `bg-white rounded-2xl shadow-xl overflow-hidden w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 max-w-4xl h-3/4 max-h-[80vh] transition-all duration-300 ease-in-out transform scale-100`
+    : `bg-white rounded-full shadow-lg overflow-hidden h-12 w-12 transition-all duration-300 ease-in-out`;
 
   // Get context-specific title and examples based on current page and passed context
   const getContextTitle = () => {
@@ -453,11 +466,26 @@ export default function TaskOrientedChat({
   }
 
   return (
-    <div className={containerClasses}>
-      <div className={chatClasses}>
+    <div className={containerClasses} onClick={(e) => {
+      // Close the modal when clicking the overlay background
+      if (e.target === e.currentTarget) {
+        if (chatHistory.length === 0 || currentTask?.complete) {
+          setIsExpanded(false);
+        } else {
+          // Show confirmation if in middle of conversation
+          if (confirm('Are you sure you want to close this conversation?')) {
+            setChatHistory([]);
+            setCurrentTask(null);
+            setIsActive(false);
+            setIsExpanded(false);
+          }
+        }
+      }
+    }}>
+      <div className={chatClasses} onClick={(e) => e.stopPropagation()}>
         {/* Chat Header */}
-        <div className="bg-blue-500 text-white px-4 py-3 flex justify-between items-center">
-          <h3 className="font-medium text-sm">
+        <div className="bg-blue-500 text-white px-4 py-4 flex justify-between items-center">
+          <h3 className="font-medium text-lg">
             {currentTask 
               ? `${getContextTitle()} Assistant (${currentTask.currentStep}/${currentTask.steps})` 
               : `${getContextTitle()} Assistant`}
@@ -487,14 +515,14 @@ export default function TaskOrientedChat({
         {/* Chat Messages */}
         <div 
           ref={chatContainerRef}
-          className={`p-4 overflow-y-auto ${currentTask?.complete ? 'bg-green-50' : 'bg-gray-50'}`}
-          style={{ height: 'calc(100% - 110px)' }}
+          className={`p-6 overflow-y-auto ${currentTask?.complete ? 'bg-green-50' : 'bg-gray-50'}`}
+          style={{ height: 'calc(100% - 130px)' }}
         >
           {chatHistory.length === 0 ? (
-            <div className="text-center text-gray-500 mt-16">
-              <p>How can I help you today?</p>
-              <p className="text-sm mt-2">For example: {getContextExample()}</p>
-              <p className="text-sm mt-2 text-blue-500">You can also try: "Create a delivery method" or "Go to settings"</p>
+            <div className="text-center text-gray-600 mt-16">
+              <p className="text-xl font-medium">How can I help you today?</p>
+              <p className="text-base mt-4">For example: {getContextExample()}</p>
+              <p className="text-base mt-4 text-blue-500">You can also try: "Create a delivery method" or "Go to settings"</p>
             </div>
           ) : (
             chatHistory.map((chat, index) => (
@@ -524,8 +552,9 @@ export default function TaskOrientedChat({
         </div>
         
         {/* Chat Input */}
-        <form onSubmit={handleSubmit} className="flex items-center p-3 border-t bg-white chat-form">
+        <form onSubmit={handleSubmit} className="flex items-center p-4 border-t bg-white chat-form">
           <input
+            ref={inputRef}
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -534,13 +563,13 @@ export default function TaskOrientedChat({
               : currentTask 
                 ? 'Continue your conversation...' 
                 : `Ask me anything...`}
-            className="flex-1 p-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 p-3 text-base border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={currentTask?.complete}
           />
           <button
             type="submit"
             disabled={currentTask?.complete}
-            className={`p-2 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentTask?.complete 
+            className={`p-3 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentTask?.complete 
               ? 'bg-gray-300 text-gray-500' 
               : 'bg-blue-500 text-white hover:bg-blue-600'}`}
           >
