@@ -252,8 +252,10 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
           {/* Events for each day */}
           {daysOfWeek.map((day, dayIndex) => {
             const timedEvents = getTimedEventsForDay(day);
-            const dayWidth = `calc(100% / 7)`;
-            const dayLeft = `calc(${dayIndex} * ${dayWidth} + 4rem)`;
+            // Calculate width and position based on the container width
+            // Each day takes 1/7 of the available width (minus the time column)
+            const dayWidth = `calc((100% - 4rem) / 7)`;
+            const dayLeft = `calc(4rem + (${dayIndex} * ${dayWidth}))`;
             
             return timedEvents.map((event) => {
               // Use original event style calculation
