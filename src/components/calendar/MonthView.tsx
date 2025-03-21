@@ -1,0 +1,193 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { ScheduleEvent } from './Calendar';
+import { PlusIcon } from '@heroicons/react/24/outline';
+
+interface MonthViewProps {
+  date: Date;
+  events: ScheduleEvent[];
+  onEventClick?: (event: ScheduleEvent) => void;
+  onDateClick?: (date: Date) => void;
+  onAddEvent?: (date: Date) => void;
+  currentTime: Date;
+}
+
+// Get days for the month view (includes days from prev/next months to fill the grid)
+const getDaysInMonthView = (date: Date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  
+  // First day of the month
+  const firstDay = new Date(year, month, 1);
+  // Last day of the month
+  const lastDay = new Date(year, month + 1, 0);
+  
+  // Get the day of the week for the first day (0 = Sunday, 6 = Saturday)
+  const firstDayOfWeek = firstDay.getDay();
+  
+  // Calculate days from previous month to include
+  const daysFromPrevMonth = firstDayOfWeek;
+  
+  // Calculate days from next month to include (to fill a 6-row grid)
+  const totalDaysInGrid = 42; // 6 rows of 7 days
+  const daysFromNextMonth = totalDaysInGrid - lastDay.getDate() - daysFromPrevMonth;
+  
+  // Get the days from the previous month
+  const prevMonthDays = [];
+  if (daysFromPrevMonth > 0) {
+    const prevMonth = new Date(year, month, 0);
+    const prevMonthLastDay = prevMonth.getDate();
+    
+    for (let i = prevMonthLastDay - daysFromPrevMonth + 1; i <= prevMonthLastDay; i++) {
+      prevMonthDays.push(new Date(year, month - 1, i));
+    }
+  }
+  
+  // Get the days from the current month
+  const currentMonthDays = [];
+  for (let i = 1; i <= lastDay.getDate(); i++) {
+    currentMonthDays.push(new Date(year, month, i));
+  }
+  
+  // Get the days from the next month
+  const nextMonthDays = [];
+  for (let i = 1; i <= daysFromNextMonth; i++) {
+    nextMonthDays.push(new Date(year, month + 1, i));
+  }
+  
+  // Combine all days
+  return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays];
+};
+
+export default function MonthView({ date, events, onEventClick, onDateClick, onAddEvent, currentTime }: MonthViewProps) {
+  const daysInMonth = getDaysInMonthView(date);
+  
+  // Check if a day is today
+  const isToday = (day: Date) => {
+    return day.getDate() === currentTime.getDate() &&
+           day.getMonth() === currentTime.getMonth() &&
+           day.getFullYear() === currentTime.getFullYear();
+  };
+  
+  // Check if a day is in the current month
+  const isCurrentMonth = (day: Date) => {
+    return day.getMonth() === date.getMonth();
+  };
+  
+  // Filter events for a specific day
+  const getEventsForDay = (day: Date) => {
+    return events.filter(event => {
+      const eventDate = new Date(event.start);
+      return eventDate.getDate() === day.getDate() &&
+             eventDate.getMonth() === day.getMonth() &&
+             eventDate.getFullYear() === day.getFullYear();
+    });
+  };
+  
+  // Get event background color based on type
+  const getEventColor = (type: string) => {
+    switch (type) {
+      case 'event':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'reminder':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'all-day':
+        return 'bg-green-100 text-green-800 border-green-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+  
+  // Format time for display
+  const formatEventTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit', 
+      hour12: true 
+    });
+  };
+
+  return (
+    <div className="h-full overflow-y-auto">
+      {/* Weekday headers */}
+      <div className="grid grid-cols-7 text-center py-2 border-b">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+          <div key={index} className="text-sm font-medium text-gray-500">
+            {day}
+          </div>
+        ))}
+      </div>
+      
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7 grid-rows-6 h-full border-b">
+        {daysInMonth.map((day, index) => {
+          const dayEvents = getEventsForDay(day);
+          const maxEventsToShow = 3;
+          const remainingEvents = dayEvents.length - maxEventsToShow;
+          
+          return (
+            <div 
+              key={index} 
+              className={`min-h-[100px] border-r border-b p-1 ${
+                isCurrentMonth(day) 
+                  ? isToday(day) 
+                    ? 'bg-blue-50' 
+                    : 'bg-white' 
+                  : 'bg-gray-50 text-gray-400'
+              }`}
+              onClick={() => onDateClick && onDateClick(day)}
+            >
+              <div className="flex justify-between items-center mb-1">
+                <span className={`text-sm font-medium ${isToday(day) ? 'bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center' : ''}`}>
+                  {day.getDate()}
+                </span>
+                {isCurrentMonth(day) && (
+                  <button 
+                    className="text-blue-500 opacity-0 hover:opacity-100 focus:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onAddEvent) {
+                        const newDate = new Date(day);
+                        newDate.setHours(9, 0, 0, 0); // Default to 9 AM
+                        onAddEvent(newDate);
+                      }
+                    }}
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              
+              {/* Events */}
+              <div className="space-y-1">
+                {dayEvents.slice(0, maxEventsToShow).map((event) => (
+                  <div 
+                    key={event.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick && onEventClick(event);
+                    }}
+                    className={`px-1 py-0.5 text-xs rounded cursor-pointer truncate border ${getEventColor(event.type)}`}
+                  >
+                    {!event.isAllDay && event.type !== 'all-day' && (
+                      <span className="mr-1">{formatEventTime(event.start)}</span>
+                    )}
+                    {event.title}
+                  </div>
+                ))}
+                
+                {/* Show indicator for additional events */}
+                {remainingEvents > 0 && (
+                  <div className="text-xs text-gray-500 pl-1">
+                    +{remainingEvents} more
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
