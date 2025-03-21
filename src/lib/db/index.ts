@@ -51,6 +51,12 @@ declare global {
 // Global database instance using a singleton pattern that survives hot reloads
 // This approach works better with Next.js than a module-level variable
 
+// Increase the default max listeners for EventEmitter to prevent warnings
+// This needs to be done before any database connections are created
+import { EventEmitter } from 'events';
+// Set a higher default limit for all EventEmitters
+EventEmitter.defaultMaxListeners = 30;
+
 // Set up warning monitoring for database connections
 process.on('warning', (warning) => {
   if (warning.name === 'MaxListenersExceededWarning' && warning.message.includes('Connection')) {
@@ -63,39 +69,65 @@ process.on('warning', (warning) => {
   }
 });
 
+// Configure connection pool options
+const poolConfig = {
+  // Maximum number of clients the pool should contain
+  max: 20,
+  // Maximum time (ms) a client can be idle before being closed
+  idleTimeoutMillis: 30000,
+  // Connection timeout (ms)
+  connectionTimeoutMillis: 5000,
+};
+
 export const db = (() => {
   // If we already have a connection instance in the global object, use it
   if (global.__db) {
     return global.__db;
   }
   
-  // Create a new database instance
-  const instance = pgp(getConnectionConfig());
+  // Create a new database instance with connection pool configuration
+  const config = getConnectionConfig();
+  // Add pool configuration to the connection config
+  const fullConfig = { ...config, ...{ pool: poolConfig } };
+  const instance = pgp(fullConfig);
   
   // Set max listeners to prevent warnings
-  // This addresses the MaxListenersExceededWarning directly
   try {
-    // Safely attempt to increase max listeners if the pool is available
-    if (instance.$pool && instance.$pool.pool) {
-      const pg = require('pg');
-      // Set max listeners on the pg.Client prototype directly
-      if (pg && pg.Client && pg.Client.prototype) {
-        pg.Client.prototype.setMaxListeners(20);
-        console.log('Successfully set max listeners on pg.Client');
-      }
+    // Get the pg module
+    const pg = require('pg');
+    
+    // Set max listeners on the pg.Client prototype
+    if (pg && pg.Client && pg.Client.prototype) {
+      pg.Client.prototype.setMaxListeners(30);
+      console.log('[Database] Successfully set max listeners on pg.Client');
+    }
+    
+    // Also set max listeners on the pool if available
+    if (instance.$pool && instance.$pool.pool && instance.$pool.pool.setMaxListeners) {
+      instance.$pool.pool.setMaxListeners(30);
+      console.log('[Database] Successfully set max listeners on connection pool');
     }
   } catch (error) {
-    console.warn('Could not set max listeners:', error);
+    console.warn('[Database] Could not set max listeners:', error);
   }
   
   // Test the connection once
   instance.connect()
     .then(obj => {
-      console.log(`Database connection successful (${NODE_ENV} environment)`);
+      console.log(`[Database] Connection successful (${NODE_ENV} environment)`);
+      // Check connection pool status
+      if (instance.$pool && instance.$pool.pool) {
+        const poolStatus = {
+          total: instance.$pool.pool.totalCount,
+          idle: instance.$pool.pool.idleCount,
+          waiting: instance.$pool.pool.waitingClientsCount
+        };
+        console.log(`[Database] Connection pool status:`, poolStatus);
+      }
       obj.done(); // success, release the connection
     })
     .catch(error => {
-      console.error('Database connection error:', error.message || error);
+      console.error('[Database] Connection error:', error.message || error);
     });
     
   // Store in global to survive hot reloads

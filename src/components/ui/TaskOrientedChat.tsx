@@ -38,12 +38,29 @@ export default function TaskOrientedChat({
     const handleRouteChange = () => {
       setCurrentPage(window.location.pathname);
     };
+    
+    // Listen for chat trigger events from dashboard input
+    const handleChatTrigger = (event: CustomEvent) => {
+      setIsExpanded(true);
+      if (event.detail?.message) {
+        const userMessage = event.detail.message;
+        // Add the user message directly to chat history
+        setChatHistory([{ type: 'user', content: userMessage }]);
+        
+        // Process the message after a short delay to simulate response
+        setTimeout(() => {
+          processUserMessage(userMessage);
+        }, 300);
+      }
+    };
 
-    // Add event listener for route changes
+    // Add event listeners
     window.addEventListener('popstate', handleRouteChange);
+    window.addEventListener('triggerChatBubble', handleChatTrigger as EventListener);
 
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
+      window.removeEventListener('triggerChatBubble', handleChatTrigger as EventListener);
     };
   }, []);
   const router = useRouter();
@@ -144,6 +161,75 @@ export default function TaskOrientedChat({
     }
     
     return null;
+  };
+  
+  // Check for navigation intent in user message
+  const checkForNavigationIntent = (text: string) => {
+    const lowerText = text.toLowerCase();
+    
+    // Define patterns for different navigation actions
+    const navigationPatterns = [
+      { pattern: /create.*delivery method|add.*delivery method|new delivery method/i, action: 'create-delivery-method' },
+      { pattern: /view.*delivery methods|show.*delivery methods|delivery methods/i, action: 'view-delivery-methods' },
+      { pattern: /create.*task|add.*task|new task/i, action: 'create-task' },
+      { pattern: /create.*event|add.*event|new event|schedule/i, action: 'create-schedule' },
+      { pattern: /dashboard|home/i, action: 'dashboard' },
+      { pattern: /settings/i, action: 'settings' },
+      { pattern: /profile/i, action: 'profile' }
+    ];
+    
+    // Check if message matches any navigation pattern
+    for (const { pattern, action } of navigationPatterns) {
+      if (pattern.test(lowerText)) {
+        return action;
+      }
+    }
+    
+    return null;
+  };
+  
+  // Process user message from dashboard input
+  const processUserMessage = (text: string) => {
+    // Set active state to show we're processing
+    setIsActive(true);
+    
+    // Check for navigation intent
+    const navigationAction = checkForNavigationIntent(text);
+    
+    if (navigationAction) {
+      // Handle navigation
+      handleNavigation(navigationAction);
+      return;
+    }
+    
+    // Check for page-specific commands
+    if (handlePageSpecificCommand(text)) {
+      return;
+    }
+    
+    // If no specific command detected, provide a general response
+    setTimeout(() => {
+      setChatHistory(prev => [...prev, { 
+        type: 'system', 
+        content: getGeneralResponse(text)
+      }]);
+    }, 500);
+  };
+  
+  // Generate a general response based on the input
+  const getGeneralResponse = (text: string) => {
+    const lowerText = text.toLowerCase();
+    
+    // Simple response patterns
+    if (/hello|hi|hey/i.test(lowerText)) {
+      return "Hello! How can I assist you today with DoveText?"
+    }
+    if (/help|assist/i.test(lowerText)) {
+      return "I can help you navigate the app, create tasks, schedule events, or answer questions about DoveText. What would you like to do?"
+    }
+    
+    // Default response
+    return "I'm here to help you with DoveText. You can ask me to navigate to different pages, create tasks, schedule events, or help you find information."
   };
   
   // Function to handle navigation actions
@@ -438,7 +524,7 @@ export default function TaskOrientedChat({
         </div>
         
         {/* Chat Input */}
-        <form onSubmit={handleSubmit} className="flex items-center p-3 border-t bg-white">
+        <form onSubmit={handleSubmit} className="flex items-center p-3 border-t bg-white chat-form">
           <input
             type="text"
             value={message}

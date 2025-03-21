@@ -5,13 +5,14 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { CalendarIcon, SparklesIcon, ArrowRightIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, SparklesIcon, ArrowRightIcon, CheckIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { useAction } from '@/context/ActionContext';
 
 function DashboardContent() {
   const { user } = useAuth();
   const router = useRouter();
   const actionContext = useAction();
+  const [chatInput, setChatInput] = useState('');
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
   
   // Handle pending actions from the ActionContext
@@ -63,6 +64,50 @@ function DashboardContent() {
           <div className="bg-purple-50 p-4 rounded-lg">
             <p className="text-sm font-medium text-gray-500">Upcoming Deadlines</p>
             <p className="text-2xl font-bold text-purple-600">{userStats.upcomingDeadlines}</p>
+          </div>
+        </div>
+        
+        {/* Chat Input Box - After Stats */}
+        <div className="mt-6 relative">
+          <div className="border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+            <textarea 
+              className="w-full px-4 py-3 outline-none resize-none text-gray-700 placeholder-gray-500" 
+              placeholder="What's in your mind today, talk to me now..."
+              rows={2}
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (chatInput.trim()) {
+                    // Create and dispatch a custom event to trigger the chat bubble
+                    const chatEvent = new CustomEvent('triggerChatBubble', { 
+                      detail: { message: chatInput }
+                    });
+                    window.dispatchEvent(chatEvent);
+                    setChatInput('');
+                  }
+                }
+              }}
+            />
+            <div className="flex justify-between items-center px-4 py-2 bg-gray-50 border-t border-gray-200">
+              <p className="text-xs text-gray-500">Press Enter to submit, Shift+Enter for new line</p>
+              <button 
+                className="inline-flex items-center text-white bg-blue-600 hover:bg-blue-700 rounded-full p-2"
+                onClick={() => {
+                  if (chatInput.trim()) {
+                    // Create and dispatch a custom event to trigger the chat bubble
+                    const chatEvent = new CustomEvent('triggerChatBubble', { 
+                      detail: { message: chatInput }
+                    });
+                    window.dispatchEvent(chatEvent);
+                    setChatInput('');
+                  }
+                }}
+              >
+                <PaperAirplaneIcon className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -142,6 +187,8 @@ function DashboardContent() {
           </div>
         </div>
       </div>
+      
+
       </div>
     </div>
   );
