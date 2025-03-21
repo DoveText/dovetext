@@ -49,6 +49,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Clean up any timeouts when component unmounts
   useEffect(() => {
@@ -57,6 +58,14 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         clearTimeout(tooltipTimeoutRef.current);
       }
     };
+  }, []);
+  
+  // Scroll to 9:00 AM when component mounts
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      // Scroll to 9:00 AM (9 hours * 60px per hour = 540px)
+      scrollContainerRef.current.scrollTop = 540;
+    }
   }, []);
   
   const showTooltip = (content: React.ReactNode, e: React.MouseEvent) => {
@@ -280,7 +289,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
       </div>
       
       {/* Time grid - with scrollbar */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin">
+      <div className="flex-1 overflow-y-auto scrollbar-thin" ref={scrollContainerRef}>
         <div className="relative" style={{ height: "1440px" }}> {/* 24 hours * 60px per hour */}
           {/* Time slots - show all hours */}
           {timeSlots.map((slot) => (

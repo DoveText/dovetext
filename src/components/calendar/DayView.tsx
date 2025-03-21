@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ScheduleEvent } from './Calendar';
 import { PlusIcon } from '@heroicons/react/24/outline';
 
@@ -26,6 +26,15 @@ const generateTimeSlots = () => {
 
 export default function DayView({ date, events, onEventClick, onAddEvent, currentTime }: DayViewProps) {
   const timeSlots = generateTimeSlots();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Scroll to 9:00 AM when component mounts
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      // Scroll to 9:00 AM (9 hours * 60px per hour = 540px)
+      scrollContainerRef.current.scrollTop = 540;
+    }
+  }, []);
   
   // Filter events for the current day
   const dayEvents = events.filter(event => {
@@ -125,12 +134,12 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
       )}
       
       {/* Timed events */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
         <div className="relative min-h-[1440px]"> {/* 24 hours * 60px per hour */}
           {/* Time slots */}
           {timeSlots.map((slot) => (
             <div key={slot.hour} className="flex h-[60px] border-b border-gray-100">
-              <div className="w-16 pr-2 text-right text-xs text-gray-500 -mt-2">
+              <div className="w-16 pr-2 pt-[12px] text-right text-xs text-gray-500 -mt-2">
                 {slot.label}
               </div>
               <div 
