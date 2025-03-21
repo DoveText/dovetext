@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline';
 import { useAction, ActionType } from '@/context/ActionContext';
+import { chatApi, ChatMessage, ChatRequest, ChatResponse } from '@/app/api/chat';
 
 interface TaskOrientedChatProps {
   contextType?: 'schedule' | 'tasks' | 'general';
@@ -37,6 +38,11 @@ export default function TaskOrientedChat({
   const [currentTask, setCurrentTask] = useState<{complete: boolean, steps: number, currentStep: number} | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // SSE connection state
+  const [eventSource, setEventSource] = useState<EventSource | null>(null);
+  const [connectionId, setConnectionId] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
   
   // Auto-focus the input field when the dialog is expanded
   useEffect(() => {
@@ -103,7 +109,106 @@ export default function TaskOrientedChat({
       return () => clearTimeout(timer);
     }
   }, [currentTask]);
+  
+  // Establish SSE connection when the chat is expanded
+  useEffect(() => {
+    if (isExpanded && !eventSource && !isConnecting) {
+      establishChatConnection();
+    }
+    
+    return () => {
+      // Clean up the connection when the component unmounts or collapses
+      if (!isExpanded && eventSource) {
+        console.log('Closing SSE connection due to chat collapse');
+        eventSource.close();
+        setEventSource(null);
+        setConnectionId(null);
+      }
+    };
+  }, [isExpanded, eventSource, isConnecting]);
 
+  // Function to establish SSE connection with the backend
+  const establishChatConnection = async () => {
+    if (isConnecting) return;
+    
+    try {
+      setIsConnecting(true);
+      
+      // Close any existing connection
+      if (eventSource) {
+        eventSource.close();
+        setEventSource(null);
+      }
+      
+      // Create a new SSE connection
+      const { eventSource: newEventSource, connectionId: newConnectionId } = 
+        await chatApi.createChatStream();
+      
+      if (!newEventSource || !newConnectionId) {
+        console.error('Failed to establish SSE connection: missing eventSource or connectionId');
+        setIsConnecting(false);
+        return;
+      }
+      
+      setEventSource(newEventSource);
+      setConnectionId(newConnectionId);
+      
+      // Set up event listeners
+      newEventSource.addEventListener('message', handleSSEMessage);
+      newEventSource.addEventListener('processing', handleSSEProcessing);
+      
+      // Handle connection errors
+      newEventSource.onerror = (error) => {
+        console.error('SSE connection error:', error);
+        newEventSource.close();
+        setEventSource(null);
+        setConnectionId(null);
+        setIsConnecting(false);
+        
+        // Attempt to reconnect after a delay
+        setTimeout(establishChatConnection, 3000);
+      };
+      
+      setIsConnecting(false);
+      console.log('SSE connection established with ID:', newConnectionId);
+      
+    } catch (error) {
+      console.error('Failed to establish SSE connection:', error);
+      setIsConnecting(false);
+    }
+  };
+  
+  // Handle SSE message events
+  const handleSSEMessage = (event: MessageEvent) => {
+    try {
+      const data: ChatResponse = JSON.parse(event.data);
+      
+      // Add the message to chat history
+      setChatHistory(prev => [...prev, { 
+        type: data.type as 'user' | 'system', 
+        content: data.content 
+      }]);
+      
+      // Update task state if provided
+      if (data.currentStep !== undefined && data.totalSteps !== undefined) {
+        setCurrentTask({
+          complete: data.complete || false,
+          steps: data.totalSteps,
+          currentStep: data.currentStep
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error parsing SSE message:', error);
+    }
+  };
+  
+  // Handle SSE processing events
+  const handleSSEProcessing = (event: MessageEvent) => {
+    // Could show a typing indicator or processing state
+    console.log('Processing message...');
+  };
+  
   const handleBubbleClick = () => {
     setIsExpanded(true);
     // Input focus will be handled by the useEffect
@@ -150,44 +255,26 @@ export default function TaskOrientedChat({
     return false;
   };
 
-  // Helper function to detect navigation commands
-  const detectNavigationCommand = (text: string) => {
+  // Detect navigation commands and intents in user messages
+  const detectNavigationIntent = (text: string) => {
     const lowerText = text.toLowerCase();
     
-    // Navigation command patterns
+    // Comprehensive navigation patterns
     const navigationPatterns = [
+      // Delivery method patterns
       { pattern: /create.*delivery method|add.*delivery method|new delivery method/i, action: 'create-delivery-method' },
-      { pattern: /go to.*delivery|show.*delivery|open.*delivery|view.*delivery/i, action: 'view-delivery-methods' },
+      { pattern: /go to.*delivery|show.*delivery|open.*delivery|view.*delivery|delivery methods/i, action: 'view-delivery-methods' },
+      
+      // Task patterns
       { pattern: /create.*task|add.*task|new task/i, action: 'create-task' },
-      { pattern: /create.*schedule|add.*schedule|new schedule/i, action: 'create-schedule' },
-      { pattern: /go to.*dashboard|show.*dashboard|open.*dashboard/i, action: 'dashboard' },
-      { pattern: /go to.*settings|show.*settings|open.*settings/i, action: 'settings' },
-      { pattern: /go to.*profile|show.*profile|open.*profile/i, action: 'profile' },
-    ];
-    
-    // Check if message matches any navigation pattern
-    for (const { pattern, action } of navigationPatterns) {
-      if (pattern.test(lowerText)) {
-        return action;
-      }
-    }
-    
-    return null;
-  };
-  
-  // Check for navigation intent in user message
-  const checkForNavigationIntent = (text: string) => {
-    const lowerText = text.toLowerCase();
-    
-    // Define patterns for different navigation actions
-    const navigationPatterns = [
-      { pattern: /create.*delivery method|add.*delivery method|new delivery method/i, action: 'create-delivery-method' },
-      { pattern: /view.*delivery methods|show.*delivery methods|delivery methods/i, action: 'view-delivery-methods' },
-      { pattern: /create.*task|add.*task|new task/i, action: 'create-task' },
-      { pattern: /create.*event|add.*event|new event|schedule/i, action: 'create-schedule' },
-      { pattern: /dashboard|home/i, action: 'dashboard' },
-      { pattern: /settings/i, action: 'settings' },
-      { pattern: /profile/i, action: 'profile' }
+      
+      // Schedule patterns
+      { pattern: /create.*schedule|add.*schedule|new schedule|create.*event|add.*event|new event/i, action: 'create-schedule' },
+      
+      // Navigation patterns
+      { pattern: /go to.*dashboard|show.*dashboard|open.*dashboard|dashboard|home/i, action: 'dashboard' },
+      { pattern: /go to.*settings|show.*settings|open.*settings|settings/i, action: 'settings' },
+      { pattern: /go to.*profile|show.*profile|open.*profile|profile/i, action: 'profile' },
     ];
     
     // Check if message matches any navigation pattern
@@ -201,12 +288,12 @@ export default function TaskOrientedChat({
   };
   
   // Process user message from dashboard input
-  const processUserMessage = (text: string) => {
+  const processUserMessage = async (text: string) => {
     // Set active state to show we're processing
     setIsActive(true);
     
     // Check for navigation intent
-    const navigationAction = checkForNavigationIntent(text);
+    const navigationAction = detectNavigationIntent(text);
     
     if (navigationAction) {
       // Handle navigation
@@ -219,29 +306,46 @@ export default function TaskOrientedChat({
       return;
     }
     
-    // If no specific command detected, provide a general response
-    setTimeout(() => {
+    // Ensure we have a connection to the chat backend
+    if (!connectionId) {
+      // If no connection, try to establish one
+      if (!isConnecting) {
+        await establishChatConnection();
+      }
+      
+      // If still no connection, show error message
+      if (!connectionId) {
+        setChatHistory(prev => [...prev, { 
+          type: 'system', 
+          content: getConnectionErrorMessage()
+        }]);
+        return;
+      }
+    }
+    
+    try {
+      // Send the message to the backend via SSE
+      await chatApi.sendMessage({
+        content: text,
+        connectionId: connectionId,
+        contextType: contextType
+      });
+      
+      // Response will be handled by the SSE event listener
+    } catch (error) {
+      console.error('Error sending message to chat API:', error);
+      
+      // Show consistent error message if API call fails
       setChatHistory(prev => [...prev, { 
         type: 'system', 
-        content: getGeneralResponse(text)
+        content: getConnectionErrorMessage()
       }]);
-    }, 500);
+    }
   };
   
-  // Generate a general response based on the input
-  const getGeneralResponse = (text: string) => {
-    const lowerText = text.toLowerCase();
-    
-    // Simple response patterns
-    if (/hello|hi|hey/i.test(lowerText)) {
-      return "Hello! How can I assist you today with DoveText?"
-    }
-    if (/help|assist/i.test(lowerText)) {
-      return "I can help you navigate the app, create tasks, schedule events, or answer questions about DoveText. What would you like to do?"
-    }
-    
-    // Default response
-    return "I'm here to help you with DoveText. You can ask me to navigate to different pages, create tasks, schedule events, or help you find information."
+  // Error message when backend is unavailable
+  const getConnectionErrorMessage = () => {
+    return "Sorry, the system is currently unavailable. Please try again later.";
   };
   
   // Function to handle navigation actions
@@ -313,7 +417,7 @@ export default function TaskOrientedChat({
     }, 1000);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
 
@@ -325,75 +429,58 @@ export default function TaskOrientedChat({
     // Add user message to chat
     setChatHistory(prev => [...prev, { type: 'user', content: message }]);
     
+    // Store the message before clearing the input
+    const currentMessage = message;
+    setMessage(''); // Clear input field immediately for better UX
+    
     // Check if this is a navigation command
-    const navigationAction = detectNavigationCommand(message);
+    const navigationAction = detectNavigationIntent(currentMessage);
     if (navigationAction) {
       handleNavigation(navigationAction);
-      setMessage('');
       return;
     }
     
     // If we're on a specific page, handle page-specific commands
-    const pageSpecificCommand = handlePageSpecificCommand(message);
+    const pageSpecificCommand = handlePageSpecificCommand(currentMessage);
     if (pageSpecificCommand) {
-      setMessage('');
       return;
     }
 
-    // Determine if this is a new task or continuing
-    const isNewTask = !currentTask;
-    
-    // Simulate AI response and task progression
-    setTimeout(() => {
-      let response = '';
-      
-      if (isNewTask) {
-        // Initialize a new task based on context
-        if (contextType === 'schedule') {
-          response = `I'll help you schedule "${message}". What date would you like to schedule this for?`;
-          setCurrentTask({ complete: false, steps: 3, currentStep: 1 });
-        } else if (contextType === 'tasks') {
-          response = `I'll add "${message}" to your tasks. Would you like to set a priority level (high, medium, low)?`;
-          setCurrentTask({ complete: false, steps: 2, currentStep: 1 });
-        } else {
-          // General context
-          response = `I'll help you with "${message}". Could you provide more details about what you'd like to do?`;
-          setCurrentTask({ complete: false, steps: 2, currentStep: 1 });
-        }
-      } else if (currentTask) {
-        // Continue existing task based on context
-        if (contextType === 'schedule') {
-          if (currentTask.currentStep === 1) {
-            response = `Got it, ${message}. What time should this be scheduled for?`;
-            setCurrentTask({ ...currentTask, currentStep: 2 });
-          } else if (currentTask.currentStep === 2) {
-            response = `Perfect! I've scheduled your event for ${message}. Is there anything else you'd like to add, such as participants or notes?`;
-            setCurrentTask({ ...currentTask, currentStep: 3 });
-          } else {
-            response = `Great! I've updated your schedule with all the details. Your event has been created successfully.`;
-            setCurrentTask({ ...currentTask, complete: true });
-          }
-        } else if (contextType === 'tasks') {
-          if (currentTask.currentStep === 1) {
-            response = `I've set the priority to ${message}. When is this task due?`;
-            setCurrentTask({ ...currentTask, currentStep: 2 });
-          } else {
-            response = `Perfect! I've added your task with priority ${message} and due date. The task has been created successfully.`;
-            setCurrentTask({ ...currentTask, complete: true });
-          }
-        } else {
-          // General context
-          if (currentTask.currentStep === 1) {
-            response = `Thanks for the details. I'll process that for you right away.`;
-            setCurrentTask({ ...currentTask, complete: true });
-          }
-        }
+    // Ensure we have a connection to the chat backend
+    if (!connectionId) {
+      // If no connection, try to establish one
+      if (!isConnecting) {
+        await establishChatConnection();
       }
       
-      setChatHistory(prev => [...prev, { type: 'system', content: response }]);
-    }, 800);
-
-    setMessage('');
+      // If still no connection after attempting to establish one, show error message
+      if (!connectionId) {
+        setChatHistory(prev => [...prev, { 
+          type: 'system', 
+          content: getConnectionErrorMessage()
+        }]);
+        return;
+      }
+    }
+    
+    try {
+      // Send the message to the backend via SSE
+      await chatApi.sendMessage({
+        content: currentMessage,
+        connectionId: connectionId,
+        contextType: contextType
+      });
+      
+      // Response will be handled by the SSE event listener
+    } catch (error) {
+      console.error('Error sending message to chat API:', error);
+      
+      // Show consistent error message if API call fails
+      setChatHistory(prev => [...prev, { 
+        type: 'system', 
+        content: getConnectionErrorMessage()
+      }]);
+    }
   };
 
   // Determine classes based on state
