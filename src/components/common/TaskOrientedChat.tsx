@@ -210,9 +210,16 @@ export default function TaskOrientedChat({
   };
   
   const handleBubbleClick = () => {
-    setIsExpanded(true);
-    // Input focus will be handled by the useEffect
+    // Only trigger if fully closed or fully open
+    if (animationState === 'closed') {
+      setIsExpanded(true);
+      // Input focus will be handled by the useEffect
+    } else if (animationState === 'open') {
+      setIsExpanded(false);
+    }
   };
+  
+  // No longer needed as we use inline functions for better reliability
 
   // Handle page-specific commands based on current page
   const handlePageSpecificCommand = (text: string) => {
@@ -483,14 +490,58 @@ export default function TaskOrientedChat({
     }
   };
 
-  // Determine classes based on state
-  const containerClasses = isExpanded
-    ? `fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 ${className} transition-opacity duration-300 ease-in-out`
-    : `fixed bottom-4 right-4 w-12 h-12 z-50 ${className}`;
+  // Animation state for smooth transitions
+  const [animationState, setAnimationState] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
   
-  const chatClasses = isExpanded
-    ? `bg-white rounded-2xl shadow-xl overflow-hidden w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 max-w-4xl h-3/4 max-h-[80vh] transition-all duration-300 ease-in-out transform scale-100`
-    : `bg-white rounded-full shadow-lg overflow-hidden h-12 w-12 transition-all duration-300 ease-in-out`;
+  // Handle animation state changes when expanded state changes
+  useEffect(() => {
+    if (isExpanded) {
+      // Start opening animation
+      setAnimationState('opening');
+      // After animation completes, set to fully open
+      const timer = setTimeout(() => setAnimationState('open'), 300);
+      return () => clearTimeout(timer);
+    } else {
+      // Start closing animation
+      setAnimationState('closing');
+      // After animation completes, set to fully closed
+      const timer = setTimeout(() => setAnimationState('closed'), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isExpanded]);
+  
+  // Determine classes based on animation state
+  const containerClasses = (() => {
+    const baseClass = `fixed z-50 ${className}`;
+    
+    // When fully closed and not expanded, show just the chat bubble in the corner
+    if (!isExpanded && animationState === 'closed') {
+      return `${baseClass} bottom-4 right-4 w-12 h-12`;
+    }
+    
+    // For all other states, show the full-screen container
+    return `${baseClass} inset-0 flex items-center justify-center bg-black bg-opacity-50`;
+  })();
+  
+  const chatClasses = (() => {
+    // Base classes for different states
+    const expandedClass = 'bg-white shadow-xl overflow-hidden rounded-2xl w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 max-w-4xl h-3/4 max-h-[80vh]';
+    const closedClass = 'bg-white shadow-xl overflow-hidden rounded-full h-12 w-12';
+    
+    if (!isExpanded && animationState === 'closed') {
+      return closedClass;
+    }
+    
+    // For all other states, use the expanded class with appropriate animations
+    switch (animationState) {
+      case 'opening':
+        return `${expandedClass} animate-scaleUp`;
+      case 'closing':
+        return `${expandedClass} animate-scaleDown`;
+      default:
+        return expandedClass;
+    }
+  })();
 
   // Get context-specific title and examples based on current page and passed context
   const getContextTitle = () => {
@@ -535,13 +586,13 @@ export default function TaskOrientedChat({
     return '"Help me navigate to..."';
   };
 
-  // If not expanded, show just the chat bubble
-  if (!isExpanded) {
+  // If not expanded and fully closed, show just the chat bubble
+  if (!isExpanded && animationState === 'closed') {
     return (
       <div className={containerClasses}>
         <button 
           onClick={handleBubbleClick}
-          className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg"
+          className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg animate-pulse"
           aria-label="Open chat assistant"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -556,20 +607,29 @@ export default function TaskOrientedChat({
     <div className={containerClasses} onClick={(e) => {
       // Close the modal when clicking the overlay background
       if (e.target === e.currentTarget) {
-        if (chatHistory.length === 0 || currentTask?.complete) {
+        // Direct close function for better reliability
+        const closeChat = () => {
           setIsExpanded(false);
+        };
+        
+        if (chatHistory.length === 0 || currentTask?.complete) {
+          closeChat();
         } else {
           // Show confirmation if in middle of conversation
           if (confirm('Are you sure you want to close this conversation?')) {
             setChatHistory([]);
             setCurrentTask(null);
             setIsActive(false);
-            setIsExpanded(false);
+            closeChat();
           }
         }
       }
     }}>
-      <div className={chatClasses} onClick={(e) => e.stopPropagation()}>
+      <div 
+        className={chatClasses} 
+        onClick={(e) => e.stopPropagation()}
+        style={{ transformOrigin: 'bottom right' }}
+      >
         {/* Chat Header */}
         <div className="bg-blue-500 text-white px-4 py-4 flex justify-between items-center">
           <h3 className="font-medium text-lg">
@@ -579,19 +639,24 @@ export default function TaskOrientedChat({
           </h3>
           <button 
             onClick={() => {
-              if (chatHistory.length === 0 || currentTask?.complete) {
+              // Direct close function for better reliability
+              const closeChat = () => {
                 setIsExpanded(false);
+              };
+              
+              if (chatHistory.length === 0 || currentTask?.complete) {
+                closeChat();
               } else {
                 // Show confirmation if in middle of conversation
                 if (confirm('Are you sure you want to close this conversation?')) {
                   setChatHistory([]);
                   setCurrentTask(null);
                   setIsActive(false);
-                  setIsExpanded(false);
+                  closeChat();
                 }
               }
             }}
-            className="text-white hover:text-gray-200"
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-1.5 flex items-center justify-center transition-colors cursor-pointer"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
