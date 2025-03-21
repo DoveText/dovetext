@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { SparklesIcon, PlusIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useAction } from '@/context/ActionContext';
+import ChatInput from '@/components/ui/ChatInput';
 
 function TasksContent() {
   const { user } = useAuth();
@@ -63,6 +64,16 @@ function TasksContent() {
             Add Automation
           </button>
         </div>
+
+          {/* Chat Input Box */}
+          <ChatInput
+              className="mt-4"
+              placeholder="Having something to do? Try talk to me"
+              hintText="Press Enter to create an AI-powered task"
+              onSubmit={() => {}}
+              dispatchEvent={true}
+              eventName="triggerChatBubble"
+          />
       </div>
 
       {/* Tasks Content */}

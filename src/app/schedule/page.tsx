@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { CalendarIcon, PlusIcon } from '@heroicons/react/24/outline';
+import ChatInput from '@/components/ui/ChatInput';
 import { useAction } from '@/context/ActionContext';
 import Calendar, { ScheduleEvent, CalendarViewType } from '@/components/calendar/Calendar';
 import CreateEventDialog from '@/components/calendar/CreateEventDialog';
@@ -24,14 +25,6 @@ function ScheduleContent() {
   useEffect(() => {
     setEvents(getMockScheduleEvents());
   }, []);
-  
-  // Handle pending actions from the ActionContext
-  useEffect(() => {
-    if (actionContext.pendingAction === 'create-event') {
-      setShowCreateEventDialog(true);
-      actionContext.clearPendingAction();
-    }
-  }, [actionContext]);
 
   // Handle event click
   const handleEventClick = (event: ScheduleEvent) => {
@@ -51,7 +44,7 @@ function ScheduleContent() {
     setSelectedDate(date);
     setShowCreateEventDialog(true);
   };
-  
+
   // Handle save event
   const handleSaveEvent = (eventData: any) => {
     const newEvent: ScheduleEvent = {
@@ -61,6 +54,7 @@ function ScheduleContent() {
     
     setEvents([...events, newEvent]);
     setShowCreateEventDialog(false);
+    setSelectedEvent(null); // Clear the selected event after saving
   };
   
   // Handle edit event
@@ -93,6 +87,16 @@ function ScheduleContent() {
               Add Event
             </button>
           </div>
+          
+          {/* Chat Input Box */}
+          <ChatInput 
+            className="mt-4"
+            placeholder="Anything in your mind? Talk to me to create a schedule"
+            hintText="Press Enter to create a schedule"
+            onSubmit={() => {}}
+            dispatchEvent={true}
+            eventName="triggerChatBubble"
+          />
         </div>
 
         {/* Calendar Component */}
