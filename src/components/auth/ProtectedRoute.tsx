@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import TaskOrientedChat from '@/components/ui/TaskOrientedChat';
+import TaskOrientedChat from '@/components/common/TaskOrientedChat';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, needsValidation, isActive } = useAuth();

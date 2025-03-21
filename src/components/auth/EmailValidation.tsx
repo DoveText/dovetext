@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Spinner } from '@/components/ui/Spinner';
+import { Spinner } from '@/components/common/Spinner';
 
 const RESEND_COOLDOWN = 60; // seconds
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ScheduleEvent } from './Calendar';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { createPortal } from 'react-dom';
-import Tooltip from '../ui/Tooltip';
+import Tooltip from '../common/Tooltip';
 
 interface MonthViewProps {
   date: Date;

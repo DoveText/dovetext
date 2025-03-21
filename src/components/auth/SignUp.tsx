@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Spinner } from '@/components/ui/Spinner';
+import { Spinner } from '@/components/common/Spinner';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');

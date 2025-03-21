@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Spinner } from '@/components/ui/Spinner';
+import { Spinner } from '@/components/common/Spinner';
 
 export function SignIn() {
   const router = useRouter();

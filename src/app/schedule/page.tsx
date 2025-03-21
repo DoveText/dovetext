@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { CalendarIcon, PlusIcon } from '@heroicons/react/24/outline';
-import ChatInput from '@/components/ui/ChatInput';
+import ChatInput from '@/components/common/ChatInput';
 import { useAction } from '@/context/ActionContext';
 import Calendar, { ScheduleEvent, CalendarViewType } from '@/components/calendar/Calendar';
 import CreateEventDialog from '@/components/calendar/CreateEventDialog';
@@ -89,7 +89,7 @@ function ScheduleContent() {
           </div>
           
           {/* Chat Input Box */}
-          <ChatInput 
+          <ChatInput
             className="mt-4"
             placeholder="Anything in your mind? Talk to me to create a schedule"
             hintText="Press Enter to create a schedule"

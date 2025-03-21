@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { SparklesIcon, PlusIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useAction } from '@/context/ActionContext';
-import ChatInput from '@/components/ui/ChatInput';
+import ChatInput from '@/components/common/ChatInput';
 
 function TasksContent() {
   const { user } = useAuth();
