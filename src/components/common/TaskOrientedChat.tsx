@@ -64,6 +64,63 @@ export default function TaskOrientedChat({
       setCurrentPage(window.location.pathname);
     };
     
+      
+  // Process user message from dashboard input
+  const processUserMessage = async (text: string) => {
+    // Set active state to show we're processing
+    setIsActive(true);
+    
+    // Check for navigation intent
+    const navigationAction = detectNavigationIntent(text);
+    
+    if (navigationAction) {
+      // Handle navigation
+      handleNavigation(navigationAction);
+      return;
+    }
+    
+    // Check for page-specific commands
+    if (handlePageSpecificCommand(text)) {
+      return;
+    }
+    
+    // Ensure we have a connection to the chat backend
+    if (!connectionId) {
+      // If no connection, try to establish one
+      if (!isConnecting) {
+        await establishChatConnection();
+      }
+      
+      // If still no connection, show error message
+      if (!connectionId) {
+        setChatHistory(prev => [...prev, { 
+          type: 'system', 
+          content: getConnectionErrorMessage()
+        }]);
+        return;
+      }
+    }
+    
+    try {
+      // Send the message to the backend via SSE
+      await chatApi.sendMessage({
+        content: text,
+        connectionId: connectionId,
+        contextType: contextType
+      });
+      
+      // Response will be handled by the SSE event listener
+    } catch (error) {
+      console.error('Error sending message to chat API:', error);
+      
+      // Show consistent error message if API call fails
+      setChatHistory(prev => [...prev, { 
+        type: 'system', 
+        content: getConnectionErrorMessage()
+      }]);
+    }
+  };
+
     // Listen for chat trigger events from dashboard input
     const handleChatTrigger = (event: CustomEvent) => {
       setIsExpanded(true);
@@ -292,62 +349,6 @@ export default function TaskOrientedChat({
     }
     
     return null;
-  };
-  
-  // Process user message from dashboard input
-  const processUserMessage = async (text: string) => {
-    // Set active state to show we're processing
-    setIsActive(true);
-    
-    // Check for navigation intent
-    const navigationAction = detectNavigationIntent(text);
-    
-    if (navigationAction) {
-      // Handle navigation
-      handleNavigation(navigationAction);
-      return;
-    }
-    
-    // Check for page-specific commands
-    if (handlePageSpecificCommand(text)) {
-      return;
-    }
-    
-    // Ensure we have a connection to the chat backend
-    if (!connectionId) {
-      // If no connection, try to establish one
-      if (!isConnecting) {
-        await establishChatConnection();
-      }
-      
-      // If still no connection, show error message
-      if (!connectionId) {
-        setChatHistory(prev => [...prev, { 
-          type: 'system', 
-          content: getConnectionErrorMessage()
-        }]);
-        return;
-      }
-    }
-    
-    try {
-      // Send the message to the backend via SSE
-      await chatApi.sendMessage({
-        content: text,
-        connectionId: connectionId,
-        contextType: contextType
-      });
-      
-      // Response will be handled by the SSE event listener
-    } catch (error) {
-      console.error('Error sending message to chat API:', error);
-      
-      // Show consistent error message if API call fails
-      setChatHistory(prev => [...prev, { 
-        type: 'system', 
-        content: getConnectionErrorMessage()
-      }]);
-    }
   };
   
   // Error message when backend is unavailable
