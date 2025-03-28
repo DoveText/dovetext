@@ -375,7 +375,12 @@ export default function DeliveryChannelModal({
                               {slots.slice(1).map((slot, index) => (
                                 <div key={index + 1} className="rounded-lg border border-gray-200 p-4">
                                   <TimeRangeSelector
-                                    value={slot.timeRange}
+                                    value={slot.timeRange || {
+                                      daysOfWeek: [],
+                                      startTime: "09:00",
+                                      endTime: "17:00",
+                                      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                                    }}
                                     onChange={(timeRange) => handleTimeSlotChange(index + 1, timeRange)}
                                     name={`Time Slot ${index + 1}`}
                                     onNameChange={(name) => {
