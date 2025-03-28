@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { User } from 'firebase/auth';
 
 export default function EmailValidationPage() {
   const { user, sendVerificationEmail, getIdToken, refreshUserStatus } = useAuth();
@@ -50,7 +51,7 @@ export default function EmailValidationPage() {
 
   // Handle automatic resend when coming from verify page
   useEffect(() => {
-    const action = searchParams.get('action');
+    const action = searchParams?.get('action');
     if (action === 'resend' && !cooldownTime && !resendAttempted.current) {
       resendAttempted.current = true;
       handleResendEmail();
@@ -59,7 +60,9 @@ export default function EmailValidationPage() {
 
   useEffect(() => {
     // If user is already validated, redirect to dashboard
-    if (user?.settings?.validated) {
+    // Use type assertion to access custom properties on the user object
+    const userWithSettings = user as (User & { settings?: { validated?: boolean } });
+    if (userWithSettings?.settings?.validated) {
       router.push('/dashboard');
     }
     // If no user, redirect to signin
@@ -99,8 +102,10 @@ export default function EmailValidationPage() {
       setError(null);
       setSuccess(null);
       const userData = await refreshUserStatus();
+      // Use type assertion to access custom properties on userData
+      const typedUserData = userData as { settings?: { validated?: boolean } };
       
-      if (userData?.settings?.validated) {
+      if (typedUserData?.settings?.validated) {
         router.push('/dashboard');
       } else {
         setError('Email is not verified yet. Please check your inbox and click the verification link.');

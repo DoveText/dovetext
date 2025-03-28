@@ -22,7 +22,7 @@ export default function VerifyEmailPage() {
       }
       verificationAttempted.current = true;
 
-      const oobCode = searchParams.get('oobCode');
+      const oobCode = searchParams?.get('oobCode');
       
       if (!oobCode) {
         setError('Invalid verification link. Please request a new verification email.');

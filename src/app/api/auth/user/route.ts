@@ -51,11 +51,14 @@ export async function GET(request: Request) {
 
       return NextResponse.json(user);
     } catch (verifyError) {
+      // Type cast the error to access its properties safely
+      const typedError = verifyError as { message?: string; code?: string; stack?: string };
+      
       console.error('Token verification error details:', {
         error: verifyError,
-        message: verifyError.message,
-        code: verifyError.code,
-        stack: verifyError.stack
+        message: typedError.message,
+        code: typedError.code,
+        stack: typedError.stack
       });
       throw verifyError;
     }

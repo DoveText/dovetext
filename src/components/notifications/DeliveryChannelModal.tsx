@@ -12,13 +12,21 @@ import { deliveryChannelsApi } from '@/app/api/delivery-channels';
 import { deliveryMethodsApi } from '@/app/api/delivery-methods';
 import Select from '@/components/common/Select';
 import { FormField, FormInput, FormTextArea } from '@/components/common/form';
-import DeliveryMethodSelector from './DeliveryMethodSelector';
+import DeliveryMethodSelector, { DeliveryMethodSelectorRef } from './DeliveryMethodSelector';
 import TimeRangeSelector from '@/components/common/TimeRangeSelector';
+import { TimeRange } from '@/types/time-range';
+import { DeliveryMethod } from '@/types/delivery-method';
 
 interface DeliveryChannelModalProps {
   channel?: DeliveryChannel | null;
   onClose: () => void;
   onSave: () => void;
+}
+
+// Extended interface for internal component use
+interface ExtendedDeliveryChannelSlot extends DeliveryChannelSlot {
+  deliveryMethods?: DeliveryMethod[];
+  timeRange?: TimeRange;
 }
 
 const channelTypeOptions = [
@@ -35,7 +43,7 @@ export default function DeliveryChannelModal({
   const [type, setType] = useState<DeliveryChannelType>(channel?.type || 'SIMPLE');
   const [description, setDescription] = useState(channel?.description || '');
   const [settings, setSettings] = useState(channel?.settings || '{}');
-  const [slots, setSlots] = useState<DeliveryChannelSlot[]>(() => {
+  const [slots, setSlots] = useState<ExtendedDeliveryChannelSlot[]>(() => {
     const initialSlots = channel?.slots || [type === 'SIMPLE' ? createSimpleChannelSlot() : createFallbackSlot()];
     return initialSlots.map(slot => {
       // Parse timeslot if it's a string
@@ -234,7 +242,7 @@ export default function DeliveryChannelModal({
         settings,
         slots: slots.map(({ id, channelId, deliveryMethods, timeRange, ...slot }) => ({
           ...slot,
-          methodIds: deliveryMethods?.map(method => method.id) || [],
+          methodIds: deliveryMethods?.map(method => typeof method.id === 'string' ? parseInt(method.id, 10) : method.id) || [],
           timeslot: {
             daysOfWeek: timeRange?.daysOfWeek || [],
             startTime: timeRange?.startTime || null,

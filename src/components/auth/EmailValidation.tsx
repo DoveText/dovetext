@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Spinner } from '@/components/common/Spinner';
+import { User } from 'firebase/auth';
 
 const RESEND_COOLDOWN = 60; // seconds
 
@@ -11,20 +12,22 @@ export default function EmailValidation() {
   const [error, setError] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [cooldownTime, setCooldownTime] = useState(0);
-  const { user, sendEmailVerification } = useAuth();
+  const { user, sendVerificationEmail } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     // If user is null or already validated, redirect to dashboard
-    if (!user || (user.settings?.validated && user.is_active)) {
+    const userWithSettings = user as (User & { settings?: { validated?: boolean }, is_active?: boolean });
+    if (!user || (userWithSettings.settings?.validated && userWithSettings.is_active)) {
       router.push('/dashboard');
     }
   }, [user, router]);
 
   useEffect(() => {
     // Set up cooldown timer if validationSentAt exists
-    if (user?.settings?.validationSentAt) {
-      const lastSent = new Date(user.settings.validationSentAt).getTime();
+    const userWithSettings = user as (User & { settings?: { validationSentAt?: string } });
+    if (userWithSettings?.settings?.validationSentAt) {
+      const lastSent = new Date(userWithSettings.settings.validationSentAt).getTime();
       const now = new Date().getTime();
       const diff = Math.floor((now - lastSent) / 1000);
       
@@ -51,7 +54,7 @@ export default function EmailValidation() {
       setError('');
       setIsSending(true);
 
-      await sendEmailVerification();
+      await sendVerificationEmail();
       
       // Update validation sent timestamp
       const response = await fetch('/api/auth/update-validation-sent', {
@@ -102,7 +105,7 @@ export default function EmailValidation() {
           }`}
         >
           {isSending ? (
-            <Spinner size="sm" />
+            <Spinner className="h-4 w-4" />
           ) : cooldownTime > 0 ? (
             `Resend available in ${cooldownTime}s`
           ) : (
