@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline';
 import { useAction, ActionType } from '@/context/ActionContext';
@@ -54,98 +54,6 @@ export default function TaskOrientedChat({
     }
   }, [isExpanded, currentTask?.complete]);
   
-  useEffect(() => {
-    // Get the current pathname to determine context
-    const pathname = window.location.pathname;
-    setCurrentPage(pathname);
-
-    // Listen for route changes
-    const handleRouteChange = () => {
-      setCurrentPage(window.location.pathname);
-    };
-    
-      
-  // Process user message from dashboard input
-  const processUserMessage = async (text: string) => {
-    // Set active state to show we're processing
-    setIsActive(true);
-    
-    // Check for navigation intent
-    const navigationAction = detectNavigationIntent(text);
-    
-    if (navigationAction) {
-      // Handle navigation
-      handleNavigation(navigationAction);
-      return;
-    }
-    
-    // Check for page-specific commands
-    if (handlePageSpecificCommand(text)) {
-      return;
-    }
-    
-    // Ensure we have a connection to the chat backend
-    if (!connectionId) {
-      // If no connection, try to establish one
-      if (!isConnecting) {
-        await establishChatConnection();
-      }
-      
-      // If still no connection, show error message
-      if (!connectionId) {
-        setChatHistory(prev => [...prev, { 
-          type: 'system', 
-          content: getConnectionErrorMessage()
-        }]);
-        return;
-      }
-    }
-    
-    try {
-      // Send the message to the backend via SSE
-      await chatApi.sendMessage({
-        content: text,
-        connectionId: connectionId,
-        contextType: contextType
-      });
-      
-      // Response will be handled by the SSE event listener
-    } catch (error) {
-      console.error('Error sending message to chat API:', error);
-      
-      // Show consistent error message if API call fails
-      setChatHistory(prev => [...prev, { 
-        type: 'system', 
-        content: getConnectionErrorMessage()
-      }]);
-    }
-  };
-
-    // Listen for chat trigger events from dashboard input
-    const handleChatTrigger = (event: CustomEvent) => {
-      setIsExpanded(true);
-      if (event.detail?.message) {
-        const userMessage = event.detail.message;
-        // Add the user message directly to chat history
-        setChatHistory([{ type: 'user', content: userMessage }]);
-        
-        // Process the message after a short delay to simulate response
-        setTimeout(() => {
-          processUserMessage(userMessage);
-        }, 300);
-      }
-    };
-
-    // Add event listeners
-    window.addEventListener('popstate', handleRouteChange);
-    window.addEventListener('triggerChatBubble', handleChatTrigger as EventListener);
-
-    return () => {
-      window.removeEventListener('popstate', handleRouteChange);
-      window.removeEventListener('triggerChatBubble', handleChatTrigger as EventListener);
-    };
-  }, []);
-  
   // Scroll to bottom of chat when history changes
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -169,20 +77,6 @@ export default function TaskOrientedChat({
   
   // Establish SSE connection when the chat is expanded
   useEffect(() => {
-    if (isExpanded && !eventSource && !isConnecting) {
-      establishChatConnection();
-    }
-    
-    return () => {
-      // Clean up the connection when the component unmounts or collapses
-      if (!isExpanded && eventSource) {
-        console.log('Closing SSE connection due to chat collapse');
-        eventSource.close();
-        setEventSource(null);
-        setConnectionId(null);
-      }
-    };
-  }, [isExpanded, eventSource, isConnecting]);
 
   // Function to establish SSE connection with the backend
   const establishChatConnection = async () => {
@@ -234,6 +128,21 @@ export default function TaskOrientedChat({
       setIsConnecting(false);
     }
   };
+
+    if (isExpanded && !eventSource && !isConnecting) {
+      establishChatConnection();
+    }
+    
+    return () => {
+      // Clean up the connection when the component unmounts or collapses
+      if (!isExpanded && eventSource) {
+        console.log('Closing SSE connection due to chat collapse');
+        eventSource.close();
+        setEventSource(null);
+        setConnectionId(null);
+      }
+    };
+  }, [isExpanded, eventSource, isConnecting]);
   
   // Handle SSE message events
   const handleSSEMessage = (event: MessageEvent) => {
@@ -279,7 +188,7 @@ export default function TaskOrientedChat({
   // No longer needed as we use inline functions for better reliability
 
   // Handle page-specific commands based on current page
-  const handlePageSpecificCommand = (text: string) => {
+  const handlePageSpecificCommand = useCallback((text: string) => {
     const lowerText = text.toLowerCase();
     
     // Dashboard page commands
@@ -317,10 +226,10 @@ export default function TaskOrientedChat({
     }
     
     return false;
-  };
+  }, [actionContext, currentPage]);
 
   // Detect navigation commands and intents in user messages
-  const detectNavigationIntent = (text: string) => {
+  const detectNavigationIntent = useCallback((text: string) => {
     const lowerText = text.toLowerCase();
     
     // Comprehensive navigation patterns
@@ -349,7 +258,7 @@ export default function TaskOrientedChat({
     }
     
     return null;
-  };
+  }, []);
   
   // Error message when backend is unavailable
   const getConnectionErrorMessage = () => {
@@ -357,7 +266,7 @@ export default function TaskOrientedChat({
   };
   
   // Function to handle navigation actions
-  const handleNavigation = (action: string) => {
+  const handleNavigation = useCallback((action: string) => {
     // Set a message that we're navigating
     setChatHistory(prev => [...prev, { 
       type: 'system', 
@@ -423,7 +332,7 @@ export default function TaskOrientedChat({
       // Reset chat after navigation
       setCurrentTask({ complete: true, steps: 1, currentStep: 1 });
     }, 1000);
-  };
+  }, [actionContext, onSwitchContext, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -587,6 +496,98 @@ export default function TaskOrientedChat({
     return '"Help me navigate to..."';
   };
 
+  useEffect(() => {
+    // Get the current pathname to determine context
+    const pathname = window.location.pathname;
+    setCurrentPage(pathname);
+
+    // Listen for route changes
+    const handleRouteChange = () => {
+      setCurrentPage(window.location.pathname);
+    };
+    
+      
+  // Process user message from dashboard input
+  const processUserMessage = async (text: string) => {
+    // Set active state to show we're processing
+    setIsActive(true);
+    
+    // Check for navigation intent
+    const navigationAction = detectNavigationIntent(text);
+    
+    if (navigationAction) {
+      // Handle navigation
+      handleNavigation(navigationAction);
+      return;
+    }
+    
+    // Check for page-specific commands
+    if (handlePageSpecificCommand(text)) {
+      return;
+    }
+    
+    // Ensure we have a connection to the chat backend
+    if (!connectionId) {
+      // If no connection, try to establish one
+      if (!isConnecting) {
+        await establishChatConnection();
+      }
+      
+      // If still no connection, show error message
+      if (!connectionId) {
+        setChatHistory(prev => [...prev, { 
+          type: 'system', 
+          content: getConnectionErrorMessage()
+        }]);
+        return;
+      }
+    }
+    
+    try {
+      // Send the message to the backend via SSE
+      await chatApi.sendMessage({
+        content: text,
+        connectionId: connectionId,
+        contextType: contextType
+      });
+      
+      // Response will be handled by the SSE event listener
+    } catch (error) {
+      console.error('Error sending message to chat API:', error);
+      
+      // Show consistent error message if API call fails
+      setChatHistory(prev => [...prev, { 
+        type: 'system', 
+        content: getConnectionErrorMessage()
+      }]);
+    }
+  };
+
+    // Listen for chat trigger events from dashboard input
+    const handleChatTrigger = (event: CustomEvent) => {
+      setIsExpanded(true);
+      if (event.detail?.message) {
+        const userMessage = event.detail.message;
+        // Add the user message directly to chat history
+        setChatHistory([{ type: 'user', content: userMessage }]);
+        
+        // Process the message after a short delay to simulate response
+        setTimeout(() => {
+          processUserMessage(userMessage);
+        }, 300);
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('popstate', handleRouteChange);
+    window.addEventListener('triggerChatBubble', handleChatTrigger as EventListener);
+
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+      window.removeEventListener('triggerChatBubble', handleChatTrigger as EventListener);
+    };
+  }, [connectionId, contextType, handleNavigation, handlePageSpecificCommand, detectNavigationIntent, isConnecting]);
+   
   // If not expanded and fully closed, show just the chat bubble
   if (!isExpanded && animationState === 'closed') {
     return (
