@@ -65,7 +65,7 @@ export default function ActivatePage() {
           <div className="space-y-6">
             <div>
               <p className="text-sm text-gray-500 mb-6">
-                Welcome to DoveText Beta! You're currently on our waitlist. 
+                Welcome to DoveText Beta! You&apos;re currently on our waitlist. 
                 Enter your invitation code below to activate your account, or wait 
                 for your turn to try our service.
               </p>
@@ -123,14 +123,14 @@ export default function ActivatePage() {
                 </div>
                 <div className="relative flex justify-center text-sm">
                   <span className="px-2 bg-white text-gray-500">
-                    Don't have a code?
+                    Don&apos;t have a code?
                   </span>
                 </div>
               </div>
 
               <div className="mt-6">
                 <p className="text-center text-sm text-gray-500">
-                  You're on our waitlist! We'll notify you when it's your turn to try DoveText.
+                  You&apos;re on our waitlist! We&apos;ll notify you when it&apos;s your turn to try DoveText.
                   <br />
                   <span className="font-medium">
                     Current estimated wait time: 2-3 weeks

@@ -255,7 +255,7 @@ export default function PluginEditor({ config, onChange, isEditing, validationEr
               })}
               {headerKeys.length === 0 && (
                 <p className="text-sm text-gray-500 text-center py-4">
-                  No headers added yet. Click "Add Header" to add one.
+                  No headers added yet. Click &quot;Add Header&quot; to add one.
                 </p>
               )}
               <div className="mt-4">

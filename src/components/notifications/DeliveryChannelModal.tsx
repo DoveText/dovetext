@@ -91,7 +91,7 @@ export default function DeliveryChannelModal({
 
       loadMethods().catch(console.error);
     }
-  }, [channel]);
+  }, [channel, slots]);
 
   const handleOpenDialog = (index: number) => {
     methodSelectorRefs.current[index]?.openDialog();
