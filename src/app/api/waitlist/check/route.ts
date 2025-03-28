@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { WaitlistQueries } from '../../../../db/waitlist';
+import { WaitlistQueries } from '@/lib/db/waitlist';
 
 export async function POST(request: Request) {
   try {

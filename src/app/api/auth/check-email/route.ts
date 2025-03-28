@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
+import { db } from '../../../../lib/db';
+import { validateEmailFormat } from '../../../../lib/validation/email';
 
 export async function GET(request: Request) {
   try {
@@ -11,6 +12,16 @@ export async function GET(request: Request) {
         { error: 'Email is required' },
         { status: 400 }
       );
+    }
+
+    // Validate email format first
+    const emailValidation = validateEmailFormat(email);
+    if (!emailValidation.isValid) {
+      return NextResponse.json({
+        exists: false,
+        available: false,
+        error: emailValidation.error
+      }, { status: 400 });
     }
 
     const result = await db.oneOrNone(
@@ -42,6 +53,16 @@ export async function POST(request: Request) {
         { error: 'Email is required' },
         { status: 400 }
       );
+    }
+
+    // Validate email format first
+    const emailValidation = validateEmailFormat(email);
+    if (!emailValidation.isValid) {
+      return NextResponse.json({
+        exists: false,
+        available: false,
+        error: emailValidation.error
+      }, { status: 400 });
     }
 
     const result = await db.oneOrNone(

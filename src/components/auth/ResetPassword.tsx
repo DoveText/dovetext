@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { checkActionCode, confirmPasswordReset } from 'firebase/auth';
-import { Spinner } from '@/components/ui/Spinner';
+import { Spinner } from '@/components/common/Spinner';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');

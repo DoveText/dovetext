@@ -1,22 +1,36 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { hashPassword } from '@/lib/auth/password';
+import { db } from '../../../../lib/db';
+import { hashPassword } from '@/app/api/password';
+import { validateEmailFormat } from '@/lib/validation/email';
 
 interface UserSettings {
   provider: 'email' | 'google' | 'github';
+  validated: boolean;
+  validationSentAt?: string;
   [key: string]: any;
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, firebaseUid, invitationCode, provider } = body;
+    const { email, password, firebaseUid, provider } = body;
     
     if (!provider || !['email', 'google', 'github'].includes(provider)) {
       return NextResponse.json(
         { error: 'Invalid authentication provider' },
         { status: 400 }
       );
+    }
+
+    // Validate email format if provider is email
+    if (provider === 'email') {
+      const emailValidation = validateEmailFormat(email);
+      if (!emailValidation.isValid) {
+        return NextResponse.json(
+          { error: emailValidation.error },
+          { status: 400 }
+        );
+      }
     }
 
     // Start a transaction
@@ -34,44 +48,29 @@ export async function POST(request: Request) {
         );
       }
 
-      // Check invitation code
-      const invitation = await t.oneOrNone(`
-        SELECT 
-          ic.*,
-          COUNT(icu.id) as current_uses
-        FROM invitation_codes ic
-        LEFT JOIN invitation_code_uses icu ON ic.code = icu.code
-        WHERE ic.code = $1
-        GROUP BY ic.code
-      `, [invitationCode]);
-
-      if (!invitation || !invitation.is_active || invitation.current_uses >= invitation.max_uses) {
-        return NextResponse.json(
-          { error: 'Invalid or expired invitation code' },
-          { status: 400 }
-        );
-      }
-
       // For Google sign-in, we don't need to store a password
       const encryptedPassword = password ? await hashPassword(password) : null;
       
       // Use the provided provider in settings
       const settings: UserSettings = {
         provider,
+        validated: provider !== 'email', // Google/Github logins are pre-validated
+        validationSentAt: provider === 'email' ? new Date().toISOString() : undefined
       };
 
       // Create user with encrypted password (null for Google sign-in)
+      // Set is_active to false by default
       const user = await t.one(`
-        INSERT INTO users (email, firebase_uid, encrypted_password, settings)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO users (
+          email, 
+          firebase_uid, 
+          encrypted_password, 
+          settings,
+          is_active
+        )
+        VALUES ($1, $2, $3, $4, false)
         RETURNING id, email, display_name, avatar_url, settings
       `, [email, firebaseUid, encryptedPassword, settings]);
-
-      // Record invitation code use
-      await t.none(`
-        INSERT INTO invitation_code_uses (code, user_id, user_email)
-        VALUES ($1, $2, $3)
-      `, [invitationCode, user.id, email]);
 
       return NextResponse.json(user);
     });

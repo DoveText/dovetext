@@ -6,6 +6,7 @@ import Navigation from '@/components/Navigation'; // added import statement
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { AuthProvider } from '@/context/AuthContext';
+import { ActionProvider } from '@/context/ActionContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -24,11 +25,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          <Navigation />
-          <main className="min-h-screen flex flex-col">
-            {children}
-          </main>
-          <Footer />
+          <ActionProvider>
+            <Navigation />
+            <main className="min-h-screen flex flex-col">
+              {children}
+            </main>
+            <Footer />
+          </ActionProvider>
         </AuthProvider>
         <Analytics />
         <SpeedInsights />

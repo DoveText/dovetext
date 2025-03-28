@@ -1,5 +1,10 @@
+/**
+ * A helper class to authenticate request to frontend API server (SSR for NextJS) at NextJS
+ * Server Side logic (Routing, Middleware, etc.)
+ * It will extract token from Authorization header and try to verify it using Firebase Admin
+ */
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '../firebase/admin';
+import { adminAuth } from '@/lib/firebase/admin';
 import type { AuthenticatedSession } from '@/types/session';
 
 export type NextRequestWithAuth = NextRequest & {

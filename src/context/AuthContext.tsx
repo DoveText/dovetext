@@ -27,6 +27,9 @@ interface AuthContextType {
   confirmPasswordReset: (oobCode: string, newPassword: string, email: string) => Promise<void>;
   auth: any;
   getIdToken: () => Promise<string | null>;
+  needsValidation: boolean;
+  isActive: boolean;
+  refreshUserStatus: () => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -34,35 +37,45 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isSigningUp, setIsSigningUp] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user && !isSigningUp) {
+    return onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
         try {
-          // Only update last_login_at if not in signup process
-          const response = await fetch('/api/auth/signin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: user.email,
-              firebaseUid: user.uid,
-            }),
+          // Get the ID token without forcing refresh
+          const token = await firebaseUser.getIdToken(false);
+          
+          // Fetch user data from our backend
+          const response = await fetch('/api/auth/user', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
           });
-
-          if (!response.ok) {
-            console.error('Failed to update user login time');
-          }
+          const userData = await response.json();
+          
+          // Combine Firebase user with our user data
+          setUser({
+            ...firebaseUser,
+            ...userData,
+          });
         } catch (error) {
-          console.error('Error updating user login time:', error);
+          console.error('Error fetching user data:', error);
+          setUser(firebaseUser);
         }
+      } else {
+        setUser(null);
       }
-      setUser(user);
       setLoading(false);
     });
+  }, []);
 
-    return () => unsubscribe();
-  }, [isSigningUp]);
+  // Check if user needs validation
+  const needsValidation = user && 
+    user.settings?.provider === 'email' && 
+    !user.settings?.validated;
+
+  // Check if user is active
+  const isActive = user?.is_active ?? false;
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -73,7 +86,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string) => {
-    setIsSigningUp(true);
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       if (result.user) {
@@ -82,33 +94,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return result;
     } catch (error: any) {
       throw new Error(getAuthErrorMessage(error.code));
-    } finally {
-      setIsSigningUp(false);
     }
   };
 
   const signInWithGoogle = async () => {
     try {
-      setIsSigningUp(true);
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       return result;
     } catch (error: any) {
       console.error('Google sign-in error:', error);
       throw new Error(getAuthErrorMessage(error.code) || 'Failed to sign in with Google');
-    } finally {
-      setIsSigningUp(false);
     }
   };
 
   const logout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (error: any) {
+      throw new Error(getAuthErrorMessage(error.code));
+    }
   };
 
   const sendVerificationEmail = async () => {
-    if (user) {
-      await sendEmailVerification(user);
+    if (!auth.currentUser) {
+      throw new Error('No authenticated user');
     }
+    await sendEmailVerification(auth.currentUser);
   };
 
   const sendPasswordResetEmail = async (email: string) => {
@@ -144,15 +156,61 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getIdToken = async () => {
-    if (!user) return null;
-    return user.getIdToken(true);  // Force refresh to ensure token is fresh
+    if (!auth.currentUser) return null;
+    return auth.currentUser.getIdToken(false);  // Don't force refresh
+  };
+
+  const refreshUserStatus = async () => {
+    if (!auth.currentUser) return null;
+    
+    try {
+      // Force refresh the token to get latest claims
+      await auth.currentUser.reload();
+      const token = await auth.currentUser.getIdToken(false);
+      
+      // If email is verified, update the database
+      if (auth.currentUser.emailVerified) {
+        const verifyResponse = await fetch('/api/auth/verify-email', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!verifyResponse.ok) {
+          console.error('Failed to update email verification status in database');
+        }
+      }
+      
+      // Fetch latest user data
+      const response = await fetch('/api/auth/user', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+      
+      const userData = await response.json();
+      setUser({
+        ...auth.currentUser!,
+        ...userData
+      });
+      
+      return userData;
+    } catch (error) {
+      console.error('Error refreshing user status:', error);
+      return null;
+    }
   };
 
   const value = {
     user,
     loading,
-    signUp,
     signIn,
+    signUp,
     signInWithGoogle,
     logout,
     sendVerificationEmail,
@@ -160,6 +218,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     confirmPasswordReset,
     auth,
     getIdToken,
+    needsValidation,
+    isActive,
+    refreshUserStatus,
   };
 
   return (
