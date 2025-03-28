@@ -82,7 +82,7 @@ export default function EmailValidation() {
       
       <div className="text-center mb-6">
         <p className="text-gray-600">
-          We've sent a verification link to <span className="font-semibold">{user.email}</span>.
+          We&apos;ve sent a verification link to <span className="font-semibold">{user.email}</span>.
           Please check your email and click the link to verify your account.
         </p>
       </div>
@@ -113,7 +113,7 @@ export default function EmailValidation() {
 
       <div className="mt-4 text-center text-sm text-gray-500">
         <p>
-          Didn't receive the email? Check your spam folder or request a new verification email.
+          Didn&apos;t receive the email? Check your spam folder or request a new verification email.
         </p>
       </div>
     </div>

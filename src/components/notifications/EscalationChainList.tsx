@@ -103,7 +103,7 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
       ))}
       {!chain.stages?.length && (
         <div className="text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-md">
-          No stages added yet. Click "Add Stage" to create your first escalation stage.
+          No stages added yet. Click &quot;Add Stage&quot; to create your first escalation stage.
         </div>
       )}
     </div>

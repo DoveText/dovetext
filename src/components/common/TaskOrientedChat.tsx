@@ -674,7 +674,7 @@ export default function TaskOrientedChat({
             <div className="text-center text-gray-600 mt-16">
               <p className="text-xl font-medium">How can I help you today?</p>
               <p className="text-base mt-4">For example: {getContextExample()}</p>
-              <p className="text-base mt-4 text-blue-500">You can also try: "Create a delivery method" or "Go to settings"</p>
+              <p className="text-base mt-4 text-blue-500">You can also try: &quot;Create a delivery method&quot; or &quot;Go to settings&quot;</p>
             </div>
           ) : (
             chatHistory.map((chat, index) => (
