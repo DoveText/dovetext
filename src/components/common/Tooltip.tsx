@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 interface TooltipProps {
   content: React.ReactNode;
@@ -41,7 +41,7 @@ export default function Tooltip({
     setIsVisible(false);
   };
 
-  const updatePosition = () => {
+  const updatePosition = useCallback(() => {
     if (!childRef.current || !tooltipRef.current) return;
     
     const childRect = childRef.current.getBoundingClientRect();
@@ -111,7 +111,7 @@ export default function Tooltip({
       top: `${top}px`,
       left: `${left}px`
     });
-  };
+  }, [position]);
 
   useEffect(() => {
     return () => {
@@ -145,14 +145,14 @@ export default function Tooltip({
       window.removeEventListener('mousemove', handleUpdate);
       if (intervalId) clearInterval(intervalId);
     };
-  }, [isVisible]);
+  }, [isVisible, updatePosition]);
   
   // Force update position when content changes
   useEffect(() => {
     if (isVisible) {
       updatePosition();
     }
-  }, [content]);
+  }, [content, isVisible, updatePosition]);
 
   return (
     <div 
