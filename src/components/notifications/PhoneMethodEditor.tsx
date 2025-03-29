@@ -2,6 +2,7 @@ import { PhoneConfig } from '@/types/delivery-method';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { parsePhoneNumber } from 'libphonenumber-js';
+import { CountryCode } from 'libphonenumber-js';
 
 interface PhoneMethodEditorProps {
   config: PhoneConfig;
@@ -27,7 +28,7 @@ export default function PhoneMethodEditor({ config, onChange, validationErrors =
     }
 
     try {
-      const parsedNumber = parsePhoneNumber(phoneNumber, countryCode.toUpperCase());
+      const parsedNumber = parsePhoneNumber(phoneNumber, countryCode.toUpperCase() as CountryCode);
       if (!parsedNumber?.isValid()) {
         return 'Invalid phone number';
       }

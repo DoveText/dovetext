@@ -75,11 +75,8 @@ export default function TaskOrientedChat({
     }
   }, [currentTask]);
   
-  // Establish SSE connection when the chat is expanded
-  useEffect(() => {
-
   // Function to establish SSE connection with the backend
-  const establishChatConnection = async () => {
+  const establishChatConnection = useCallback(async () => {
     if (isConnecting) return;
     
     try {
@@ -127,8 +124,10 @@ export default function TaskOrientedChat({
       console.error('Failed to establish SSE connection:', error);
       setIsConnecting(false);
     }
-  };
+  }, [eventSource, isConnecting]);
 
+  // Establish SSE connection when the chat is expanded
+  useEffect(() => {
     if (isExpanded && !eventSource && !isConnecting) {
       establishChatConnection();
     }
@@ -142,7 +141,7 @@ export default function TaskOrientedChat({
         setConnectionId(null);
       }
     };
-  }, [isExpanded, eventSource, isConnecting]);
+  }, [isExpanded, eventSource, establishChatConnection, isConnecting]);
   
   // Handle SSE message events
   const handleSSEMessage = (event: MessageEvent) => {
@@ -586,7 +585,7 @@ export default function TaskOrientedChat({
       window.removeEventListener('popstate', handleRouteChange);
       window.removeEventListener('triggerChatBubble', handleChatTrigger as EventListener);
     };
-  }, [connectionId, contextType, handleNavigation, handlePageSpecificCommand, detectNavigationIntent, isConnecting]);
+  }, [connectionId, contextType, handleNavigation, handlePageSpecificCommand, detectNavigationIntent, establishChatConnection, isConnecting]);
    
   // If not expanded and fully closed, show just the chat bubble
   if (!isExpanded && animationState === 'closed') {

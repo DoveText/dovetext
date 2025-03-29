@@ -1,6 +1,16 @@
 import pgPromise from 'pg-promise';
 import dotenv from 'dotenv';
 import path from 'path';
+import { Pool } from 'pg';
+
+// Extend the pg-promise types to include the pool property
+declare module 'pg-promise' {
+  interface IMain {
+    $pool: {
+      pool: Pool;
+    };
+  }
+}
 
 // Load environment-specific .env file
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -103,8 +113,9 @@ export const db = (() => {
     }
     
     // Also set max listeners on the pool if available
-    if (instance.$pool && instance.$pool.pool && instance.$pool.pool.setMaxListeners) {
-      instance.$pool.pool.setMaxListeners(30);
+    const pool = (instance as any).$pool?.pool;
+    if (pool?.setMaxListeners) {
+      pool.setMaxListeners(30);
       console.log('[Database] Successfully set max listeners on connection pool');
     }
   } catch (error) {
@@ -116,18 +127,19 @@ export const db = (() => {
     .then(obj => {
       console.log(`[Database] Connection successful (${NODE_ENV} environment)`);
       // Check connection pool status
-      if (instance.$pool && instance.$pool.pool) {
+      const pool = (instance as any).$pool?.pool;
+      if (pool) {
         const poolStatus = {
-          total: instance.$pool.pool.totalCount,
-          idle: instance.$pool.pool.idleCount,
-          waiting: instance.$pool.pool.waitingClientsCount
+          total: pool.totalCount,
+          idle: pool.idleCount,
+          waiting: pool.waitingClientsCount
         };
         console.log(`[Database] Connection pool status:`, poolStatus);
       }
       obj.done(); // success, release the connection
     })
     .catch(error => {
-      console.error('[Database] Connection error:', error.message || error);
+      console.error('[Database] Connection error:', error);
     });
     
   // Store in global to survive hot reloads

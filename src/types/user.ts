@@ -1,18 +1,17 @@
+import { User as FirebaseUser } from 'firebase/auth';
+
 export interface UserSettings {
   theme?: 'light' | 'dark' | 'system';
   notifications?: {
     email?: boolean;
     push?: boolean;
   };
+  provider?: 'email' | 'google' | 'github';
+  validated?: boolean;
   // Add more settings as needed
 }
 
-export interface User {
-  id: number;
-  email: string;
-  firebase_uid: string;
-  display_name?: string;
-  avatar_url?: string;
+export interface User extends FirebaseUser {
   settings: UserSettings;
   is_active: boolean;
   last_login_at?: Date;

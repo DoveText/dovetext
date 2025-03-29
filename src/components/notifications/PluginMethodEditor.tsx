@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import Select from '@/components/common/Select';
 import EditableSelect, { EditableSelectOption } from '../common/EditableSelect';
-import { PluginType, WebhookConfig } from '@/types/delivery-method';
+import { PluginType, WebhookConfig, PluginConfig } from '@/types/delivery-method';
 import { TrashIcon } from '@heroicons/react/24/outline';
+import { FormField } from '@/components/common/form';
 
 interface PluginEditorProps {
-  config: WebhookConfig;
-  onChange: (config: WebhookConfig) => void;
+  config: PluginConfig;
+  onChange: (config: PluginConfig) => void;
   isEditing?: boolean;
   validationErrors?: Record<string, string>;
 }
@@ -28,31 +29,40 @@ const commonHeaderOptions: EditableSelectOption[] = [
 
 export default function PluginEditor({ config, onChange, isEditing, validationErrors = {} }: PluginEditorProps) {
   const [headerKeys, setHeaderKeys] = useState<string[]>(Object.keys(config.webhook?.headers || {}));
+  
+  // Ensure webhook property is initialized
+  const ensuredWebhook: WebhookConfig = config.webhook || {
+    url: '',
+    method: 'POST',
+    headers: {},
+    payload: ''
+  };
 
   return (
     <div className="space-y-4">
-      <Select
-        label="Plugin Type"
-        value={config.type}
-        onChange={(value) => onChange({
-          ...config,
-          type: value as PluginType,
-          // Reset other fields when type changes
-          slackWebhookUrl: '',
-          slackChannel: '',
-          telegramBotToken: '',
-          telegramChatId: '',
-          webhook: {
-            url: '',
-            method: 'POST',
-            headers: {},
-            payload: '',
-          },
-        })}
-        options={pluginTypes}
-        disabled={isEditing}
-        className="mt-2"
-      />
+      <FormField label="Plugin Type" error={validationErrors.type}>
+        <Select
+          value={config.type}
+          onChange={(value) => onChange({
+            ...config,
+            type: value as PluginType,
+            // Reset other fields when type changes
+            slackWebhookUrl: '',
+            slackChannel: '',
+            telegramBotToken: '',
+            telegramChatId: '',
+            webhook: {
+              url: '',
+              method: 'POST',
+              headers: {},
+              payload: ''
+            }
+          })}
+          options={pluginTypes}
+          disabled={isEditing}
+          className="mt-2"
+        />
+      </FormField>
 
       {config.type === 'SLACK' && (
         <div className="space-y-4 rounded-md bg-gray-50 px-4 py-4">
@@ -129,50 +139,45 @@ export default function PluginEditor({ config, onChange, isEditing, validationEr
       )}
 
       {config.type === 'CUSTOM_WEBHOOK' && (
-        <div className="space-y-4 rounded-md bg-gray-50 px-4 py-4">
-          <div>
-            <label className="block text-sm font-medium leading-6 text-gray-900">Webhook URL</label>
-            <div className="mt-2 flex gap-2">
-              <Select
-                value={config.webhook.method}
-                onChange={(method) => {
-                  onChange({
-                    ...config,
-                    webhook: {
-                      ...config.webhook,
-                      method,
-                    },
-                  });
-                }}
-                options={[
-                  { value: 'GET', label: 'GET' },
-                  { value: 'POST', label: 'POST' },
-                  { value: 'PUT', label: 'PUT' },
-                  { value: 'DELETE', label: 'DELETE' },
-                  { value: 'PATCH', label: 'PATCH' },
-                ]}
-                className="w-28"
-              />
-              <input
-                type="text"
-                value={config.webhook.url}
-                onChange={(e) => {
-                  onChange({
-                    ...config,
-                    webhook: {
-                      ...config.webhook,
-                      url: e.target.value,
-                    },
-                  });
-                }}
-                className="block flex-1 rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                placeholder="https://api.example.com/webhook"
-              />
-            </div>
-            {validationErrors.webhook && (
-              <p className="mt-2 text-sm text-red-500">{validationErrors.webhook}</p>
-            )}
-          </div>
+        <div className="space-y-4">
+          <FormField label="Webhook URL" error={validationErrors.webhookUrl}>
+            <input
+              type="text"
+              value={config.webhook?.url || ''}
+              onChange={(e) => onChange({
+                ...config,
+                webhook: {
+                  url: e.target.value,
+                  method: config.webhook?.method || 'POST',
+                  headers: config.webhook?.headers || {},
+                  payload: config.webhook?.payload || ''
+                }
+              })}
+              className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+              placeholder="https://example.com/webhook"
+            />
+          </FormField>
+
+          <FormField label="HTTP Method" error={validationErrors.webhookMethod}>
+            <Select
+              value={config.webhook?.method || 'POST'}
+              onChange={(value) => onChange({
+                ...config,
+                webhook: {
+                  url: config.webhook?.url || '',
+                  method: value,
+                  headers: config.webhook?.headers || {},
+                  payload: config.webhook?.payload || ''
+                }
+              })}
+              options={[
+                { value: 'GET', label: 'GET' },
+                { value: 'POST', label: 'POST' },
+                { value: 'PUT', label: 'PUT' },
+                { value: 'DELETE', label: 'DELETE' }
+              ]}
+            />
+          </FormField>
 
           <div>
             <div className="flex items-center justify-between">

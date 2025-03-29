@@ -50,9 +50,10 @@ export default function TimeRangeSelector({
       daysOfWeek: isEveryDay ? ALL_DAYS : selectedDays,
       startTime: isAllDay ? null : startTime,
       endTime: isAllDay ? null : endTime,
+      timezone: value.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone, // Use existing timezone or default to user's timezone
     };
     onChange(newValue);
-  }, [isAllDay, isEveryDay, selectedDays, startTime, endTime, onChange]);
+  }, [isAllDay, isEveryDay, selectedDays, startTime, endTime, value, onChange]);
 
   // Update parent when local state changes
   useEffect(() => {

@@ -2,6 +2,15 @@
 
 import { useState } from 'react';
 import { DeliveryRule } from '@/types/delivery-rule';
+
+// Extended interface to include slots property
+interface ExtendedDeliveryRule extends DeliveryRule {
+  slots?: Array<{
+    id: string;
+    name: string;
+    // Add any other properties that slots might have
+  }>;
+}
 import { 
   PencilIcon,
   TrashIcon,
@@ -17,7 +26,7 @@ import { Dialog } from '@headlessui/react';
 import DeliveryRuleModal from './DeliveryRuleModal';
 
 interface DeliveryRuleListProps {
-  rules: DeliveryRule[];
+  rules: ExtendedDeliveryRule[];
   onUpdate: () => void;
 }
 
@@ -27,11 +36,11 @@ export default function DeliveryRuleList({
 }: DeliveryRuleListProps) {
   const [hoveredRule, setHoveredRule] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRule, setEditingRule] = useState<DeliveryRule | null>(null);
-  const [deletingRule, setDeletingRule] = useState<DeliveryRule | null>(null);
+  const [editingRule, setEditingRule] = useState<ExtendedDeliveryRule | null>(null);
+  const [deletingRule, setDeletingRule] = useState<ExtendedDeliveryRule | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleDelete = (rule: DeliveryRule) => {
+  const handleDelete = (rule: ExtendedDeliveryRule) => {
     setDeletingRule(rule);
   };
 
@@ -104,7 +113,7 @@ export default function DeliveryRuleList({
                   )}
                   {editingRule.slots && editingRule.slots.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {editingRule.slots.map((slot, index) => (
+                      {editingRule.slots.map((slot: {id: string, name: string}, index: number) => (
                         <span
                           key={index}
                           className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10"

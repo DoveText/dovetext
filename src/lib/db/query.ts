@@ -1,7 +1,7 @@
 import { pool } from './pool';
-import { QueryResult } from 'pg';
+import { QueryResult, QueryResultRow } from 'pg';
 
-export async function query<T>(text: string, params?: any[]): Promise<QueryResult<T>> {
+export async function query<T extends QueryResultRow>(text: string, params?: any[]): Promise<QueryResult<T>> {
   const client = await pool.connect();
   try {
     return await client.query(text, params);

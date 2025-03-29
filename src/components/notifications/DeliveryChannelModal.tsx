@@ -12,13 +12,21 @@ import { deliveryChannelsApi } from '@/app/api/delivery-channels';
 import { deliveryMethodsApi } from '@/app/api/delivery-methods';
 import Select from '@/components/common/Select';
 import { FormField, FormInput, FormTextArea } from '@/components/common/form';
-import DeliveryMethodSelector from './DeliveryMethodSelector';
+import DeliveryMethodSelector, { DeliveryMethodSelectorRef } from './DeliveryMethodSelector';
 import TimeRangeSelector from '@/components/common/TimeRangeSelector';
+import { TimeRange } from '@/types/time-range';
+import { DeliveryMethod } from '@/types/delivery-method';
 
 interface DeliveryChannelModalProps {
   channel?: DeliveryChannel | null;
   onClose: () => void;
   onSave: () => void;
+}
+
+// Extended interface for internal component use
+interface ExtendedDeliveryChannelSlot extends DeliveryChannelSlot {
+  deliveryMethods?: DeliveryMethod[];
+  timeRange?: TimeRange;
 }
 
 const channelTypeOptions = [
@@ -35,7 +43,7 @@ export default function DeliveryChannelModal({
   const [type, setType] = useState<DeliveryChannelType>(channel?.type || 'SIMPLE');
   const [description, setDescription] = useState(channel?.description || '');
   const [settings, setSettings] = useState(channel?.settings || '{}');
-  const [slots, setSlots] = useState<DeliveryChannelSlot[]>(() => {
+  const [slots, setSlots] = useState<ExtendedDeliveryChannelSlot[]>(() => {
     const initialSlots = channel?.slots || [type === 'SIMPLE' ? createSimpleChannelSlot() : createFallbackSlot()];
     return initialSlots.map(slot => {
       // Parse timeslot if it's a string
@@ -234,7 +242,7 @@ export default function DeliveryChannelModal({
         settings,
         slots: slots.map(({ id, channelId, deliveryMethods, timeRange, ...slot }) => ({
           ...slot,
-          methodIds: deliveryMethods?.map(method => method.id) || [],
+          methodIds: deliveryMethods?.map(method => typeof method.id === 'string' ? parseInt(method.id, 10) : method.id) || [],
           timeslot: {
             daysOfWeek: timeRange?.daysOfWeek || [],
             startTime: timeRange?.startTime || null,
@@ -367,7 +375,12 @@ export default function DeliveryChannelModal({
                               {slots.slice(1).map((slot, index) => (
                                 <div key={index + 1} className="rounded-lg border border-gray-200 p-4">
                                   <TimeRangeSelector
-                                    value={slot.timeRange}
+                                    value={slot.timeRange || {
+                                      daysOfWeek: [],
+                                      startTime: "09:00",
+                                      endTime: "17:00",
+                                      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                                    }}
                                     onChange={(timeRange) => handleTimeSlotChange(index + 1, timeRange)}
                                     name={`Time Slot ${index + 1}`}
                                     onNameChange={(name) => {
@@ -394,7 +407,7 @@ export default function DeliveryChannelModal({
                                     </div>
                                     <DeliveryMethodSelector
                                       ref={(ref) => methodSelectorRefs.current[index + 1] = ref}
-                                      value={slot.deliveryMethods}
+                                      value={slot.deliveryMethods || []}
                                       onChange={(deliveryMethods) => 
                                         handleDeliveryMethodsChange(index + 1, deliveryMethods)
                                       }
@@ -443,7 +456,7 @@ export default function DeliveryChannelModal({
                               <div key={index} className="rounded-lg border border-gray-200 p-4">
                                 <DeliveryMethodSelector
                                   ref={(ref) => methodSelectorRefs.current[index] = ref}
-                                  value={slot.deliveryMethods}
+                                  value={slot.deliveryMethods || []}
                                   onChange={(deliveryMethods) =>
                                     handleDeliveryMethodsChange(index, deliveryMethods)
                                   }

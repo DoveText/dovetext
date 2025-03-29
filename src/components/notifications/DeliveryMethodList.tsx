@@ -35,9 +35,25 @@ interface MethodGroup {
   canCreate: boolean;
 }
 
+// Extended config interface for internal component use
+interface ExtendedMethodConfig {
+  email?: string;
+  phone?: any;
+  plugin?: any;
+  textMethodId?: string;
+  voiceMethodId?: string;
+  phoneNumber?: string;
+  doveNumber?: string;
+}
+
+// Extended interface for CreateDeliveryMethodRequest that includes id property
+interface ExtendedCreateDeliveryMethodRequest extends CreateDeliveryMethodRequest {
+  id?: string;
+}
+
 interface PhoneMethodGroup {
   phoneNumber: string;
-  method: DeliveryMethod;
+  method: DeliveryMethod & { config: ExtendedMethodConfig };
 }
 
 const methodIcons: Record<DeliveryMethodType, React.ComponentType<any>> = {
@@ -78,8 +94,15 @@ const groupDefinitions: Omit<MethodGroup, 'methods'>[] = [
 
 const getMethodConfig = (method: DeliveryMethod) => {
   try {
-    const parsed = JSON.parse(method.config);
-    return parsed;
+    // Check if config is already an object
+    if (typeof method.config === 'object' && method.config !== null) {
+      return method.config;
+    }
+    // If it's a string, parse it
+    if (typeof method.config === 'string') {
+      return JSON.parse(method.config);
+    }
+    return {};
   } catch (e) {
     console.error('Failed to parse method config for method:', method.name, e);
     return {};
@@ -317,7 +340,10 @@ const MethodList = ({
 
   const methodsToRender = group.name === 'Phone & Text' 
     ? groupPhoneMethods(methods)
-    : methods.map(method => ({ method: {...method, config: getMethodConfig(method)} }));
+    : methods.map(method => ({ 
+      method: {...method, config: getMethodConfig(method) as ExtendedMethodConfig},
+      phoneNumber: undefined // Add phoneNumber property to match PhoneMethodGroup structure
+    }));
 
   return (
     <ul role="list" className="space-y-4">
@@ -352,8 +378,8 @@ const MethodList = ({
           details = (
             <>
               <EnvelopeIcon className="h-3 w-3 mr-1 flex-shrink-0" />
-              <span className="truncate">{config.email}</span>
-              <CopyButton text={config.email}/>
+              <span className="truncate">{config.email || ''}</span>
+              <CopyButton text={config.email || ''}/> {/* Provide empty string as fallback */}
             </>
           );
         } else if (method.type === 'DOVEAPP' && config.doveNumber) {
@@ -395,7 +421,7 @@ const MethodList = ({
             icon={Icon}
             name={method.name}
             description={method.description}
-            isDefault={method.isDefault}
+            isDefault={method.isDefault || false}
             details={details}
             isHovered={isHovered}
             isEditing={isEditing}
@@ -435,7 +461,8 @@ export default function DeliveryMethodList({
 
     try {
       if (deletingMethod.type === 'TEXT' || deletingMethod.type === 'VOICE') {
-        const config = deletingMethod.config;
+        // Use type assertion to access extended properties
+        const config = deletingMethod.config as ExtendedMethodConfig;
 
         const deleteIds = [];
         if (config.textMethodId) {
@@ -478,7 +505,7 @@ export default function DeliveryMethodList({
     }
   };
 
-  const handleSubmit = async (data: CreateDeliveryMethodRequest) => {
+  const handleSubmit = async (data: ExtendedCreateDeliveryMethodRequest) => {
     try {
       if (data.id) {
         await deliveryMethodsApi.update(data.id, data);
@@ -494,7 +521,7 @@ export default function DeliveryMethodList({
     }
   };
 
-  const handleModalSubmit = async (data: CreateDeliveryMethodRequest) => {
+  const handleModalSubmit = async (data: ExtendedCreateDeliveryMethodRequest) => {
     try {
       await handleSubmit(data);
     } catch (err) {
