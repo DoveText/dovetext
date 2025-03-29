@@ -9,7 +9,7 @@ import DeliveryMethodSelector, { DeliveryMethodSelectorRef } from './DeliveryMet
 import DeliveryChannelSelector, { DeliveryChannelSelectorRef } from './DeliveryChannelSelector';
 import EscalationChainSelector, { EscalationChainSelectorRef } from './EscalationChainSelector';
 import TimeRangeSelector from '@/components/common/TimeRangeSelector';
-import { DeliveryRule } from '@/types/delivery-rule';
+import { DeliveryRule, CreateDeliveryRuleRequest } from '@/types/delivery-rule';
 import { DeliveryMethod } from '@/types/delivery-method';
 import { DeliveryChannel } from '@/types/delivery-channel';
 import { EscalationChain } from '@/types/escalation-chain';
@@ -43,7 +43,7 @@ export default function DeliveryRuleModal({
   const [name, setName] = useState(editingRule?.name || '');
   const [description, setDescription] = useState(editingRule?.description || '');
   const [priority, setPriority] = useState(editingRule?.priority || 10);
-  const [timeslot, setTimeslot] = useState(editingRule?.timeslot || {
+  const [timeslot, setTimeslot] = useState<TimeRange>(editingRule?.timeslot || {
     startTime: '09:00',
     endTime: '17:00',
     daysOfWeek: ALL_DAYS,
@@ -139,22 +139,29 @@ export default function DeliveryRuleModal({
 
     try {
       setIsSubmitting(true);
-      const request: any = {
+      const rule: CreateDeliveryRuleRequest = {
         name,
-        description,
+        description: description || '',
         priority,
-        methodIds,
-        channelIds,
-        chainIds,
-        timeslot,
-        conditions,
-        settings
+        methodIds: methodIds.filter((id): id is string => id !== undefined),
+        channelIds: channelIds.filter((id): id is string => id !== undefined),
+        chainIds: chainIds.filter((id): id is string => id !== undefined),
+        timeslot: {
+          startTime: timeslot.startTime || '00:00',
+          endTime: timeslot.endTime || '23:59',
+          daysOfWeek: timeslot.daysOfWeek,
+          timezone: timeslot.timezone
+        },
+        conditions: {},
+        settings: {
+          isActive: true,
+        },
       };
 
       if (editingRule) {
-        await deliveryRulesApi.update(editingRule.id, request);
+        await deliveryRulesApi.update(editingRule.id, rule);
       } else {
-        await deliveryRulesApi.create(request);
+        await deliveryRulesApi.create(rule);
       }
 
       onSave();
@@ -300,8 +307,8 @@ export default function DeliveryRuleModal({
                           >
                             <DeliveryChannelSelector
                               ref={channelSelectorRef}
-                              value={channels.filter(c => channelIds.includes(c.id))}
-                              onChange={(selected) => setChannelIds(selected.map(c => c.id))}
+                              value={channels.filter(c => channelIds.includes(String(c.id)))}
+                              onChange={(selected) => setChannelIds(selected.map(c => String(c.id)))}
                               hideAddButton
                             />
                           </FormField>
@@ -326,8 +333,8 @@ export default function DeliveryRuleModal({
                           >
                             <EscalationChainSelector
                               ref={chainSelectorRef}
-                              value={chains.filter(c => chainIds.includes(c.id))}
-                              onChange={(selected) => setChainIds(selected.map(c => c.id))}
+                              value={chains.filter(c => chainIds.includes(String(c.id)))}
+                              onChange={(selected) => setChainIds(selected.map(c => String(c.id)))}
                               hideAddButton
                             />
                           </FormField>

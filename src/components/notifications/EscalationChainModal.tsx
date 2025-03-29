@@ -3,7 +3,7 @@
 import { Fragment, useState, useEffect, useRef } from 'react';
 import { Dialog as HeadlessDialog, Transition } from '@headlessui/react';
 import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { EscalationChain, EscalationStage } from '@/types/escalation-chain';
+import { EscalationChain, EscalationStage, CreateEscalationChainRequest } from '@/types/escalation-chain';
 import { DeliveryChannel } from '@/types/delivery-channel';
 import { DeliveryMethod } from '@/types/delivery-method';
 import { deliveryChannelsApi } from '@/app/api/delivery-channels';
@@ -66,9 +66,10 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
           channelIds: stage.channelIds || [],
           methodIds: stage.methodIds || [],
           settings: {
-            stageDelay: stage.settings?.stageDelay || 0,
-            maxRetries: stage.settings?.maxRetries || 3,
-            retryInterval: stage.settings?.retryInterval || 300,
+            waitDuration: stage.settings.waitDuration || 300,
+            maxAttempts: stage.settings.maxAttempts || 3,
+            retryInterval: stage.settings.retryInterval || 60,
+            timeRange: stage.settings.timeRange || null
           }
         }))
       );
@@ -122,10 +123,10 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
 
     try {
       setIsSubmitting(true);
-      const chainData = {
+      const chainData: CreateEscalationChainRequest = {
         name,
         description,
-        type: 'staged',
+        type: 'staged' as const,
         stages: stages.map(stage => ({
           name: stage.name,
           stageOrder: stage.stageOrder,
@@ -135,7 +136,7 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
         }))
       };
 
-      if (editingChain) {
+      if (editingChain?.id) {
         await escalationChainsApi.update(editingChain.id, chainData);
       } else {
         await escalationChainsApi.create(chainData);
@@ -160,9 +161,10 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
         channelIds: [],
         methodIds: [],
         settings: {
-          stageDelay: 0,
-          maxRetries: 3,
+          waitDuration: 0,
+          maxAttempts: 3,
           retryInterval: 300,
+          timeRange: null
         }
       }
     ]);
@@ -277,11 +279,11 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                       {/* Wait Duration */}
                                       <FormField label="Stage Delay">
                                         <Select<string>
-                                          value={stage.settings.stageDelay.toString()}
+                                          value={stage.settings.waitDuration.toString()}
                                           onChange={(value) => {
                                             updateStage(index, 'settings', {
                                               ...stage.settings,
-                                              stageDelay: value
+                                              waitDuration: parseInt(value) || 0
                                             });
                                           }}
                                           options={waitDelayOptions}
@@ -295,12 +297,12 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                         <FormInput
                                           type="number"
                                           min="1"
-                                          value={stage.settings.maxRetries}
+                                          value={stage.settings.maxAttempts}
                                           onChange={(e) => {
                                             const value = parseInt(e.target.value) || 1;
                                             updateStage(index, 'settings', {
                                               ...stage.settings,
-                                              maxRetries: value
+                                              maxAttempts: value
                                             });
                                           }}
                                         />
@@ -344,11 +346,11 @@ const EscalationChainModal: React.FC<EscalationChainModalProps> = ({
                                       >
                                         <DeliveryChannelSelector
                                           ref={el => channelSelectorRefs.current[index] = el}
-                                          value={channels.filter(c => stage.channelIds.includes(c.id))}
+                                          value={channels.filter(c => stage.channelIds.includes(String(c.id)))}
                                           onChange={(selectedChannels) => {
                                             const updatedStage = {
                                               ...stage,
-                                              channelIds: selectedChannels.map(c => c.id)
+                                              channelIds: selectedChannels.map(c => String(c.id))
                                             };
                                             const newStages = [...stages];
                                             newStages[index] = updatedStage;

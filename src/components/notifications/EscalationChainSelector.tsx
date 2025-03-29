@@ -183,7 +183,7 @@ const EscalationChainSelector = forwardRef<EscalationChainSelectorRef, Escalatio
             <ChainCard
               key={chain.id}
               chain={chain}
-              onRemove={() => handleRemove(chain.id)}
+              onRemove={() => chain.id && handleRemove(chain.id)}
             />
           ))
         ) : (
@@ -262,7 +262,11 @@ const EscalationChainSelector = forwardRef<EscalationChainSelectorRef, Escalatio
                       <ChainCard
                         key={chain.id}
                         chain={chain}
-                        onClick={() => handleAdd(chain.id)}
+                        onClick={() => {
+                          if (chain.id) {
+                            handleAdd(chain.id);
+                          }
+                        }}
                         isButton
                       />
                     ))}

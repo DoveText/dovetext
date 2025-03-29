@@ -40,6 +40,9 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
     if (!deletingChain) return;
 
     try {
+      if (!deletingChain.id) {
+        throw new Error('Cannot delete chain: ID is missing');
+      }
       await escalationChainsApi.delete(deletingChain.id);
       onUpdate();
       setDeletingChain(null);
@@ -51,11 +54,10 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
 
   const handleToggleEnabled = async (chain: EscalationChain) => {
     try {
-      if (chain.isEnabled) {
-        await escalationChainsApi.disable(chain.id);
-      } else {
-        await escalationChainsApi.enable(chain.id);
+      if (!chain.id) {
+        throw new Error('Cannot toggle chain: ID is missing');
       }
+      await escalationChainsApi.toggleEnabled(chain.id);
       onUpdate();
     } catch (err) {
       setError('Failed to toggle escalation chain');
@@ -91,12 +93,12 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
           className="inline-flex items-center gap-x-1.5 rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset"
         >
           <BellIcon className="h-3 w-3" aria-hidden="true" />
-          {stage.method?.name || 'Loading...'}
+          {stage.name}
           {index < (chain.stages?.length || 0) - 1 && (
             <>
               <ChevronRightIcon className="h-3 w-3 text-gray-400" aria-hidden="true" />
               <ClockIcon className="h-3 w-3 text-gray-400" aria-hidden="true" />
-              {formatDuration(stage.waitTime)}
+              {formatDuration(stage.settings.waitDuration)}
             </>
           )}
         </div>
@@ -125,7 +127,7 @@ const EscalationChainList: React.FC<EscalationChainListProps> = ({
                 <div className="min-w-0 flex-auto">
                   <div className="flex items-center gap-x-2">
                     <p className="text-sm font-semibold leading-6 text-gray-900">{chain.name}</p>
-                    {chain.isEnabled ? (
+                    {chain.isActive ? (
                       <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
                         Enabled
                       </span>

@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import {
-  User,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
@@ -14,6 +13,7 @@ import {
   confirmPasswordReset as firebaseConfirmPasswordReset,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
+import { User } from '@/types/user';
 
 interface AuthContextType {
   user: User | null;
@@ -56,11 +56,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Combine Firebase user with our user data
           setUser({
             ...firebaseUser,
-            ...userData,
-          });
+            settings: userData.settings || {},
+            is_active: userData.is_active || false,
+            email_verified: userData.email_verified || false,
+            created_at: new Date(userData.created_at),
+            updated_at: new Date(userData.updated_at)
+          } as User);
         } catch (error) {
           console.error('Error fetching user data:', error);
-          setUser(firebaseUser);
+          setUser(null);
         }
       } else {
         setUser(null);
@@ -70,9 +74,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // Check if user needs validation
-  const needsValidation = user && 
+  const needsValidation = Boolean(user && 
     user.settings?.provider === 'email' && 
-    !user.settings?.validated;
+    !user.settings?.validated);
 
   // Check if user is active
   const isActive = user?.is_active ?? false;
@@ -196,8 +200,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userData = await response.json();
       setUser({
         ...auth.currentUser!,
-        ...userData
-      });
+        settings: userData.settings || {},
+        is_active: userData.is_active || false,
+        email_verified: userData.email_verified || false,
+        created_at: new Date(userData.created_at),
+        updated_at: new Date(userData.updated_at)
+      } as User);
       
       return userData;
     } catch (error) {
