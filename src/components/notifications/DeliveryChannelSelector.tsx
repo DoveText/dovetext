@@ -178,15 +178,19 @@ const DeliveryChannelSelector = forwardRef<DeliveryChannelSelectorRef, DeliveryC
   }, []);
 
   const handleAdd = (channelId: string) => {
-    const channel = channels.find(m => m.id === channelId);
-    if (channel && !value.some(m => m.id === channelId)) {
+    // Convert string channelId to number for comparison
+    const channelIdNum = parseInt(channelId, 10);
+    const channel = channels.find(m => m.id === channelIdNum);
+    if (channel && !value.some(m => m.id === channelIdNum)) {
       onChange([...value, channel]);
     }
     setIsOpen(false);
   };
 
   const handleRemove = (channelId: string) => {
-    onChange(value.filter(m => m.id !== channelId));
+    // Convert string channelId to number for comparison
+    const channelIdNum = parseInt(channelId, 10);
+    onChange(value.filter(m => m.id !== channelIdNum));
   };
 
   // Filter out already selected channels
@@ -205,7 +209,7 @@ const DeliveryChannelSelector = forwardRef<DeliveryChannelSelectorRef, DeliveryC
             <ChannelCard
               key={channel.id}
               channel={channel}
-              onRemove={() => handleRemove(channel.id)}
+              onRemove={() => handleRemove(channel.id.toString())}
             />
           ))
         )}
@@ -287,7 +291,7 @@ const DeliveryChannelSelector = forwardRef<DeliveryChannelSelectorRef, DeliveryC
                               <ChannelCard
                                 key={channel.id}
                                 channel={channel}
-                                onClick={() => handleAdd(channel.id)}
+                                onClick={() => handleAdd(channel.id.toString())}
                                 isButton
                               />
                             ))}

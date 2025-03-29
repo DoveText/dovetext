@@ -407,7 +407,7 @@ export default function DeliveryChannelModal({
                                     </div>
                                     <DeliveryMethodSelector
                                       ref={(ref) => methodSelectorRefs.current[index + 1] = ref}
-                                      value={slot.deliveryMethods}
+                                      value={slot.deliveryMethods || []}
                                       onChange={(deliveryMethods) => 
                                         handleDeliveryMethodsChange(index + 1, deliveryMethods)
                                       }
@@ -456,7 +456,7 @@ export default function DeliveryChannelModal({
                               <div key={index} className="rounded-lg border border-gray-200 p-4">
                                 <DeliveryMethodSelector
                                   ref={(ref) => methodSelectorRefs.current[index] = ref}
-                                  value={slot.deliveryMethods}
+                                  value={slot.deliveryMethods || []}
                                   onChange={(deliveryMethods) =>
                                     handleDeliveryMethodsChange(index, deliveryMethods)
                                   }

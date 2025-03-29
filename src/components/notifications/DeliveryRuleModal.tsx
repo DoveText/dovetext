@@ -9,7 +9,7 @@ import DeliveryMethodSelector, { DeliveryMethodSelectorRef } from './DeliveryMet
 import DeliveryChannelSelector, { DeliveryChannelSelectorRef } from './DeliveryChannelSelector';
 import EscalationChainSelector, { EscalationChainSelectorRef } from './EscalationChainSelector';
 import TimeRangeSelector from '@/components/common/TimeRangeSelector';
-import { DeliveryRule, DeliveryRuleSlot } from '@/types/delivery-rule';
+import { DeliveryRule } from '@/types/delivery-rule';
 import { DeliveryMethod } from '@/types/delivery-method';
 import { DeliveryChannel } from '@/types/delivery-channel';
 import { EscalationChain } from '@/types/escalation-chain';

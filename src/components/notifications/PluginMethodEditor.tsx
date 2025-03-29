@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import Select from '@/components/common/Select';
 import EditableSelect, { EditableSelectOption } from '../common/EditableSelect';
-import { PluginType, WebhookConfig } from '@/types/delivery-method';
+import { PluginType, WebhookConfig, PluginConfig } from '@/types/delivery-method';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 interface PluginEditorProps {
-  config: WebhookConfig;
-  onChange: (config: WebhookConfig) => void;
+  config: PluginConfig;
+  onChange: (config: PluginConfig) => void;
   isEditing?: boolean;
   validationErrors?: Record<string, string>;
 }
@@ -28,6 +28,14 @@ const commonHeaderOptions: EditableSelectOption[] = [
 
 export default function PluginEditor({ config, onChange, isEditing, validationErrors = {} }: PluginEditorProps) {
   const [headerKeys, setHeaderKeys] = useState<string[]>(Object.keys(config.webhook?.headers || {}));
+  
+  // Ensure webhook property is initialized
+  const ensuredWebhook: WebhookConfig = config.webhook || {
+    url: '',
+    method: 'POST',
+    headers: {},
+    payload: ''
+  };
 
   return (
     <div className="space-y-4">

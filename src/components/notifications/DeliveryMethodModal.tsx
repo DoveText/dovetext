@@ -5,17 +5,22 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import Select from '@/components/common/Select';
 import EditableSelect from '../common/EditableSelect';
-import { DeliveryMethod, DeliveryMethodType, CreateDeliveryMethodRequest, PluginType, WebhookConfig, PhoneConfig } from '@/types/delivery-method';
+import { DeliveryMethod, DeliveryMethodType, CreateDeliveryMethodRequest, PluginType, WebhookConfig, PhoneConfig, PluginConfig } from '@/types/delivery-method';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import PluginMethodEditor from './PluginMethodEditor';
 import PhoneMethodEditor from './PhoneMethodEditor';
 
 type DeliveryMethodGroup = 'DOVEAPP' | 'EMAIL' | 'PHONE' | 'PLUGIN';
 
+// Extended interface for CreateDeliveryMethodRequest that includes id property
+interface ExtendedCreateDeliveryMethodRequest extends CreateDeliveryMethodRequest {
+  id?: string;
+}
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: CreateDeliveryMethodRequest) => void;
+  onSubmit: (data: ExtendedCreateDeliveryMethodRequest) => void;
   onDelete?: (id: string) => void;
   editingMethod?: DeliveryMethod | null;
   group: DeliveryMethodGroup;
@@ -57,7 +62,7 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
     enableText: true,
     enableVoice: true,
   });
-  const [pluginConfig, setPluginConfig] = useState<WebhookConfig>({
+  const [pluginConfig, setPluginConfig] = useState<PluginConfig>({
     type: 'SLACK',
     slackWebhookUrl: '',
     slackChannel: '',
@@ -171,8 +176,8 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
       return;
     }
 
-    const config: CreateDeliveryMethodRequest['config'] = {};
-    let requests: CreateDeliveryMethodRequest[] = [];
+    const config: ExtendedCreateDeliveryMethodRequest['config'] = {};
+    let requests: ExtendedCreateDeliveryMethodRequest[] = [];
     let deleteIds: string[] = [];
 
     if (group === 'DOVEAPP') {
@@ -194,9 +199,17 @@ export default function DeliveryMethodModal({ isOpen, onClose, onSubmit, onDelet
         config,
       });
     } else if (group === 'PHONE') {
-      const baseConfig = {
+      // Create proper phone config structure
+      const phoneConfigObj: PhoneConfig = {
         phoneNumber: phone.phoneNumber,
         countryCode: phone.countryCode,
+        enableText: phone.enableText,
+        enableVoice: phone.enableVoice
+      };
+      
+      // Create the base config with the proper structure
+      const baseConfig = {
+        phone: phoneConfigObj
       };
 
       if (editingMethod) {
