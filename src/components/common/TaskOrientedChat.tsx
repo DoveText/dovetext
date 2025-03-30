@@ -178,9 +178,11 @@ export default function TaskOrientedChat({
     // Only trigger if fully closed or fully open
     if (animationState === 'closed') {
       setIsExpanded(true);
+      setIsUserInitiated(true);
       // Input focus will be handled by the useEffect
     } else if (animationState === 'open') {
       setIsExpanded(false);
+      setIsUserInitiated(true);
     }
   };
   
@@ -401,23 +403,33 @@ export default function TaskOrientedChat({
 
   // Animation state for smooth transitions
   const [animationState, setAnimationState] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
+  const [isUserInitiated, setIsUserInitiated] = useState(false);
   
   // Handle animation state changes when expanded state changes
   useEffect(() => {
+    // Only animate if it's a user-initiated action
+    if (!isUserInitiated) return;
+    
     if (isExpanded) {
       // Start opening animation
       setAnimationState('opening');
       // After animation completes, set to fully open
-      const timer = setTimeout(() => setAnimationState('open'), 300);
+      const timer = setTimeout(() => {
+        setAnimationState('open');
+        setIsUserInitiated(false);
+      }, 300);
       return () => clearTimeout(timer);
     } else {
       // Start closing animation
       setAnimationState('closing');
       // After animation completes, set to fully closed
-      const timer = setTimeout(() => setAnimationState('closed'), 300);
+      const timer = setTimeout(() => {
+        setAnimationState('closed');
+        setIsUserInitiated(false);
+      }, 300);
       return () => clearTimeout(timer);
     }
-  }, [isExpanded]);
+  }, [isExpanded, isUserInitiated]);
   
   // Determine classes based on animation state
   const containerClasses = (() => {
@@ -610,6 +622,7 @@ export default function TaskOrientedChat({
       if (e.target === e.currentTarget) {
         // Direct close function for better reliability
         const closeChat = () => {
+          setIsUserInitiated(true);
           setIsExpanded(false);
         };
         
@@ -642,6 +655,7 @@ export default function TaskOrientedChat({
             onClick={() => {
               // Direct close function for better reliability
               const closeChat = () => {
+                setIsUserInitiated(true);
                 setIsExpanded(false);
               };
               
