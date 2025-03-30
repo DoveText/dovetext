@@ -446,7 +446,7 @@ export default function TaskOrientedChat({
   
   const chatClasses = (() => {
     // Base classes for different states
-    const expandedClass = 'bg-white shadow-xl overflow-hidden rounded-2xl w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 max-w-4xl h-3/4 max-h-[80vh]';
+    const expandedClass = 'bg-white shadow-xl rounded-2xl w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 max-w-4xl h-3/4';
     const closedClass = 'bg-white shadow-xl overflow-hidden rounded-full h-12 w-12';
     
     if (!isExpanded && animationState === 'closed') {
@@ -719,7 +719,7 @@ export default function TaskOrientedChat({
         </div>
         
         {/* Chat Input */}
-        <form onSubmit={handleSubmit} className="flex items-center p-4 border-t bg-white chat-form">
+        <form onSubmit={handleSubmit} className="flex items-center p-4 border-t bg-white chat-form mb-3 rounded-b-lg">
           <input
             ref={inputRef}
             type="text"
@@ -736,9 +736,10 @@ export default function TaskOrientedChat({
           <button
             type="submit"
             disabled={currentTask?.complete}
-            className={`p-3 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentTask?.complete 
+            className={`p-3 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center ${currentTask?.complete 
               ? 'bg-gray-300 text-gray-500' 
               : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+            style={{ minWidth: '50px', height: '50px' }}
           >
             <ArrowUpCircleIcon className="h-6 w-6" />
           </button>
