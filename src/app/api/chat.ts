@@ -37,99 +37,126 @@ export const chatApi = {
    * Returns a controller to close the connection and the connection ID
    */
   async createChatStream(): Promise<{ eventSource: { close: () => void }, connectionId: string | null }> {
+    console.log('Creating chat stream connection...');
+    
     // Get the current user's token
     const user = auth.currentUser;
     if (!user) {
+      console.error('No authenticated user found');
       throw new Error('User not authenticated');
     }
     
-    const token = await user.getIdToken();
-    
-    // Get the base URL from the apiClient
-    const baseURL = apiClient.defaults.baseURL || '';
-    const url = `${baseURL}/api/v1/chat/stream`;
-    
-    // Store the connection ID when we receive it
-    let connectionId: string | null = null;
-    
-    // Return both the controller and a promise that resolves with the connection ID
-    return new Promise((resolve, reject) => {
-      let controller: { close: () => void } | null = null;
+    try {
+      const token = await user.getIdToken();
+      console.log('Successfully obtained Firebase token');
       
-      // Set a timeout to resolve even if we don't get a connection event
-      const timeoutId = setTimeout(() => {
-        if (!connectionId && controller) {
-          console.warn('No connection ID received within timeout');
-          resolve({ 
-            eventSource: controller || { close: () => console.log('Closing dummy controller') }, 
-            connectionId: null 
-          });
-        }
-      }, 5000);
+      // Get the base URL from the apiClient
+      const baseURL = apiClient.defaults.baseURL || '';
+      const url = `${baseURL}/api/v1/chat/stream`;
+      console.log('Connecting to SSE endpoint:', url);
       
-      // Use fetchEventSource to establish the SSE connection
-      fetchEventSource(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        onopen(response) {
-          // Connection opened successfully
-          if (response.ok && response.headers.get('content-type')?.includes('text/event-stream')) {
-            console.log('SSE connection opened successfully');
-            return Promise.resolve(); // Return a Promise to satisfy TypeScript
-          } else {
-            // If we get an error response, throw an error to trigger the onerror handler
-            const error = new Error(`Failed to open SSE connection: ${response.status} ${response.statusText}`);
-            console.error(error);
-            clearTimeout(timeoutId);
-            reject(error);
-            return Promise.reject(error);
-          }
-        },
-        onmessage(event) {
-          // Handle different event types
-          if (event.event === 'connected') {
-            try {
-              const data = JSON.parse(event.data);
-              connectionId = data.connectionId;
-              
-              // Clear the timeout and resolve the promise
-              clearTimeout(timeoutId);
-              if (controller) {
-                resolve({ eventSource: controller, connectionId });
-              }
-            } catch (error) {
-              console.error('Error parsing SSE connected event', error);
-            }
-          }
-        },
-        onerror(err) {
-          console.error('SSE connection error', err);
-          // Don't retry on error, just reject the promise
-          clearTimeout(timeoutId);
-          reject(err);
-        },
-        onclose() {
-          console.log('SSE connection closed');
-        }
-      }).then(ctrl => {
-        // Store the controller
-        controller = ctrl;
+      // Store the connection ID when we receive it
+      let connectionId: string | null = null;
+      
+      // Return both the controller and a promise that resolves with the connection ID
+      return new Promise((resolve, reject) => {
+        console.log('Setting up SSE connection with fetchEventSource...');
+        let controller: { close: () => void } | null = null;
         
-        // If we already have the connectionId, resolve the promise
-        if (connectionId) {
+        // Set a timeout to resolve even if we don't get a connection event
+        const timeoutId = setTimeout(() => {
+          console.warn('Connection timeout reached without receiving connectionId');
+          if (!connectionId && controller) {
+            console.warn('Resolving with null connectionId due to timeout');
+            resolve({ 
+              eventSource: controller || { close: () => console.log('Closing dummy controller') }, 
+              connectionId: null 
+            });
+          }
+        }, 5000);
+        
+        // Use fetchEventSource to establish the SSE connection
+        fetchEventSource(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache'
+          },
+          onopen(response) {
+            console.log('SSE connection opened with status:', response.status, response.statusText);
+            console.log('Response headers:', response.headers);
+            
+            // Connection opened successfully
+            if (response.ok && response.headers.get('content-type')?.includes('text/event-stream')) {
+              console.log('SSE connection established successfully');
+              return Promise.resolve(); // Return a Promise to satisfy TypeScript
+            } else {
+              // If we get an error response, throw an error to trigger the onerror handler
+              const errorMsg = `Failed to open SSE connection: ${response.status} ${response.statusText}`;
+              console.error(errorMsg);
+              clearTimeout(timeoutId);
+              reject(new Error(errorMsg));
+              return Promise.reject(new Error(errorMsg));
+            }
+          },
+          onmessage(event) {
+            console.log('Received SSE event:', event.event, event.data);
+            
+            // Handle different event types
+            if (event.event === 'connected') {
+              try {
+                const data = JSON.parse(event.data);
+                connectionId = data.connectionId;
+                console.log('Connection established with ID:', connectionId);
+                
+                // Clear the timeout and resolve the promise
+                clearTimeout(timeoutId);
+                if (controller) {
+                  console.log('Resolving promise with connectionId:', connectionId);
+                  resolve({ eventSource: controller, connectionId });
+                }
+              } catch (error) {
+                console.error('Error parsing SSE connected event', error);
+              }
+            } else {
+              console.log('Received message event:', event);
+            }
+          },
+          onerror(err) {
+            console.error('SSE connection error:', err);
+            // Don't retry on error, just reject the promise
+            clearTimeout(timeoutId);
+            reject(err);
+          },
+          onclose() {
+            console.log('SSE connection closed');
+          }
+        }).then(ctrl => {
+          // Store the controller
+          console.log('Received controller from fetchEventSource');
+          controller = ctrl;
+          
+          // If we already have the connectionId, resolve the promise
+          if (connectionId) {
+            console.log('Already have connectionId, resolving promise');
+            clearTimeout(timeoutId);
+            resolve({ 
+              eventSource: controller, 
+              connectionId 
+            });
+          } else {
+            console.log('Waiting for connectionId event...');
+          }
+        }).catch(error => {
+          console.error('Error establishing SSE connection', error);
           clearTimeout(timeoutId);
-          resolve({ 
-            eventSource: controller, 
-            connectionId 
-          });
-        }
-      }).catch(error => {
-        console.error('Error establishing SSE connection', error);
-        clearTimeout(timeoutId);
-        reject(error);
+          reject(error);
+        });
       });
-    });
+    } catch (error) {
+      console.error('Error in createChatStream:', error);
+      throw error;
+    }
   }
 }

@@ -97,32 +97,40 @@ export default function TaskOrientedChat({
     if (isConnecting) return;
     
     try {
+      console.log('TaskOrientedChat: Starting SSE connection...');
       setIsConnecting(true);
       
       // Close any existing connection
       if (eventSource) {
+        console.log('TaskOrientedChat: Closing existing connection');
         eventSource.close();
       }
       
       // Create a new SSE connection with context information
+      console.log('TaskOrientedChat: Calling createChatStream');
       const { eventSource: newEventSource, connectionId: newConnectionId } = 
         await chatApi.createChatStream();
       
+      console.log('TaskOrientedChat: createChatStream returned', { newEventSource, newConnectionId });
+      
       if (!newEventSource || !newConnectionId) {
-        console.error('Failed to establish SSE connection: missing eventSource or connectionId');
+        console.error('TaskOrientedChat: Failed to establish SSE connection: missing eventSource or connectionId');
         setIsConnecting(false);
+        showError(getConnectionErrorMessage(new Error('Failed to establish connection')));
         return;
       }
       
+      console.log('TaskOrientedChat: Setting eventSource and connectionId');
       setEventSource(newEventSource);
       setConnectionId(newConnectionId);
       
       // No need to set up event listeners with fetchEventSource
       // as it handles events internally
       
+      console.log('TaskOrientedChat: Connection established successfully');
       setIsConnecting(false);
     } catch (error: any) {
-      console.error('Failed to establish SSE connection:', error);
+      console.error('TaskOrientedChat: Failed to establish SSE connection:', error);
       setIsConnecting(false);
       showError(getConnectionErrorMessage(error));
     }
@@ -314,34 +322,35 @@ export default function TaskOrientedChat({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!message.trim()) return;
-
-    // Set active state on first message
-    if (!isActive) {
-      setIsActive(true);
-    }
-
-    // Add user message to chat
-    setChatHistory(prev => [...prev, { type: 'user', content: message }]);
     
-    // Store the message before clearing the input
-    const currentMessage = message;
-    setMessage(''); // Clear input field immediately for better UX
+    // Add user message to chat history
+    const userMessage = message.trim();
+    setChatHistory(prev => [...prev, { type: 'user', content: userMessage }]);
+    setMessage('');
     
-    // Check if this is a navigation command
-    const navigationAction = detectNavigationIntent(currentMessage);
-    if (navigationAction) {
-      handleNavigation(navigationAction);
+    // Check for page-specific commands
+    if (handlePageSpecificCommand(userMessage)) {
+      // Refocus the input field after command processing
+      setTimeout(() => inputRef.current?.focus(), 0);
       return;
     }
     
-    // If we're on a specific page, handle page-specific commands
-    const pageSpecificCommand = handlePageSpecificCommand(currentMessage);
-    if (pageSpecificCommand) {
+    // Check for navigation intent
+    const navigationTarget = detectNavigationIntent(userMessage);
+    if (navigationTarget && handleNavigation(navigationTarget)) {
+      // Add system message confirming navigation
+      setChatHistory(prev => [...prev, { 
+        type: 'system', 
+        content: `Navigating to ${navigationTarget}...` 
+      }]);
+      // Refocus the input field after navigation
+      setTimeout(() => inputRef.current?.focus(), 0);
       return;
     }
-
-    // Ensure we have a connection to the chat backend
+    
+    // Ensure we have a connection before sending the message
     if (!connectionId) {
       // If no connection, try to establish one
       if (!isConnecting) {
@@ -354,27 +363,45 @@ export default function TaskOrientedChat({
           type: 'system', 
           content: getConnectionErrorMessage(null)
         }]);
+        // Refocus the input field after error
+        setTimeout(() => inputRef.current?.focus(), 0);
         return;
       }
     }
     
+    // Send the message to the API
+    await sendMessage(userMessage);
+    
+    // Refocus the input field after sending message
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  // Handle sending a message
+  const sendMessage = async (currentMessage: string) => {
     try {
       // Send the message to the backend via SSE
+      console.log('TaskOrientedChat: Sending message:', currentMessage);
+      
+      if (!connectionId) {
+        console.error('TaskOrientedChat: No connectionId available for sending message');
+        showError('No connection to chat service');
+        return;
+      }
+      
+      console.log('TaskOrientedChat: Calling API with message and connectionId:', connectionId);
       await chatApi.sendMessage({
         message: currentMessage,
         connectionId: connectionId,
         contextType: contextType
       } as ChatMessageRequest);
       
+      console.log('TaskOrientedChat: Message sent successfully');
       // Response will be handled by the SSE event listener
     } catch (error: any) {
-      console.error('Error sending message to chat API:', error);
+      console.error('TaskOrientedChat: Error sending message to chat API:', error);
       
       // Show consistent error message if API call fails
-      setChatHistory(prev => [...prev, { 
-        type: 'system', 
-        content: getConnectionErrorMessage(error)
-      }]);
+      showError(error.message || 'Error sending message');
     }
   };
 
@@ -533,21 +560,28 @@ export default function TaskOrientedChat({
     
     try {
       // Send the message to the backend via SSE
+      console.log('TaskOrientedChat: Sending message:', text);
+      
+      if (!connectionId) {
+        console.error('TaskOrientedChat: No connectionId available for sending message');
+        showError('No connection to chat service');
+        return;
+      }
+      
+      console.log('TaskOrientedChat: Calling API with message and connectionId:', connectionId);
       await chatApi.sendMessage({
         message: text,
         connectionId: connectionId,
         contextType: contextType
       } as ChatMessageRequest);
       
+      console.log('TaskOrientedChat: Message sent successfully');
       // Response will be handled by the SSE event listener
     } catch (error: any) {
-      console.error('Error sending message to chat API:', error);
+      console.error('TaskOrientedChat: Error sending message to chat API:', error);
       
       // Show consistent error message if API call fails
-      setChatHistory(prev => [...prev, { 
-        type: 'system', 
-        content: getConnectionErrorMessage(error)
-      }]);
+      showError(error.message || 'Error sending message');
     }
   };
 
@@ -700,29 +734,32 @@ export default function TaskOrientedChat({
         
         {/* Chat Input */}
         <form onSubmit={handleSubmit} className="flex items-center p-4 border-t bg-white chat-form mb-3 rounded-b-lg">
-          <input
-            ref={inputRef}
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={currentTask?.complete 
-              ? 'Task completed!' 
-              : currentTask 
-                ? 'Continue your conversation...' 
-                : `Ask me anything...`}
-            className="flex-1 p-3 text-base border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={currentTask?.complete}
-          />
-          <button
-            type="submit"
-            disabled={currentTask?.complete}
-            className={`p-3 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center ${currentTask?.complete 
-              ? 'bg-gray-300 text-gray-500' 
-              : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-            style={{ minWidth: '50px', height: '50px' }}
-          >
-            <ArrowUpCircleIcon className="h-6 w-6" />
-          </button>
+          <div className="relative flex-1">
+            <input
+              ref={inputRef}
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder={currentTask?.complete 
+                ? 'Task completed!' 
+                : currentTask 
+                  ? 'Continue your conversation...' 
+                  : `Ask me anything...`}
+              className="w-full p-3 pr-12 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={currentTask?.complete}
+            />
+            <button
+              type="submit"
+              disabled={currentTask?.complete}
+              className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-2 rounded-full focus:outline-none ${
+                currentTask?.complete 
+                  ? 'text-gray-400' 
+                  : 'text-blue-500 hover:bg-blue-100'
+              }`}
+            >
+              <ArrowUpCircleIcon className="h-6 w-6" />
+            </button>
+          </div>
         </form>
       </div>
     </div>
