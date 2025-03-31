@@ -25,6 +25,16 @@ export interface ChatResponse {
   totalSteps?: number;
 }
 
+export interface ChatSessionRequest {
+  contextType?: 'schedule' | 'tasks' | 'general';
+  currentPage?: string;
+}
+
+export interface ChatSessionResponse {
+  sessionId: string;
+  expiresAt: number; // Timestamp when the session expires
+}
+
 export const chatApi = {
   /**
    * Send a message to the chat API
@@ -35,35 +45,38 @@ export const chatApi = {
   },
   
   /**
+   * Create a chat session
+   * This creates a secure, short-lived session for the SSE connection
+   */
+  async createChatSession(request: ChatSessionRequest): Promise<ChatSessionResponse> {
+    const { data } = await apiClient.post<ChatSessionResponse>('/api/v1/chat/createSession', request);
+    return data;
+  },
+  
+  /**
    * Create an SSE connection for streaming chat responses
    * Returns an EventSource instance and the connection ID
    */
-  async createChatStream(): Promise<{ eventSource: EventSource, connectionId: string | null }> {
+  async createChatStream(contextType?: 'schedule' | 'tasks' | 'general', currentPage?: string): Promise<{ eventSource: EventSource, connectionId: string | null }> {
     // Get the current user's token
     const user = auth.currentUser;
     if (!user) {
       throw new Error('User not authenticated');
     }
     
-    const token = await user.getIdToken();
-    
-    // Create EventSource with authorization header
-    const eventSource = new EventSource(`/api/v1/chat/stream`, {
-      withCredentials: true
+    // First create a session with the backend
+    const sessionResponse = await this.createChatSession({
+      contextType,
+      currentPage
     });
     
-    // Add authorization header via a custom fetch
-    const originalFetch = window.fetch;
-    window.fetch = async function(input, init) {
-      if (typeof input === 'string' && input.includes('/api/v1/chat/stream')) {
-        init = init || {};
-        init.headers = init.headers || {};
-        Object.assign(init.headers, {
-          'Authorization': `Bearer ${token}`
-        });
-      }
-      return originalFetch.call(this, input, init);
-    };
+    // Get the base URL from the apiClient
+    const baseURL = apiClient.defaults.baseURL || '';
+    
+    // Use the session ID for the SSE connection
+    const eventSource = new EventSource(`${baseURL}/api/v1/stream/chat?sessionId=${sessionResponse.sessionId}`, {
+      withCredentials: true
+    });
     
     // Store the connection ID when we receive it
     let connectionId: string | null = null;

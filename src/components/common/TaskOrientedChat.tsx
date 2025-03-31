@@ -88,9 +88,9 @@ export default function TaskOrientedChat({
         setEventSource(null);
       }
       
-      // Create a new SSE connection
+      // Create a new SSE connection with context information
       const { eventSource: newEventSource, connectionId: newConnectionId } = 
-        await chatApi.createChatStream();
+        await chatApi.createChatStream(contextType, currentPage);
       
       if (!newEventSource || !newConnectionId) {
         console.error('Failed to establish SSE connection: missing eventSource or connectionId');
@@ -124,7 +124,7 @@ export default function TaskOrientedChat({
       console.error('Failed to establish SSE connection:', error);
       setIsConnecting(false);
     }
-  }, [eventSource, isConnecting]);
+  }, [eventSource, isConnecting, contextType, currentPage]);
 
   // Establish SSE connection when the chat is expanded
   useEffect(() => {
