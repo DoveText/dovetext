@@ -17,32 +17,56 @@ export const apiClient = axios.create({
 // Add request interceptor to add Firebase ID token
 apiClient.interceptors.request.use(
   async (config) => {
+    console.log('[API Client] Request interceptor called for:', config.url);
     try {
       // Get current user and wait for it to be ready
       const user = auth.currentUser;
       if (!user) {
         // Don't make the request if we're not authenticated
+        console.error('[API Client] Not authenticated, rejecting request');
         return Promise.reject(new Error('Not authenticated'));
       }
 
       // Get token directly from Firebase
       const token = await user.getIdToken();
+      console.log('[API Client] Successfully obtained token for request');
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('[API Client] Request headers set:', {
+        contentType: config.headers['Content-Type'],
+        hasAuth: !!config.headers.Authorization,
+        method: config.method,
+        url: config.url
+      });
     } catch (error) {
-      console.error('Error getting Firebase token:', error);
+      console.error('[API Client] Error getting Firebase token:', error);
       return Promise.reject(error);
     }
     return config;
   },
   (error) => {
+    console.error('[API Client] Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
 // Add response interceptor for error handling
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('[API Client] Response received:', {
+      status: response.status,
+      url: response.config.url,
+      data: response.data
+    });
+    return response;
+  },
   (error) => {
+    console.error('[API Client] Response error:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      message: error.message
+    });
+    
     if (error.response) {
       // Handle specific error cases
       switch (error.response.status) {
