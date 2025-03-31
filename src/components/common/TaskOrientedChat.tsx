@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline';
 import { useAction, ActionType } from '@/context/ActionContext';
-import { chatApi, ChatMessage, ChatRequest, ChatResponse } from '@/app/api/chat';
+import { chatApi, ChatMessage, ChatMessageRequest, ChatMessageResponse } from '@/app/api/chat';
 
 interface TaskOrientedChatProps {
   contextType?: 'schedule' | 'tasks' | 'general';
@@ -36,11 +36,12 @@ export default function TaskOrientedChat({
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{type: 'user' | 'system', content: string}[]>([]);
   const [currentTask, setCurrentTask] = useState<{complete: boolean, steps: number, currentStep: number} | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
   // SSE connection state
-  const [eventSource, setEventSource] = useState<EventSource | null>(null);
+  const [eventSource, setEventSource] = useState<any>(null);
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   
@@ -75,8 +76,24 @@ export default function TaskOrientedChat({
     }
   }, [currentTask]);
   
-  // Function to establish SSE connection with the backend
-  const establishChatConnection = useCallback(async () => {
+  // Error message when backend is unavailable
+  const getConnectionErrorMessage = (error: any): string => {
+    if (error?.message?.includes('Failed to fetch')) {
+      return 'Unable to connect to the chat service. Please check your internet connection.';
+    }
+    return error?.message || 'An error occurred connecting to the chat service';
+  };
+  
+  // Show error message
+  const showError = (message: string) => {
+    setChatHistory(prev => [...prev, { 
+      type: 'system', 
+      content: message
+    }]);
+  };
+  
+  // Create or reconnect to the SSE connection
+  const connectToSSE = useCallback(async () => {
     if (isConnecting) return;
     
     try {
@@ -85,12 +102,11 @@ export default function TaskOrientedChat({
       // Close any existing connection
       if (eventSource) {
         eventSource.close();
-        setEventSource(null);
       }
       
       // Create a new SSE connection with context information
       const { eventSource: newEventSource, connectionId: newConnectionId } = 
-        await chatApi.createChatStream(contextType, currentPage);
+        await chatApi.createChatStream();
       
       if (!newEventSource || !newConnectionId) {
         console.error('Failed to establish SSE connection: missing eventSource or connectionId');
@@ -101,52 +117,38 @@ export default function TaskOrientedChat({
       setEventSource(newEventSource);
       setConnectionId(newConnectionId);
       
-      // Set up event listeners
-      newEventSource.addEventListener('message', handleSSEMessage);
-      newEventSource.addEventListener('processing', handleSSEProcessing);
-      
-      // Handle connection errors
-      newEventSource.onerror = (error) => {
-        console.error('SSE connection error:', error);
-        newEventSource.close();
-        setEventSource(null);
-        setConnectionId(null);
-        setIsConnecting(false);
-        
-        // Attempt to reconnect after a delay
-        setTimeout(establishChatConnection, 3000);
-      };
+      // No need to set up event listeners with fetchEventSource
+      // as it handles events internally
       
       setIsConnecting(false);
-      console.log('SSE connection established with ID:', newConnectionId);
-      
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to establish SSE connection:', error);
       setIsConnecting(false);
+      showError(getConnectionErrorMessage(error));
     }
-  }, [eventSource, isConnecting, contextType, currentPage]);
+  }, [eventSource, isConnecting]);
 
   // Establish SSE connection when the chat is expanded
   useEffect(() => {
     if (isExpanded && !eventSource && !isConnecting) {
-      establishChatConnection();
+      connectToSSE();
     }
     
     return () => {
-      // Clean up the connection when the component unmounts or collapses
-      if (!isExpanded && eventSource) {
-        console.log('Closing SSE connection due to chat collapse');
+      // Clean up connection when component unmounts
+      if (eventSource) {
         eventSource.close();
         setEventSource(null);
         setConnectionId(null);
       }
     };
-  }, [isExpanded, eventSource, establishChatConnection, isConnecting]);
+  }, [isExpanded, eventSource, connectToSSE, isConnecting]);
   
-  // Handle SSE message events
+  // Handle SSE message events - these are now handled by fetchEventSource internally
+  // We'll keep this function for reference but it's not directly used anymore
   const handleSSEMessage = (event: MessageEvent) => {
     try {
-      const data: ChatResponse = JSON.parse(event.data);
+      const data: ChatMessageResponse = JSON.parse(event.data);
       
       // Add the message to chat history
       setChatHistory(prev => [...prev, { 
@@ -168,26 +170,6 @@ export default function TaskOrientedChat({
     }
   };
   
-  // Handle SSE processing events
-  const handleSSEProcessing = (event: MessageEvent) => {
-    // Could show a typing indicator or processing state
-    console.log('Processing message...');
-  };
-  
-  const handleBubbleClick = () => {
-    // Only trigger if fully closed or fully open
-    if (animationState === 'closed') {
-      setIsExpanded(true);
-      setIsUserInitiated(true);
-      // Input focus will be handled by the useEffect
-    } else if (animationState === 'open') {
-      setIsExpanded(false);
-      setIsUserInitiated(true);
-    }
-  };
-  
-  // No longer needed as we use inline functions for better reliability
-
   // Handle page-specific commands based on current page
   const handlePageSpecificCommand = useCallback((text: string) => {
     const lowerText = text.toLowerCase();
@@ -260,11 +242,6 @@ export default function TaskOrientedChat({
     
     return null;
   }, []);
-  
-  // Error message when backend is unavailable
-  const getConnectionErrorMessage = () => {
-    return "Sorry, the system is currently unavailable. Please try again later.";
-  };
   
   // Function to handle navigation actions
   const handleNavigation = useCallback((action: string) => {
@@ -368,14 +345,14 @@ export default function TaskOrientedChat({
     if (!connectionId) {
       // If no connection, try to establish one
       if (!isConnecting) {
-        await establishChatConnection();
+        await connectToSSE();
       }
       
       // If still no connection after attempting to establish one, show error message
       if (!connectionId) {
         setChatHistory(prev => [...prev, { 
           type: 'system', 
-          content: getConnectionErrorMessage()
+          content: getConnectionErrorMessage(null)
         }]);
         return;
       }
@@ -384,19 +361,19 @@ export default function TaskOrientedChat({
     try {
       // Send the message to the backend via SSE
       await chatApi.sendMessage({
-        content: currentMessage,
+        message: currentMessage,
         connectionId: connectionId,
         contextType: contextType
-      });
+      } as ChatMessageRequest);
       
       // Response will be handled by the SSE event listener
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message to chat API:', error);
       
       // Show consistent error message if API call fails
       setChatHistory(prev => [...prev, { 
         type: 'system', 
-        content: getConnectionErrorMessage()
+        content: getConnectionErrorMessage(error)
       }]);
     }
   };
@@ -541,14 +518,14 @@ export default function TaskOrientedChat({
     if (!connectionId) {
       // If no connection, try to establish one
       if (!isConnecting) {
-        await establishChatConnection();
+        await connectToSSE();
       }
       
       // If still no connection, show error message
       if (!connectionId) {
         setChatHistory(prev => [...prev, { 
           type: 'system', 
-          content: getConnectionErrorMessage()
+          content: getConnectionErrorMessage(null)
         }]);
         return;
       }
@@ -557,19 +534,19 @@ export default function TaskOrientedChat({
     try {
       // Send the message to the backend via SSE
       await chatApi.sendMessage({
-        content: text,
+        message: text,
         connectionId: connectionId,
         contextType: contextType
-      });
+      } as ChatMessageRequest);
       
       // Response will be handled by the SSE event listener
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message to chat API:', error);
       
       // Show consistent error message if API call fails
       setChatHistory(prev => [...prev, { 
         type: 'system', 
-        content: getConnectionErrorMessage()
+        content: getConnectionErrorMessage(error)
       }]);
     }
   };
@@ -597,14 +574,17 @@ export default function TaskOrientedChat({
       window.removeEventListener('popstate', handleRouteChange);
       window.removeEventListener('triggerChatBubble', handleChatTrigger as EventListener);
     };
-  }, [connectionId, contextType, handleNavigation, handlePageSpecificCommand, detectNavigationIntent, establishChatConnection, isConnecting]);
+  }, [connectionId, contextType, handleNavigation, handlePageSpecificCommand, detectNavigationIntent, connectToSSE, isConnecting]);
    
   // If not expanded and fully closed, show just the chat bubble
   if (!isExpanded && animationState === 'closed') {
     return (
       <div className={containerClasses}>
         <button 
-          onClick={handleBubbleClick}
+          onClick={() => {
+            setIsUserInitiated(true);
+            setIsExpanded(true);
+          }}
           className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg animate-pulse"
           aria-label="Open chat assistant"
         >
