@@ -92,61 +92,43 @@ export default function TaskOrientedChat({
     }]);
   };
   
-  // Create or reconnect to the SSE connection
+  // Function to establish SSE connection
   const connectToSSE = useCallback(async () => {
-    // If already connecting or we have a valid connection, don't try again
-    if (isConnecting) {
-      console.log('[TaskOrientedChat] Already connecting to SSE, skipping duplicate request');
-      return null;
-    }
-    
-    if (connectionId && eventSource) {
-      console.log('[TaskOrientedChat] Already have valid connection, reusing:', connectionId);
-      return connectionId;
-    }
-    
+    console.log('[TaskOrientedChat] Starting SSE connection...');
     try {
-      console.log('[TaskOrientedChat] Starting SSE connection...');
-      setIsConnecting(true);
-      
-      // Close any existing connection
-      if (eventSource) {
-        console.log('[TaskOrientedChat] Closing existing connection');
-        eventSource.close();
+      if (isConnecting) {
+        console.log('[TaskOrientedChat] Connection already in progress, skipping');
+        return { connectionId: connectionId };
       }
       
       console.log('[TaskOrientedChat] Calling createChatStream');
       const { eventSource: newEventSource, connectionId: newConnectionId } = await chatApi.createChatStream();
       
-      console.log('[TaskOrientedChat] createChatStream returned', { connectionId: newConnectionId });
+      console.log('[TaskOrientedChat] createChatStream returned:', { 
+        eventSource: !!newEventSource, 
+        connectionId: newConnectionId 
+      });
       
-      if (!newEventSource || !newConnectionId) {
-        console.error('[TaskOrientedChat] Failed to establish SSE connection: missing eventSource or connectionId');
-        setIsConnecting(false);
-        showError(getConnectionErrorMessage(new Error('Failed to establish connection')));
-        return null;
-      }
-      
-      console.log('[TaskOrientedChat] Setting eventSource and connectionId:', newConnectionId);
+      // Update state with new connection details
       setEventSource(newEventSource);
       setConnectionId(newConnectionId);
-      
-      console.log('[TaskOrientedChat] Connection established successfully');
       setIsConnecting(false);
       
       // Return the connection ID for immediate use
-      return newConnectionId;
-    } catch (error: any) {
-      console.error('[TaskOrientedChat] Failed to establish SSE connection:', error);
+      return { connectionId: newConnectionId };
+    } catch (error) {
+      console.error('[TaskOrientedChat] Error establishing SSE connection:', error);
       setIsConnecting(false);
-      showError(getConnectionErrorMessage(error));
-      return null;
+      showError('Failed to establish chat connection. Please try again.');
+      return { connectionId: null };
     }
-  }, [eventSource, isConnecting, connectionId]);
+  }, [isConnecting, connectionId]);
 
   // Establish SSE connection when the chat is expanded
   useEffect(() => {
     let isMounted = true; // Flag to track if component is mounted
+    let reconnectAttempts = 0;
+    let reconnectTimer: NodeJS.Timeout | null = null;
     
     const setupConnection = async () => {
       if (isExpanded && !eventSource && !isConnecting && isMounted) {
@@ -154,14 +136,31 @@ export default function TaskOrientedChat({
         try {
           setIsConnecting(true);
           const result = await connectToSSE();
-          // Only update state if component is still mounted
-          if (isMounted) {
+          if (result && isMounted) {
             console.log('[TaskOrientedChat] Connection setup completed, result:', result);
+            // Reset reconnect attempts on successful connection
+            reconnectAttempts = 0;
           }
         } catch (error) {
           console.error('[TaskOrientedChat] Error setting up connection:', error);
           if (isMounted) {
             setIsConnecting(false);
+            
+            // Attempt to reconnect with exponential backoff
+            if (reconnectAttempts < 5) {
+              const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+              console.log(`[TaskOrientedChat] Will attempt reconnection in ${delay}ms (attempt ${reconnectAttempts + 1})`);
+              
+              reconnectTimer = setTimeout(() => {
+                if (isMounted && isExpanded) {
+                  reconnectAttempts++;
+                  setupConnection();
+                }
+              }, delay);
+            } else {
+              console.error('[TaskOrientedChat] Maximum reconnection attempts reached');
+              showError('Unable to establish a stable connection. Please try again later.');
+            }
           }
         }
       }
@@ -169,9 +168,28 @@ export default function TaskOrientedChat({
     
     setupConnection();
     
+    // Listen for network status changes
+    const handleOnline = () => {
+      console.log('[TaskOrientedChat] Network is online, attempting to reconnect');
+      if (isMounted && isExpanded && !eventSource && !isConnecting) {
+        reconnectAttempts = 0; // Reset attempts when network comes back online
+        setupConnection();
+      }
+    };
+    
+    window.addEventListener('online', handleOnline);
+    
     return () => {
       // Set flag to prevent state updates after unmount
       isMounted = false;
+      
+      // Clear any pending reconnection attempts
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      
+      // Remove event listeners
+      window.removeEventListener('online', handleOnline);
       
       // Clean up connection when component unmounts or when expanded state changes
       if (eventSource) {
@@ -354,11 +372,11 @@ export default function TaskOrientedChat({
   const handleSubmit = async (e: React.FormEvent) => {
     console.log('[TaskOrientedChat] Form submitted');
     e.preventDefault();
-    
+    setTimeout(() => inputRef.current?.focus(), 0);
+
     if (!message.trim()) {
       console.log('[TaskOrientedChat] Empty message, not sending');
       // Refocus the input field even when the message is empty
-      setTimeout(() => inputRef.current?.focus(), 0);
       return;
     }
     
@@ -367,72 +385,28 @@ export default function TaskOrientedChat({
     console.log('[TaskOrientedChat] Adding user message to chat history:', userMessage);
     setChatHistory(prev => [...prev, { type: 'user', content: userMessage }]);
     setMessage('');
-    
-    // Check for page-specific commands
-    console.log('[TaskOrientedChat] Checking for page-specific commands');
-    if (handlePageSpecificCommand(userMessage)) {
-      console.log('[TaskOrientedChat] Page-specific command detected, not sending to backend');
-      // Refocus the input field after command processing
-      setTimeout(() => inputRef.current?.focus(), 0);
-      return;
-    }
-    
-    // Check for navigation intent
-    console.log('[TaskOrientedChat] Checking for navigation intent');
-    const navigationTarget = detectNavigationIntent(userMessage);
-    if (navigationTarget && handleNavigation(navigationTarget)) {
-      console.log('[TaskOrientedChat] Navigation intent detected:', navigationTarget);
-      // Add system message confirming navigation
-      setChatHistory(prev => [...prev, { 
-        type: 'system', 
-        content: `Navigating to ${navigationTarget}...` 
-      }]);
-      // Refocus the input field after navigation
-      setTimeout(() => inputRef.current?.focus(), 0);
-      return;
-    }
-    
+
     // Ensure we have a connection before sending the message
     let activeConnectionId = connectionId;
     console.log('[TaskOrientedChat] Checking connection status, connectionId:', activeConnectionId);
     
     if (!activeConnectionId) {
-      console.log('[TaskOrientedChat] No connectionId, attempting to establish connection');
-      // If no connection, try to establish one
-      if (!isConnecting) {
-        const newConnectionId = await connectToSSE();
-        if (newConnectionId) {
-          console.log('[TaskOrientedChat] Connection established with new ID:', newConnectionId);
-          activeConnectionId = newConnectionId;
-        } else {
-          console.error('[TaskOrientedChat] Failed to establish connection after attempt');
-          setChatHistory(prev => [...prev, { 
-            type: 'system', 
-            content: getConnectionErrorMessage(null)
-          }]);
-          // Refocus the input field after error
-          setTimeout(() => inputRef.current?.focus(), 0);
-          return;
-        }
-      } else {
-        console.log('[TaskOrientedChat] Already attempting to connect, waiting...');
-        // Wait a bit for the connection to establish
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Check if we have a connection now
-        if (!connectionId) {
-          console.error('[TaskOrientedChat] Still no connection after waiting');
-          setChatHistory(prev => [...prev, { 
-            type: 'system', 
-            content: getConnectionErrorMessage(null)
-          }]);
-          // Refocus the input field after error
-          setTimeout(() => inputRef.current?.focus(), 0);
-          return;
-        } else {
-          activeConnectionId = connectionId;
-        }
+      console.log('[TaskOrientedChat] No active connection, attempting to connect');
+      try {
+        const result = await connectToSSE();
+        activeConnectionId = result.connectionId;
+        console.log('[TaskOrientedChat] New connection established with ID:', activeConnectionId);
+      } catch (error) {
+        console.error('[TaskOrientedChat] Failed to establish connection:', error);
+        showError('Failed to connect to chat service. Please try again.');
+        return;
       }
+    }
+    
+    if (!activeConnectionId) {
+      console.error('[TaskOrientedChat] Still no connection ID after connection attempt');
+      showError('Unable to establish a connection. Please refresh the page and try again.');
+      return;
     }
     
     // Send the message to the API
@@ -459,9 +433,9 @@ export default function TaskOrientedChat({
     try {
       console.log('[TaskOrientedChat] Sending message with connectionId:', connId);
       const response = await chatApi.sendMessage({
-        message: currentMessage,
+        type: contextType,
+        content: currentMessage,
         connectionId: connId,
-        contextType: contextType
       } as ChatMessageRequest);
       
       console.log('[TaskOrientedChat] Message sent successfully, response:', response);
@@ -638,9 +612,9 @@ export default function TaskOrientedChat({
       
       console.log('TaskOrientedChat: Calling API with message and connectionId:', connectionId);
       await chatApi.sendMessage({
-        message: text,
+        type: contextType,
+        content: text,
         connectionId: connectionId,
-        contextType: contextType
       } as ChatMessageRequest);
       
       console.log('TaskOrientedChat: Message sent successfully');

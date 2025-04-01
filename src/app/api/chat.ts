@@ -8,9 +8,9 @@ export interface ChatMessage {
 }
 
 export interface ChatMessageRequest {
-  message: string;
+  type?: 'schedule' | 'tasks' | 'general';
+  content: string;
   connectionId?: string;
-  contextType?: 'schedule' | 'tasks' | 'general';
   currentPage?: string;
 }
 
@@ -54,7 +54,7 @@ export const chatApi = {
    * Create an SSE connection for streaming chat responses using fetchEventSource
    * Returns a controller to close the connection and the connection ID
    */
-  async createChatStream(): Promise<{ eventSource: { close: () => void }, connectionId: string | null }> {
+  async createChatStream(onMessage?: (event: string, data: any) => void): Promise<{ eventSource: { close: () => void }, connectionId: string | null }> {
     console.log('[Chat API] createChatStream called');
     
     // If we already have a connection, return it
@@ -84,21 +84,35 @@ export const chatApi = {
       const url = `${baseURL}/api/v1/chat/stream`;
       console.log('[Chat API] Connecting to SSE endpoint:', url);
       
-      // Store the connection ID when we receive it
-      let connectionId: string | null = null;
+      // Create an abort controller for the fetch
+      const abortController = new AbortController();
       
-      // Return both the controller and a promise that resolves with the connection ID
+      // Create a controller object with a close method
+      const controller = { 
+        close: () => {
+          console.log('[Chat API] Closing SSE connection');
+          abortController.abort();
+        } 
+      };
+      
+      // Store the controller for reuse
+      this._activeEventSource = controller;
+      
+      // Create a promise to wait for the connection ID
       return new Promise((resolve, reject) => {
         console.log('[Chat API] Setting up SSE connection with fetchEventSource...');
-        let controller: { close: () => void } | null = null;
+        
+        // Store the connection ID when we receive it
+        let connectionId: string | null = null;
+        let resolved = false;
         
         // Set a timeout to resolve even if we don't get a connection event
         const timeoutId = setTimeout(() => {
-          console.warn('[Chat API] Connection timeout reached without receiving connectionId');
-          if (!connectionId && controller) {
-            console.warn('[Chat API] Resolving with null connectionId due to timeout');
+          if (!resolved) {
+            console.warn('[Chat API] Connection timeout reached without receiving connectionId');
+            resolved = true;
             resolve({ 
-              eventSource: controller || { close: () => console.log('[Chat API] Closing dummy controller') }, 
+              eventSource: controller, 
               connectionId: null 
             });
           }
@@ -112,59 +126,53 @@ export const chatApi = {
             'Accept': 'text/event-stream',
             'Cache-Control': 'no-cache'
           },
+          signal: abortController.signal,
           onopen(response) {
-            console.log('[Chat API] SSE connection opened with status:', response.status, response.statusText);
+            console.log('[Chat API] SSE connection opened with status:', response.status);
             console.log('[Chat API] Response headers:', {
-              contentType: response.headers.get('content-type'),
-              cacheControl: response.headers.get('cache-control'),
-              connection: response.headers.get('connection')
+              contentType: response.headers.get('Content-Type'),
+              cacheControl: response.headers.get('Cache-Control'),
+              connection: response.headers.get('Connection')
             });
             
-            // Connection opened successfully
-            if (response.ok && response.headers.get('content-type')?.includes('text/event-stream')) {
+            if (response.ok) {
               console.log('[Chat API] SSE connection established successfully');
-              return Promise.resolve(); // Return a Promise to satisfy TypeScript
-            } else {
-              // If we get an error response, throw an error to trigger the onerror handler
-              const errorMsg = `Failed to open SSE connection: ${response.status} ${response.statusText}`;
-              console.error('[Chat API] ' + errorMsg);
-              clearTimeout(timeoutId);
-              reject(new Error(errorMsg));
-              return Promise.reject(new Error(errorMsg));
+              return Promise.resolve();
             }
+            
+            // If response is not ok, throw an error
+            throw new Error(`Failed to establish SSE connection: ${response.status} ${response.statusText}`);
           },
           onmessage(event) {
             console.log('[Chat API] Received SSE event:', event.event);
             console.log('[Chat API] Event data:', event.data);
             
-            // Handle different event types
-            if (event.event === 'connected') {
-              try {
-                const data = JSON.parse(event.data);
+            // Parse the event data
+            try {
+              const data = JSON.parse(event.data);
+              
+              // Handle connection established event
+              if (event.event === 'connected' && data.connectionId && !resolved) {
+                console.log('[Chat API] Connection established with ID:', data.connectionId);
                 connectionId = data.connectionId;
-                // Store the connection ID for reuse
-                chatApi._currentConnectionId = connectionId;
-                console.log('[Chat API] Connection established with ID:', connectionId);
+                chatApi._currentConnectionId = data.connectionId;
                 
-                // Clear the timeout and resolve the promise
+                // Resolve the promise immediately when we get the connectionId
+                console.log('[Chat API] Resolving promise with connectionId:', data.connectionId);
                 clearTimeout(timeoutId);
-                if (controller) {
-                  console.log('[Chat API] Resolving promise with connectionId:', connectionId);
-                  resolve({ eventSource: controller, connectionId });
-                }
-              } catch (error) {
-                console.error('[Chat API] Error parsing SSE connected event', error);
+                resolved = true;
+                resolve({
+                  eventSource: controller,
+                  connectionId: data.connectionId
+                });
               }
-            } else if (event.event === 'message') {
-              console.log('[Chat API] Received message event');
-              try {
-                const data = JSON.parse(event.data);
-                console.log('[Chat API] Parsed message data:', data);
-              } catch (error) {
-                console.error('[Chat API] Error parsing message event data:', error);
+              
+              // Call the message handler if provided
+              if (onMessage && typeof onMessage === 'function') {
+                onMessage(event.event, data);
               }
-            } else {
-              console.log('[Chat API] Received unknown event type:', event.event);
+            } catch (err) {
+              console.error('[Chat API] Error parsing SSE event data:', err);
             }
           },
           onerror(err) {
@@ -174,43 +182,60 @@ export const chatApi = {
               message: err.message,
               stack: err.stack
             });
-            // Don't retry on error, just reject the promise
-            clearTimeout(timeoutId);
-            reject(err);
+            
+            // Don't immediately reject on error - we'll try to reconnect
+            console.log('[Chat API] Aborting fetch due to error');
+            abortController.abort();
+            
+            // If we haven't resolved yet, resolve with null to prevent hanging
+            if (!resolved) {
+              console.warn('[Chat API] Resolving with null connectionId due to error');
+              clearTimeout(timeoutId);
+              resolved = true;
+              resolve({ 
+                eventSource: controller, 
+                connectionId: null 
+              });
+            }
+            
+            // Clear the stored connection ID to allow reconnection attempts
+            chatApi._currentConnectionId = null;
+            chatApi._activeEventSource = null;
           },
           onclose() {
             console.log('[Chat API] SSE connection closed');
             // Clear the stored connection ID and event source
             chatApi._currentConnectionId = null;
             chatApi._activeEventSource = null;
-          }
-        }).then(ctrl => {
-          // Store the controller
-          console.log('[Chat API] Received controller from fetchEventSource');
-          controller = ctrl;
-          
-          // Store the controller for reuse
-          chatApi._activeEventSource = controller;
-          
-          // If we already have the connectionId, resolve the promise
-          if (connectionId) {
-            console.log('[Chat API] Already have connectionId, resolving promise');
-            clearTimeout(timeoutId);
-            resolve({ 
-              eventSource: controller, 
-              connectionId 
-            });
-          } else {
-            console.log('[Chat API] Waiting for connectionId event...');
-          }
+            
+            // If we haven't resolved yet, resolve with null
+            if (!resolved) {
+              console.warn('[Chat API] Resolving with null connectionId due to connection close');
+              clearTimeout(timeoutId);
+              resolved = true;
+              resolve({
+                eventSource: controller,
+                connectionId: null
+              });
+            }
+          },
+          // Add custom retry behavior
+          openWhenHidden: true  // Keep connection open even when tab is not visible
+          // Note: We'll handle retry logic manually in the error handler
         }).catch(error => {
-          console.error('Error establishing SSE connection', error);
-          clearTimeout(timeoutId);
-          reject(error);
+          console.error('[Chat API] Error in fetchEventSource:', error);
+          
+          // If we haven't resolved yet, reject the promise
+          if (!resolved) {
+            console.warn('[Chat API] Rejecting promise due to fetchEventSource error');
+            clearTimeout(timeoutId);
+            resolved = true;
+            reject(error);
+          }
         });
       });
     } catch (error) {
-      console.error('Error in createChatStream:', error);
+      console.error('[Chat API] Error setting up SSE connection:', error);
       throw error;
     }
   }
