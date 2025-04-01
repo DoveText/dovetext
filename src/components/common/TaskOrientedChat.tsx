@@ -35,7 +35,7 @@ export default function TaskOrientedChat({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [message, setMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<{type: 'user' | 'system', content: string}[]>([]);
+  const [chatHistory, setChatHistory] = useState<{type: 'user' | 'system', content: string, id?: string}[]>([]);
   const [currentTask, setCurrentTask] = useState<{complete: boolean, steps: number, currentStep: number} | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -50,6 +50,12 @@ export default function TaskOrientedChat({
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const MAX_AUTO_RECONNECT_ATTEMPTS = 5;
+  
+  // Loading states
+  const [isSending, setIsSending] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingHint, setProcessingHint] = useState('Processing your request...');
+  const [showInputForm, setShowInputForm] = useState(true);
   
   // Auto-focus the input field when the dialog is expanded
   useEffect(() => {
@@ -121,6 +127,9 @@ export default function TaskOrientedChat({
         if (connectionStatus !== 'connected') {
           setConnectionStatus('connected');
           setReconnectAttempts(0);
+          
+          // If connection was restored, show the input form again
+          setShowInputForm(true);
         }
         
         // Skip processing for certain event types
@@ -128,19 +137,48 @@ export default function TaskOrientedChat({
           return; // Connection event is handled separately
         }
         
-        // Add the message to chat history
-        setChatHistory(prev => [...prev, { 
-          type: data.type as 'user' | 'system', 
-          content: data.content 
-        }]);
-        
-        // Update task state if provided
-        if (data.currentStep !== undefined && data.totalSteps !== undefined) {
-          setCurrentTask({
-            complete: data.complete || false,
-            steps: data.totalSteps,
-            currentStep: data.currentStep
-          });
+        // Handle different event types
+        if (eventType === 'processing') {
+          console.log('[TaskOrientedChat] Processing event received, showing animation');
+          
+          // Set processing state and hint
+          setIsProcessing(true);
+          setProcessingHint(data.content || 'Processing your request...');
+          
+        } else if (eventType === 'message' || !eventType) {
+          // For message events or default events
+
+          /**
+           * event:message
+           * data: {
+           *   "type": "system",
+           *   "content":"I'm here to help you with DoveText. You can ask me to navigate to different pages, create tasks, schedule events, or help you find information.",
+           *   "connectionId":"936df53a-876c-464b-ab48-8a1924e45d0e",
+           *   "complete":false,
+           *   "currentStep":1,
+           *   "totalSteps":2
+           * }
+           */
+          // Turn off processing state
+          // Update task status if provided
+          if (data.currentStep !== undefined && data.totalSteps !== undefined) {
+            setIsProcessing(data.currentStep < data.totalSteps);
+
+            setCurrentTask({
+              complete: !!data.complete,
+              steps: data.totalSteps,
+              currentStep: data.currentStep
+            });
+          }
+          else {
+            setIsProcessing(false)
+          }
+
+          // Add the message to chat history
+          setChatHistory(prev => [...prev, { 
+            type: data.type as 'user' | 'system', 
+            content: data.content 
+          }]);
         }
       };
       
@@ -227,7 +265,7 @@ export default function TaskOrientedChat({
     };
     
     window.addEventListener('online', handleOnline);
-    
+
     return () => {
       // Set flag to prevent state updates after unmount
       isMounted = false;
@@ -416,10 +454,13 @@ export default function TaskOrientedChat({
       content: currentMessage 
     }]);
     
+    // Set sending state to show loading animation on submit button
+    setIsSending(true);
+    
     try {
       console.log('[TaskOrientedChat] Sending message with connectionId:', connectionId);
       
-      // Ensure we have a connection before sending
+      // Ensure we have a connection to the chat backend
       let activeConnectionId = connectionId;
       if (!activeConnectionId) {
         console.log('[TaskOrientedChat] No active connection, attempting to connect first');
@@ -438,6 +479,9 @@ export default function TaskOrientedChat({
         currentPage: window.location.pathname
       });
       
+      // Turn off the sending indicator
+      setIsSending(false);
+      
       // Check if we got an error response
       if (response.type === 'error') {
         console.warn('[TaskOrientedChat] Error response:', response.content);
@@ -446,6 +490,9 @@ export default function TaskOrientedChat({
         if (response.content.includes('Connection lost') || response.content.includes('reconnect')) {
           console.warn('[TaskOrientedChat] Connection lost, attempting to reconnect');
           setConnectionStatus('disconnected');
+          
+          // Hide the input form
+          setShowInputForm(false);
           
           // Show the error in the chat with a reconnect button
           setChatHistory(prev => [...prev, { 
@@ -484,8 +531,14 @@ export default function TaskOrientedChat({
     } catch (error) {
       console.error('[TaskOrientedChat] Error sending message:', error);
       
+      // Turn off loading states
+      setIsSending(false);
+      
       // Set connection status to disconnected
       setConnectionStatus('disconnected');
+      
+      // Hide the input form
+      setShowInputForm(false);
       
       // Add error message to chat with reconnect instructions
       setChatHistory(prev => [...prev, { 
@@ -747,7 +800,13 @@ export default function TaskOrientedChat({
   const handleReconnect = useCallback(async () => {
     if (connectionStatus === 'reconnecting') return;
     
+    // Show the input form again
+    setShowInputForm(true);
+    
+    // Reset reconnect attempts
     setReconnectAttempts(0);
+    
+    // Attempt to reconnect
     await connectToSSE(true);
   }, [connectToSSE, connectionStatus]);
   
@@ -856,7 +915,43 @@ export default function TaskOrientedChat({
             </svg>
           </button>
         </div>
-        
+
+        {/* Connection status */}
+        {isExpanded && (
+            <div className="bg-amber-100 connection-status flex items-center justify-between px-4 py-1 text-xs">
+              <div className="text-gray-700 font-medium">
+                You are talking with your personal DoveText AI Assistant
+              </div>
+              {connectionStatus === 'connected' && (
+                  <div className="flex items-center text-green-600">
+                    <Wifi className="w-3 h-3 mr-1" />
+                    <span>Connected</span>
+                  </div>
+              )}
+              {connectionStatus === 'reconnecting' && (
+                  <div className="flex items-center text-amber-600">
+                    <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                    <span>Reconnecting...</span>
+                  </div>
+              )}
+              {connectionStatus === 'disconnected' && (
+                  <div className="flex items-center gap-2">
+                    <div className="text-red-600 flex items-center">
+                      <WifiOff className="w-3 h-3 mr-1" />
+                      <span>Disconnected</span>
+                    </div>
+                    <button
+                        onClick={handleReconnect}
+                        className="text-blue-600 hover:text-blue-800 flex items-center"
+                    >
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      <span>Reconnect</span>
+                    </button>
+                  </div>
+              )}
+            </div>
+        )}
+
         {/* Chat Messages */}
         <div 
           ref={chatContainerRef}
@@ -870,19 +965,40 @@ export default function TaskOrientedChat({
               <p className="text-base mt-4 text-blue-500">You can also try: &quot;Create a delivery method&quot; or &quot;Go to settings&quot;</p>
             </div>
           ) : (
-            chatHistory.map((chat, index) => (
-              <div key={index} className={`mb-3 ${chat.type === 'user' ? 'text-right' : ''}`}>
-                <div 
-                  className={`inline-block p-3 rounded-lg max-w-[85%] ${chat.type === 'user' 
-                    ? 'bg-blue-500 text-white' 
-                    : currentTask?.complete && index === chatHistory.length - 1 
-                      ? 'bg-green-100 border border-green-200 text-green-800' 
-                      : 'bg-white border'}`}
-                >
-                  {chat.content}
+            <>
+              {/* Regular chat messages */}
+              {chatHistory.map((message, index) => (
+                <div key={message.id || index} className={`mb-3 ${message.type === 'user' ? 'text-right' : ''}`}>
+                  <div 
+                    className={`inline-block p-3 rounded-lg max-w-[85%] ${
+                      message.type === 'user' 
+                        ? 'bg-blue-500 text-white' 
+                        : currentTask?.complete && index === chatHistory.length - 1 
+                          ? 'bg-green-100 border border-green-200 text-green-800' 
+                          : 'bg-white border'
+                    }`}
+                  >
+                    {message.content}
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+              
+              {/* Processing indicator - shown after the last message when processing */}
+              {isProcessing && (
+                <div className="mb-3">
+                  <div className="inline-block p-3 rounded-lg max-w-[85%] bg-white border border-gray-200 text-gray-700">
+                    <div className="flex items-center">
+                      <span>{processingHint}</span>
+                      <span className="ml-2 flex">
+                        <span className="h-2 w-2 bg-gray-500 rounded-full mr-1 animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                        <span className="h-2 w-2 bg-gray-500 rounded-full mr-1 animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        <span className="h-2 w-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '600ms' }}></span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
           
           {/* Task completion indicator */}
@@ -896,69 +1012,69 @@ export default function TaskOrientedChat({
           )}
         </div>
         
-        {/* Connection status */}
-        {isExpanded && (
-          <div className="connection-status flex items-center justify-end px-4 py-1 text-xs">
-            {connectionStatus === 'connected' && (
-              <div className="flex items-center text-green-600">
-                <Wifi className="w-3 h-3 mr-1" />
-                <span>Connected</span>
+        {/* Connection lost message */}
+        {connectionStatus === 'disconnected' && !showInputForm && (
+          <div className="p-4 bg-yellow-50 border-t border-yellow-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <svg className="h-5 w-5 text-yellow-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="text-sm text-yellow-700">
+                  Connection lost. Please reconnect to continue.
+                </span>
               </div>
-            )}
-            {connectionStatus === 'reconnecting' && (
-              <div className="flex items-center text-amber-600">
-                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                <span>Reconnecting...</span>
-              </div>
-            )}
-            {connectionStatus === 'disconnected' && (
-              <div className="flex items-center gap-2">
-                <div className="text-red-600 flex items-center">
-                  <WifiOff className="w-3 h-3 mr-1" />
-                  <span>Disconnected</span>
-                </div>
-                <button 
-                  onClick={handleReconnect}
-                  className="text-blue-600 hover:text-blue-800 flex items-center"
-                >
-                  <RefreshCw className="w-3 h-3 mr-1" />
-                  <span>Reconnect</span>
-                </button>
-              </div>
-            )}
+              <button
+                onClick={handleReconnect}
+                className="px-4 py-2 text-sm font-medium rounded-md bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Reconnect
+              </button>
+            </div>
           </div>
         )}
         
         {/* Chat Input */}
-        <form onSubmit={handleSubmit} className="flex items-center p-4 border-t bg-white chat-form mb-3 rounded-b-lg">
-          <div className="relative flex-1">
-            <input
-              ref={inputRef}
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder={currentTask?.complete 
-                ? 'Task completed!' 
-                : currentTask 
-                  ? 'Continue your conversation...' 
-                  : `Ask me anything...`}
-              className="w-full p-3 pr-12 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={currentTask?.complete}
-            />
-            <button
-              type="submit"
-              disabled={currentTask?.complete}
-              onClick={() => console.log('[TaskOrientedChat] Submit button clicked')}
-              className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-2 rounded-full focus:outline-none ${
-                currentTask?.complete 
-                  ? 'text-gray-400' 
-                  : 'text-blue-500 hover:bg-blue-100'
-              }`}
-            >
-              <ArrowUpCircleIcon className="h-6 w-6" />
-            </button>
-          </div>
-        </form>
+        {showInputForm && (
+          <form onSubmit={handleSubmit} className="flex items-center p-4 border-t bg-white chat-form mb-3 rounded-b-lg">
+            <div className="relative flex-1">
+              <input
+                ref={inputRef}
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={currentTask?.complete 
+                  ? 'Task completed!' 
+                  : currentTask 
+                    ? 'Continue your conversation...' 
+                    : `Ask me anything...`}
+                className="w-full p-3 pr-12 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={currentTask?.complete}
+              />
+              <button
+                type="submit"
+                disabled={currentTask?.complete || isSending}
+                onClick={() => console.log('[TaskOrientedChat] Submit button clicked')}
+                className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-2 rounded-full focus:outline-none ${
+                  currentTask?.complete 
+                    ? 'text-gray-400' 
+                    : isSending 
+                      ? 'text-blue-500' 
+                      : 'text-blue-500 hover:bg-blue-100'
+                }`}
+              >
+                {isSending ? (
+                  <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <ArrowUpCircleIcon className="h-6 w-6" />
+                )}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
