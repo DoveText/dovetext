@@ -211,6 +211,19 @@ export default function TaskOrientedChat({
     }
   }, [isConnecting, connectionId, connectionStatus]);
 
+  // Centralized function to handle connection termination
+  const terminateConnection = useCallback(() => {
+    if (eventSource) {
+      console.log('[TaskOrientedChat] Terminating SSE connection');
+      // Use the terminateChatStream method to properly notify the server
+      chatApi.terminateChatStream().catch(err => {
+        console.error('[TaskOrientedChat] Error terminating chat stream:', err);
+      });
+      setEventSource(null);
+      setConnectionId(null);
+    }
+  }, [eventSource]);
+
   // Establish SSE connection when the chat is expanded
   useEffect(() => {
     let isMounted = true; // Flag to track if component is mounted
@@ -279,17 +292,11 @@ export default function TaskOrientedChat({
       window.removeEventListener('online', handleOnline);
       
       // Clean up connection when component unmounts or when expanded state changes
-      if (eventSource) {
-        console.log('[TaskOrientedChat] Cleaning up SSE connection on unmount/state change');
-        // Use the new terminateChatStream method to properly notify the server
-        chatApi.terminateChatStream().catch(err => {
-          console.error('[TaskOrientedChat] Error terminating chat stream:', err);
-        });
-        setEventSource(null);
-        setConnectionId(null);
+      if (!isExpanded && eventSource) {
+        terminateConnection();
       }
     };
-  }, [isExpanded, connectToSSE]); // Remove eventSource and isConnecting from dependencies
+  }, [isExpanded, connectToSSE, terminateConnection, eventSource, isConnecting]);
   
   // Handle page-specific commands based on current page
   const handlePageSpecificCommand = useCallback((text: string) => {
@@ -772,27 +779,63 @@ export default function TaskOrientedChat({
   };
 
     // Listen for chat trigger events from dashboard input
-    const handleChatTrigger = (event: CustomEvent) => {
+    const handleChatTrigger = async (event: CustomEvent) => {
       setIsExpanded(true);
+      
       if (event.detail?.message) {
         const userMessage = event.detail.message;
+        
         // Add the user message directly to chat history
         setChatHistory([{ type: 'user', content: userMessage }]);
         
-        // Process the message after a short delay to simulate response
-        setTimeout(() => {
-          processUserMessage(userMessage);
-        }, 300);
+        // Ensure we have a connection before processing the message
+        try {
+          console.log('[TaskOrientedChat] Chat triggered with message, ensuring connection is established first');
+          
+          // If no connection or connecting, wait for connection to be established
+          let activeConnectionId = connectionId;
+          if (!activeConnectionId) {
+            console.log('[TaskOrientedChat] No active connection, attempting to connect first');
+            setIsConnecting(true);
+            
+            // Wait for connection to be established
+            const result = await connectToSSE();
+            activeConnectionId = result.connectionId;
+            
+            if (!activeConnectionId) {
+              console.error('[TaskOrientedChat] Failed to establish connection');
+              showError('An error occurred connecting to the chat service. Please try again.');
+              return;
+            }
+            
+            console.log('[TaskOrientedChat] Connection established successfully:', activeConnectionId);
+          }
+          
+          // Now that we have a connection, process the message
+          console.log('[TaskOrientedChat] Processing triggered message with connectionId:', activeConnectionId);
+          
+          // Send the message using the obtained connectionId
+          await chatApi.sendMessage({
+            type: contextType,
+            content: userMessage,
+            connectionId: activeConnectionId,
+            currentPage: window.location.pathname
+          });
+          
+        } catch (error) {
+          console.error('[TaskOrientedChat] Error processing triggered message:', error);
+          showError('An error occurred processing your message. Please try again.');
+        }
       }
     };
 
     // Add event listeners
     window.addEventListener('popstate', handleRouteChange);
-    window.addEventListener('triggerChatBubble', handleChatTrigger as EventListener);
+    window.addEventListener('triggerChatBubble', (handleChatTrigger as unknown) as EventListener);
 
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
-      window.removeEventListener('triggerChatBubble', handleChatTrigger as EventListener);
+      window.removeEventListener('triggerChatBubble', (handleChatTrigger as unknown) as EventListener);
     };
   }, [connectionId, contextType, handleNavigation, handlePageSpecificCommand, detectNavigationIntent, connectToSSE, isConnecting]);
    
@@ -861,6 +904,7 @@ export default function TaskOrientedChat({
         const closeChat = () => {
           setIsUserInitiated(true);
           setIsExpanded(false);
+          terminateConnection();
         };
         
         if (chatHistory.length === 0 || currentTask?.complete) {
@@ -894,6 +938,7 @@ export default function TaskOrientedChat({
               const closeChat = () => {
                 setIsUserInitiated(true);
                 setIsExpanded(false);
+                terminateConnection();
               };
               
               if (chatHistory.length === 0 || currentTask?.complete) {
