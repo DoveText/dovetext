@@ -101,8 +101,33 @@ export default function TaskOrientedChat({
         return { connectionId: connectionId };
       }
       
+      // Define the message handler for SSE events
+      const handleSSEEvent = (eventType: string, data: any) => {
+        console.log('[TaskOrientedChat] Received SSE event:', eventType, data);
+        
+        // Skip processing for certain event types
+        if (eventType === 'connected') {
+          return; // Connection event is handled separately
+        }
+        
+        // Add the message to chat history
+        setChatHistory(prev => [...prev, { 
+          type: data.type as 'user' | 'system', 
+          content: data.content 
+        }]);
+        
+        // Update task state if provided
+        if (data.currentStep !== undefined && data.totalSteps !== undefined) {
+          setCurrentTask({
+            complete: data.complete || false,
+            steps: data.totalSteps,
+            currentStep: data.currentStep
+          });
+        }
+      };
+      
       console.log('[TaskOrientedChat] Calling createChatStream');
-      const { eventSource: newEventSource, connectionId: newConnectionId } = await chatApi.createChatStream();
+      const { eventSource: newEventSource, connectionId: newConnectionId } = await chatApi.createChatStream(handleSSEEvent);
       
       console.log('[TaskOrientedChat] createChatStream returned:', { 
         eventSource: !!newEventSource, 
@@ -200,32 +225,6 @@ export default function TaskOrientedChat({
       }
     };
   }, [isExpanded, connectToSSE]); // Remove eventSource and isConnecting from dependencies
-  
-  // Handle SSE message events - these are now handled by fetchEventSource internally
-  // We'll keep this function for reference but it's not directly used anymore
-  const handleSSEMessage = (event: MessageEvent) => {
-    try {
-      const data: ChatMessageResponse = JSON.parse(event.data);
-      
-      // Add the message to chat history
-      setChatHistory(prev => [...prev, { 
-        type: data.type as 'user' | 'system', 
-        content: data.content 
-      }]);
-      
-      // Update task state if provided
-      if (data.currentStep !== undefined && data.totalSteps !== undefined) {
-        setCurrentTask({
-          complete: data.complete || false,
-          steps: data.totalSteps,
-          currentStep: data.currentStep
-        });
-      }
-      
-    } catch (error) {
-      console.error('Error parsing SSE message:', error);
-    }
-  };
   
   // Handle page-specific commands based on current page
   const handlePageSpecificCommand = useCallback((text: string) => {

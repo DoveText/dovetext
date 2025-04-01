@@ -144,8 +144,23 @@ export const chatApi = {
             throw new Error(`Failed to establish SSE connection: ${response.status} ${response.statusText}`);
           },
           onmessage(event) {
+            // Check if this is a heartbeat message (empty event name or data starting with colon)
+            if (!event.event && (
+                !event.data || 
+                (typeof event.data === 'string' && event.data.trim().startsWith(':'))
+            )) {
+              console.log('[Chat API] Received heartbeat');
+              return;
+            }
+            
             console.log('[Chat API] Received SSE event:', event.event);
             console.log('[Chat API] Event data:', event.data);
+            
+            // Skip processing if there's no data to parse
+            if (!event.data) {
+              console.log('[Chat API] Empty event data, skipping processing');
+              return;
+            }
             
             // Parse the event data
             try {
@@ -173,6 +188,7 @@ export const chatApi = {
               }
             } catch (err) {
               console.error('[Chat API] Error parsing SSE event data:', err);
+              console.log('[Chat API] Raw event data that failed to parse:', event.data);
             }
           },
           onerror(err) {
