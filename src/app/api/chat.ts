@@ -30,6 +30,7 @@ export const chatApi = {
   
   /**
    * Send a message to the chat API
+   * @returns Promise with the response or throws an error if connection is not active
    */
   async sendMessage(request: ChatMessageRequest): Promise<ChatMessageResponse> {
     console.log('[Chat API] Sending message to backend:', request);
@@ -41,12 +42,66 @@ export const chatApi = {
     }
     
     try {
-      const { data } = await apiClient.post<ChatMessageResponse>('/api/v1/chat/message', request);
-      console.log('[Chat API] Received response from backend:', data);
-      return data;
-    } catch (error) {
+      const response = await apiClient.post<ChatMessageResponse>('/api/v1/chat/message', request);
+      console.log('[Chat API] Received response from backend:', response.data);
+      
+      // Check if the response indicates a connection error
+      if (response.status === 404 && response.data.type === 'error' && 
+          response.data.content === 'Connection not active') {
+        console.warn('[Chat API] Connection no longer active, clearing stored connection');
+        
+        // Clear the stored connection info since it's no longer valid
+        this._currentConnectionId = null;
+        if (this._activeEventSource) {
+          try {
+            this._activeEventSource.close();
+          } catch (e) {
+            console.error('[Chat API] Error closing stale event source:', e);
+          }
+          this._activeEventSource = null;
+        }
+        
+        // Return the error response so the UI can handle it
+        return {
+          type: 'error',
+          content: 'Connection lost. Please try again.',
+          connectionId: request.connectionId
+        };
+      }
+      
+      return response.data;
+    } catch (error: any) {
       console.error('[Chat API] Error sending message to backend:', error);
-      throw error;
+      
+      // Check if the error is due to a connection issue (404 Not Found)
+      if (error.response && error.response.status === 404) {
+        console.warn('[Chat API] Connection no longer active (from error), clearing stored connection');
+        
+        // Clear the stored connection info
+        this._currentConnectionId = null;
+        if (this._activeEventSource) {
+          try {
+            this._activeEventSource.close();
+          } catch (e) {
+            console.error('[Chat API] Error closing stale event source:', e);
+          }
+          this._activeEventSource = null;
+        }
+        
+        // Return a formatted error response instead of throwing
+        return {
+          type: 'error',
+          content: 'Connection lost. Please reconnect to continue chatting.',
+          connectionId: request.connectionId
+        };
+      }
+      
+      // For other errors, return a generic error message instead of throwing
+      return {
+        type: 'error',
+        content: 'Failed to send message. Please try again later.',
+        connectionId: request.connectionId
+      };
     }
   },
   
@@ -254,5 +309,60 @@ export const chatApi = {
       console.error('[Chat API] Error setting up SSE connection:', error);
       throw error;
     }
-  }
+  },
+  
+  /**
+   * Close the SSE connection and notify the server
+   * This should be called when the chat dialog is closed to properly clean up resources
+   */
+  async terminateChatStream(): Promise<void> {
+    console.log('[Chat API] Terminating chat stream');
+    
+    // If we have an active connection, close it and notify the server
+    if (this._currentConnectionId) {
+      const connectionId = this._currentConnectionId;
+      
+      // First close the client-side connection
+      if (this._activeEventSource) {
+        try {
+          console.log('[Chat API] Closing client-side SSE connection');
+          this._activeEventSource.close();
+        } catch (e) {
+          console.error('[Chat API] Error closing event source:', e);
+        }
+        this._activeEventSource = null;
+      }
+      
+      // Then notify the server to clean up the connection
+      try {
+        console.log('[Chat API] Notifying server to terminate connection:', connectionId);
+        await apiClient.delete(`/api/v1/chat/connection/${connectionId}`);
+        console.log('[Chat API] Server successfully notified of connection termination');
+      } catch (error) {
+        console.error('[Chat API] Error notifying server of connection termination:', error);
+        // Even if the server notification fails, we still want to clear the local state
+      }
+      
+      // Clear the stored connection ID
+      this._currentConnectionId = null;
+    } else {
+      console.log('[Chat API] No active connection to terminate');
+    }
+  },
+  
+  /**
+   * Close the SSE connection without notifying the server
+   * @deprecated Use terminateChatStream instead for proper cleanup
+   */
+  closeSSEConnection(): void {
+    console.log('[Chat API] Closing SSE connection');
+    if (this._activeEventSource) {
+      try {
+        this._activeEventSource.close();
+      } catch (e) {
+        console.error('[Chat API] Error closing event source:', e);
+      }
+      this._activeEventSource = null;
+    }
+  },
 }

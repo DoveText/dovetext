@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline';
+import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useAction, ActionType } from '@/context/ActionContext';
 import { chatApi, ChatMessage, ChatMessageRequest, ChatMessageResponse } from '@/app/api/chat';
 
@@ -44,6 +45,11 @@ export default function TaskOrientedChat({
   const [eventSource, setEventSource] = useState<any>(null);
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  
+  // Connection status tracking
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const MAX_AUTO_RECONNECT_ATTEMPTS = 5;
   
   // Auto-focus the input field when the dialog is expanded
   useEffect(() => {
@@ -93,17 +99,29 @@ export default function TaskOrientedChat({
   };
   
   // Function to establish SSE connection
-  const connectToSSE = useCallback(async () => {
+  const connectToSSE = useCallback(async (isReconnecting = false) => {
     console.log('[TaskOrientedChat] Starting SSE connection...');
     try {
-      if (isConnecting) {
+      if (isConnecting && !isReconnecting) {
         console.log('[TaskOrientedChat] Connection already in progress, skipping');
         return { connectionId: connectionId };
+      }
+      
+      if (isReconnecting) {
+        setConnectionStatus('reconnecting');
+      } else {
+        setIsConnecting(true);
       }
       
       // Define the message handler for SSE events
       const handleSSEEvent = (eventType: string, data: any) => {
         console.log('[TaskOrientedChat] Received SSE event:', eventType, data);
+        
+        // Update connection status on first successful message
+        if (connectionStatus !== 'connected') {
+          setConnectionStatus('connected');
+          setReconnectAttempts(0);
+        }
         
         // Skip processing for certain event types
         if (eventType === 'connected') {
@@ -138,16 +156,22 @@ export default function TaskOrientedChat({
       setEventSource(newEventSource);
       setConnectionId(newConnectionId);
       setIsConnecting(false);
+      setConnectionStatus('connected');
       
       // Return the connection ID for immediate use
       return { connectionId: newConnectionId };
     } catch (error) {
       console.error('[TaskOrientedChat] Error establishing SSE connection:', error);
       setIsConnecting(false);
-      showError('Failed to establish chat connection. Please try again.');
+      setConnectionStatus('disconnected');
+      
+      if (!isReconnecting) {
+        showError('Failed to establish chat connection. Please try again.');
+      }
+      
       return { connectionId: null };
     }
-  }, [isConnecting, connectionId]);
+  }, [isConnecting, connectionId, connectionStatus]);
 
   // Establish SSE connection when the chat is expanded
   useEffect(() => {
@@ -219,7 +243,10 @@ export default function TaskOrientedChat({
       // Clean up connection when component unmounts or when expanded state changes
       if (eventSource) {
         console.log('[TaskOrientedChat] Cleaning up SSE connection on unmount/state change');
-        eventSource.close();
+        // Use the new terminateChatStream method to properly notify the server
+        chatApi.terminateChatStream().catch(err => {
+          console.error('[TaskOrientedChat] Error terminating chat stream:', err);
+        });
         setEventSource(null);
         setConnectionId(null);
       }
@@ -369,51 +396,103 @@ export default function TaskOrientedChat({
   }, [actionContext, onSwitchContext, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    console.log('[TaskOrientedChat] Form submitted');
     e.preventDefault();
-    setTimeout(() => inputRef.current?.focus(), 0);
-
     if (!message.trim()) {
-      console.log('[TaskOrientedChat] Empty message, not sending');
       // Refocus the input field even when the message is empty
+      setTimeout(() => inputRef.current?.focus(), 0);
       return;
     }
+
+    // Get the current message and clear the input
+    const currentMessage = message;
+    setMessage('');
+    
+    // Refocus the input field
+    setTimeout(() => inputRef.current?.focus(), 0);
     
     // Add user message to chat history
-    const userMessage = message.trim();
-    console.log('[TaskOrientedChat] Adding user message to chat history:', userMessage);
-    setChatHistory(prev => [...prev, { type: 'user', content: userMessage }]);
-    setMessage('');
-
-    // Ensure we have a connection before sending the message
-    let activeConnectionId = connectionId;
-    console.log('[TaskOrientedChat] Checking connection status, connectionId:', activeConnectionId);
+    setChatHistory(prev => [...prev, { 
+      type: 'user', 
+      content: currentMessage 
+    }]);
     
-    if (!activeConnectionId) {
-      console.log('[TaskOrientedChat] No active connection, attempting to connect');
-      try {
+    try {
+      console.log('[TaskOrientedChat] Sending message with connectionId:', connectionId);
+      
+      // Ensure we have a connection before sending
+      let activeConnectionId = connectionId;
+      if (!activeConnectionId) {
+        console.log('[TaskOrientedChat] No active connection, attempting to connect first');
         const result = await connectToSSE();
         activeConnectionId = result.connectionId;
-        console.log('[TaskOrientedChat] New connection established with ID:', activeConnectionId);
-      } catch (error) {
-        console.error('[TaskOrientedChat] Failed to establish connection:', error);
-        showError('Failed to connect to chat service. Please try again.');
+        if (!activeConnectionId) {
+          throw new Error('Failed to establish connection');
+        }
+      }
+      
+      // Send the message
+      const response = await chatApi.sendMessage({
+        type: contextType as 'schedule' | 'tasks' | 'general',
+        content: currentMessage,
+        connectionId: activeConnectionId,
+        currentPage: window.location.pathname
+      });
+      
+      // Check if we got an error response
+      if (response.type === 'error') {
+        console.warn('[TaskOrientedChat] Error response:', response.content);
+        
+        // Handle connection lost errors
+        if (response.content.includes('Connection lost') || response.content.includes('reconnect')) {
+          console.warn('[TaskOrientedChat] Connection lost, attempting to reconnect');
+          setConnectionStatus('disconnected');
+          
+          // Show the error in the chat with a reconnect button
+          setChatHistory(prev => [...prev, { 
+            type: 'system', 
+            content: 'Connection lost. Please click the reconnect button to continue chatting.' 
+          }]);
+          
+          // Don't automatically reconnect - let the user click the button
+          return;
+        }
+        
+        // Handle other errors
+        setChatHistory(prev => [...prev, { 
+          type: 'system', 
+          content: response.content
+        }]);
+        
         return;
       }
+      
+      // Check for navigation intents in the message
+      const navigationIntent = detectNavigationIntent(currentMessage);
+      if (navigationIntent) {
+        console.log('[TaskOrientedChat] Navigation intent detected:', navigationIntent);
+        handleNavigation(navigationIntent);
+        return;
+      }
+      
+      // Check for page-specific commands
+      const handled = handlePageSpecificCommand(currentMessage);
+      if (handled) {
+        console.log('[TaskOrientedChat] Page-specific command handled');
+        return;
+      }
+      
+    } catch (error) {
+      console.error('[TaskOrientedChat] Error sending message:', error);
+      
+      // Set connection status to disconnected
+      setConnectionStatus('disconnected');
+      
+      // Add error message to chat with reconnect instructions
+      setChatHistory(prev => [...prev, { 
+        type: 'system', 
+        content: 'Sorry, there was an error sending your message. Please use the reconnect button to try again.' 
+      }]);
     }
-    
-    if (!activeConnectionId) {
-      console.error('[TaskOrientedChat] Still no connection ID after connection attempt');
-      showError('Unable to establish a connection. Please refresh the page and try again.');
-      return;
-    }
-    
-    // Send the message to the API
-    console.log('[TaskOrientedChat] All checks passed, sending message to API with connectionId:', activeConnectionId);
-    await sendMessage(userMessage, activeConnectionId);
-    
-    // Refocus the input field after sending message
-    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   // Handle sending a message
@@ -431,10 +510,23 @@ export default function TaskOrientedChat({
     
     try {
       console.log('[TaskOrientedChat] Sending message with connectionId:', connId);
+      
+      // Ensure we have a connection before sending
+      let activeConnectionId = connectionId;
+      if (!activeConnectionId) {
+        console.log('[TaskOrientedChat] No active connection, attempting to connect first');
+        const result = await connectToSSE();
+        activeConnectionId = result.connectionId;
+        if (!activeConnectionId) {
+          throw new Error('Failed to establish connection');
+        }
+      }
+      
+      // Send the message
       const response = await chatApi.sendMessage({
         type: contextType,
         content: currentMessage,
-        connectionId: connId,
+        connectionId: activeConnectionId,
       } as ChatMessageRequest);
       
       console.log('[TaskOrientedChat] Message sent successfully, response:', response);
@@ -651,6 +743,37 @@ export default function TaskOrientedChat({
     };
   }, [connectionId, contextType, handleNavigation, handlePageSpecificCommand, detectNavigationIntent, connectToSSE, isConnecting]);
    
+  // Add a function to handle manual reconnection
+  const handleReconnect = useCallback(async () => {
+    if (connectionStatus === 'reconnecting') return;
+    
+    setReconnectAttempts(0);
+    await connectToSSE(true);
+  }, [connectToSSE, connectionStatus]);
+  
+  // Add automatic reconnection logic
+  useEffect(() => {
+    let reconnectTimer: NodeJS.Timeout | null = null;
+    
+    if (isExpanded && connectionStatus === 'disconnected' && reconnectAttempts < MAX_AUTO_RECONNECT_ATTEMPTS) {
+      // Calculate backoff time (1s, 2s, 4s, 8s, 16s)
+      const backoffTime = Math.min(1000 * Math.pow(2, reconnectAttempts), 16000);
+      
+      console.log(`[TaskOrientedChat] Attempting to reconnect in ${backoffTime}ms (attempt ${reconnectAttempts + 1}/${MAX_AUTO_RECONNECT_ATTEMPTS})`);
+      
+      reconnectTimer = setTimeout(async () => {
+        setReconnectAttempts(prev => prev + 1);
+        await connectToSSE(true);
+      }, backoffTime);
+    }
+    
+    return () => {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+    };
+  }, [isExpanded, connectionStatus, reconnectAttempts, connectToSSE]);
+
   // If not expanded and fully closed, show just the chat bubble
   if (!isExpanded && animationState === 'closed') {
     return (
@@ -772,6 +895,39 @@ export default function TaskOrientedChat({
             </div>
           )}
         </div>
+        
+        {/* Connection status */}
+        {isExpanded && (
+          <div className="connection-status flex items-center justify-end px-4 py-1 text-xs">
+            {connectionStatus === 'connected' && (
+              <div className="flex items-center text-green-600">
+                <Wifi className="w-3 h-3 mr-1" />
+                <span>Connected</span>
+              </div>
+            )}
+            {connectionStatus === 'reconnecting' && (
+              <div className="flex items-center text-amber-600">
+                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                <span>Reconnecting...</span>
+              </div>
+            )}
+            {connectionStatus === 'disconnected' && (
+              <div className="flex items-center gap-2">
+                <div className="text-red-600 flex items-center">
+                  <WifiOff className="w-3 h-3 mr-1" />
+                  <span>Disconnected</span>
+                </div>
+                <button 
+                  onClick={handleReconnect}
+                  className="text-blue-600 hover:text-blue-800 flex items-center"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  <span>Reconnect</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Chat Input */}
         <form onSubmit={handleSubmit} className="flex items-center p-4 border-t bg-white chat-form mb-3 rounded-b-lg">
