@@ -48,7 +48,7 @@ interface ChatContextType {
   
   // Chat methods
   addUserMessage: (content: string, id?: string) => void;
-  addSystemMessage: (content: string, id?: string, interactiveData?: InteractiveMessage) => void;
+  addSystemMessage: (content: string, id?: string, interactiveData?: InteractiveMessage, isResponseSubmitted?: boolean) => void;
   addErrorMessage: (content: string, id?: string) => void;
   clearChatHistory: () => void;
   updateTask: (task: Partial<ChatTask>) => void;
@@ -134,14 +134,15 @@ export function ChatProvider({
   /**
    * Adds a system message to the chat history
    */
-  const addSystemMessage = useCallback((content: string, id?: string, interactiveData?: InteractiveMessage) => {
+  const addSystemMessage = useCallback((content: string, id?: string, interactiveData?: InteractiveMessage, isResponseSubmitted?: boolean) => {
     setChatHistory(prev => [...prev, {
       type: 'system',
       content,
       id,
       timestamp: Date.now(),
       interactive: !!interactiveData,
-      interactiveData
+      interactiveData,
+      isResponseSubmitted
     }]);
   }, []);
 
@@ -270,8 +271,9 @@ export function ChatProvider({
           // For chat interactions, use the question parameter
           content = eventData.parameters?.question || 'What would you like to chat about?';
         } else if (eventData.function === 'present') {
-          // For present interactions, use the title or content parameter
-          content = eventData.parameters?.title || eventData.parameters?.content || 'Information';
+          // For present interactions, don't use the title as content
+          // Instead, use a generic message or empty string since the PresentInteraction component will show the title
+          content = ''; // Don't include title in the message content
         } else {
           // Default fallback for unknown function types
           content = 'Interactive message';
@@ -280,6 +282,9 @@ export function ChatProvider({
         console.log('[ChatContext] Extracted content for interactive message:', content);
         console.log('[ChatContext] Full interactive message data:', eventData);
         
+        // For present interactions, mark as already responded to since they don't expect responses
+        const isPresent = eventData.function === 'present';
+        
         addSystemMessage(
           content,
           eventData.messageId || eventData.id || `interactive-${Date.now()}`,
@@ -287,7 +292,8 @@ export function ChatProvider({
             interactive: true,
             function: eventData.function,
             parameters: eventData.parameters
-          }
+          },
+          isPresent // Mark present messages as already responded to
         );
       } else if (eventType === 'task_update') {
         updateTask({

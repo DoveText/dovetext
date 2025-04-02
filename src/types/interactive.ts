@@ -58,5 +58,6 @@ export interface FormInteractionParams {
 export interface PresentInteractionParams {
   title?: string;
   content: string;
+  level?: string;
   format?: 'text' | 'markdown' | 'html';
 }

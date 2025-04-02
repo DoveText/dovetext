@@ -211,6 +211,14 @@ export default function TaskOrientedChat({
         return;
       }
       
+      // For present interactions, we don't expect responses - treat as a new message
+      if (lastInteractive.interactiveData?.function === 'present') {
+        console.log('[TaskOrientedChat] Present interaction does not expect responses, treating as new message');
+        // Send as a regular message
+        sendMessage(message, contextType);
+        return;
+      }
+      
       // Convert the text input to the appropriate response format based on the interactive function type
       let formattedResponse: any;
       
