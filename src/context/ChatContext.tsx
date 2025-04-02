@@ -14,6 +14,7 @@ import {
   CustomEventSource,
   SSEConnectionResult 
 } from '@/types/chat';
+import { InteractiveMessage } from '@/types/interactive';
 
 /**
  * The shape of the ChatContext
@@ -47,11 +48,14 @@ interface ChatContextType {
   
   // Chat methods
   addUserMessage: (content: string, id?: string) => void;
-  addSystemMessage: (content: string, id?: string) => void;
+  addSystemMessage: (content: string, id?: string, interactiveData?: InteractiveMessage) => void;
   addErrorMessage: (content: string, id?: string) => void;
   clearChatHistory: () => void;
   updateTask: (task: Partial<ChatTask>) => void;
   setProcessing: (processing: boolean, hint?: string) => void;
+  
+  // Interactive message methods
+  handleInteractiveResponse: (messageId: string, response: any) => void;
   
   // Message submission
   sendMessage: (message: string, contextType: 'schedule' | 'tasks' | 'general') => Promise<void>;
@@ -130,15 +134,17 @@ export function ChatProvider({
   /**
    * Adds a system message to the chat history
    */
-  const addSystemMessage = useCallback((content: string, id?: string) => {
+  const addSystemMessage = useCallback((content: string, id?: string, interactiveData?: InteractiveMessage) => {
     setChatHistory(prev => [...prev, {
       type: 'system',
       content,
       id,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      interactive: !!interactiveData,
+      interactiveData
     }]);
   }, []);
-  
+
   /**
    * Adds an error message to the chat history
    */
@@ -229,7 +235,21 @@ export function ChatProvider({
         setProcessing(true, content);
       } else if (eventType === 'message') {
         setProcessing(false);
-        addSystemMessage(eventData.content, eventData.id);
+        
+        // Check if this is an interactive message
+        if (eventData.interactive) {
+          addSystemMessage(
+            eventData.content, 
+            eventData.id, 
+            {
+              interactive: true,
+              function: eventData.function,
+              parameters: eventData.parameters
+            }
+          );
+        } else {
+          addSystemMessage(eventData.content, eventData.id);
+        }
       } else if (eventType === 'task_update') {
         updateTask({
           complete: eventData.complete || false,
@@ -417,6 +437,57 @@ export function ChatProvider({
     sendMessage(message, 'general');
   }, [expandChat, setChatHistory, sendMessage]);
   
+  /**
+   * Handles responses from interactive messages
+   */
+  const handleInteractiveResponse = useCallback((messageId: string, response: any) => {
+    console.log('[ChatContext] Interactive response received:', { messageId, response });
+    
+    // Mark the message as responded to
+    setChatHistory(prev => prev.map(message => {
+      if (message.id === messageId || (!message.id && messageId.startsWith('message-'))) {
+        return {
+          ...message,
+          isResponseSubmitted: true
+        };
+      }
+      return message;
+    }));
+    
+    // Add the response as a user message
+    let responseContent = '';
+    
+    // Format the response based on type
+    if (typeof response === 'boolean') {
+      responseContent = response ? 'Yes' : 'No';
+    } else if (typeof response === 'string') {
+      responseContent = response;
+    } else if (typeof response === 'object') {
+      // For form responses, create a summary
+      responseContent = 'Form submitted';
+    } else {
+      responseContent = String(response);
+    }
+    
+    // Add the response as a user message
+    addUserMessage(responseContent);
+    
+    // Send the response to the backend
+    if (connectionId) {
+      chatApi.sendMessage({
+        content: JSON.stringify({
+          messageId,
+          response
+        }),
+        connectionId,
+        type: 'interactive_response'
+      }).catch(error => {
+        console.error('[ChatContext] Error sending interactive response:', error);
+        addErrorMessage('Failed to send your response. Please try again.');
+      });
+    }
+  }, [connectionId, addUserMessage, addErrorMessage]);
+
   // Auto-connect when isActive becomes true
   useEffect(() => {
     if (isActive && connectionStatus === 'disconnected' && !isConnecting) {
@@ -528,6 +599,9 @@ export function ChatProvider({
     clearChatHistory,
     updateTask,
     setProcessing,
+    
+    // Interactive message methods
+    handleInteractiveResponse,
     
     // Message submission
     sendMessage,

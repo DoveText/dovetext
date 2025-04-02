@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useAction } from '@/context/ActionContext';
 import { useChat } from '@/context/ChatContext';
+import { ChatMessage } from '@/types/chat';
 
 // Import our utility functions
 import { 
@@ -42,6 +43,7 @@ interface TaskOrientedChatProps {
  * - Can be triggered with a pre-filled message from elsewhere (optional)
  * - Resets to initial state after task completion
  * - Context-aware based on current page/tab
+ * - Supports interactive messages (chat, confirm, select, form, present)
  */
 export default function TaskOrientedChat({ 
   contextType = 'general',
@@ -85,6 +87,9 @@ export default function TaskOrientedChat({
     clearChatHistory,
     updateTask,
     
+    // Interactive message methods
+    handleInteractiveResponse,
+    
     // UI methods
     expandChat,
     minimizeChat,
@@ -95,6 +100,21 @@ export default function TaskOrientedChat({
     // Other methods
     setIsUserInitiated
   } = useChat();
+  
+  // Find the last interactive message that hasn't been responded to
+  const getLastInteractiveMessage = useCallback(() => {
+    if (chatHistory.length === 0) return null;
+    
+    // Search from the end of the chat history
+    for (let i = chatHistory.length - 1; i >= 0; i--) {
+      const message = chatHistory[i];
+      if (message.interactive && !message.isResponseSubmitted) {
+        return message;
+      }
+    }
+    
+    return null;
+  }, [chatHistory]);
   
   // Focus the input field when the chat is opened
   useEffect(() => {
@@ -183,6 +203,14 @@ export default function TaskOrientedChat({
     sendMessage(message, contextType);
   }, [sendMessage, contextType, handlePageSpecificCommandForPage]);
   
+  // Handle interactive message responses
+  const handleInteractiveMessageResponse = useCallback((messageId: string, response: any) => {
+    handleInteractiveResponse(messageId, response);
+  }, [handleInteractiveResponse]);
+  
+  // Get the last interactive message that hasn't been responded to
+  const lastInteractiveMessage = getLastInteractiveMessage();
+  
   // Determine classes based on animation state
   const containerClasses = (() => {
     const baseClass = `fixed z-50 ${className}`;
@@ -266,6 +294,7 @@ export default function TaskOrientedChat({
             processingHint={processingHint}
             currentTask={currentTask}
             getContextExample={getContextExampleForPage}
+            onInteractiveResponse={handleInteractiveMessageResponse}
           />
         </div>
         
@@ -294,6 +323,7 @@ export default function TaskOrientedChat({
               isSending={isSending}
               showInputForm={showInputForm}
               currentTask={currentTask}
+              lastInteractiveMessage={lastInteractiveMessage}
             />
           </div>
         )}

@@ -2,13 +2,15 @@
 
 import React, { useState, useRef, FormEvent, useImperativeHandle, forwardRef } from 'react';
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline';
-import { ChatTask } from '@/types/chat';
+import { ChatMessage, ChatTask } from '@/types/chat';
+import { InteractiveFunction } from '@/types/interactive';
 
 interface ChatInputAreaProps {
   onSubmit: (message: string) => void;
   isSending: boolean;
   showInputForm: boolean;
   currentTask: ChatTask | null;
+  lastInteractiveMessage?: ChatMessage | null;
 }
 
 // Define the handle type for the forwarded ref
@@ -20,7 +22,8 @@ export const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>
   onSubmit, 
   isSending, 
   showInputForm,
-  currentTask
+  currentTask,
+  lastInteractiveMessage
 }, ref) => {
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,9 +54,41 @@ export const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>
     onSubmit(currentMessage);
   };
   
+  // Determine placeholder text based on interactive state
+  const getPlaceholder = () => {
+    if (currentTask?.complete) {
+      return 'Task completed!';
+    }
+    
+    if (lastInteractiveMessage?.interactive && lastInteractiveMessage?.interactiveData && !lastInteractiveMessage?.isResponseSubmitted) {
+      const interactiveType = lastInteractiveMessage.interactiveData.function as InteractiveFunction;
+      
+      switch (interactiveType) {
+        case 'chat':
+          return 'Type your response...';
+        case 'confirm':
+          return 'Select Yes or No, or type your response...';
+        case 'select':
+          return 'Choose an option or type your response...';
+        case 'form':
+          return 'Fill out the form...';
+        default:
+          return 'Type your response...';
+      }
+    }
+    
+    return currentTask ? 'Continue your conversation...' : 'Ask me anything...';
+  };
+  
   if (!showInputForm) {
     return null;
   }
+  
+  // Determine if input should be disabled
+  const isInputDisabled = currentTask?.complete || 
+    (lastInteractiveMessage?.interactive && 
+     lastInteractiveMessage?.interactiveData?.function === 'form' && 
+     !lastInteractiveMessage?.isResponseSubmitted);
   
   return (
     <form onSubmit={handleSubmit} className="flex items-center p-4 border-t bg-white chat-form mb-3 rounded-b-lg">
@@ -63,19 +98,15 @@ export const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>
           type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder={currentTask?.complete 
-            ? 'Task completed!' 
-            : currentTask 
-              ? 'Continue your conversation...' 
-              : `Ask me anything...`}
-          className="w-full p-3 pr-12 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={currentTask?.complete}
+          placeholder={getPlaceholder()}
+          className={`w-full p-3 pr-12 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isInputDisabled ? 'bg-gray-100' : ''}`}
+          disabled={isInputDisabled}
         />
         <button
           type="submit"
-          disabled={currentTask?.complete || isSending}
+          disabled={currentTask?.complete || isSending || isInputDisabled}
           className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-2 rounded-full focus:outline-none ${
-            currentTask?.complete 
+            currentTask?.complete || isInputDisabled
               ? 'text-gray-400' 
               : isSending 
                 ? 'text-blue-500' 

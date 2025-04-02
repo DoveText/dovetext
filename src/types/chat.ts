@@ -2,6 +2,8 @@
  * Types related to chat functionality
  */
 
+import { InteractiveMessage } from './interactive';
+
 /**
  * ChatMessage represents a single message in the chat history
  */
@@ -10,6 +12,9 @@ export interface ChatMessage {
   content: string;
   id?: string;
   timestamp?: number;
+  interactive?: boolean;
+  interactiveData?: InteractiveMessage;
+  isResponseSubmitted?: boolean;
 }
 
 /**

@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { ChatTask } from '@/types/chat';
+import { ChatMessage, ChatTask } from '@/types/chat';
+import InteractiveMessageHandler from '@/components/interactive/InteractiveMessageHandler';
 
 // Define the props for the ChatMessageList component
 interface ChatMessageListProps {
-  chatHistory: Array<{ type: 'user' | 'system' | 'error', content: string, id?: string }>;
+  chatHistory: ChatMessage[];
   isProcessing: boolean;
   processingHint: string;
   currentTask: ChatTask | null;
   getContextExample: () => string;
+  onInteractiveResponse?: (messageId: string, response: any) => void;
 }
 
 /**
@@ -19,13 +21,15 @@ interface ChatMessageListProps {
  * - Shows a typing indicator when the system is processing
  * - Displays a welcome message when the chat is empty
  * - Auto-scrolls to the bottom when new messages arrive
+ * - Handles interactive messages with different UI components
  */
 export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   chatHistory,
   isProcessing,
   processingHint,
   currentTask,
-  getContextExample
+  getContextExample,
+  onInteractiveResponse
 }) => {
   // Reference to the chat container for auto-scrolling
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -50,6 +54,13 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [chatHistory, isProcessing]);
+
+  // Handle interactive message responses
+  const handleInteractiveResponse = (messageId: string, response: any) => {
+    if (onInteractiveResponse) {
+      onInteractiveResponse(messageId, response);
+    }
+  };
 
   return (
     <div 
@@ -87,6 +98,15 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
               }`}
             >
               {message.content}
+              
+              {/* Render interactive components if this is an interactive message */}
+              {message.interactive && message.interactiveData && (
+                <InteractiveMessageHandler
+                  message={message.interactiveData}
+                  onResponse={(response) => handleInteractiveResponse(message.id || `message-${index}`, response)}
+                  isResponseSubmitted={!!message.isResponseSubmitted}
+                />
+              )}
             </div>
           </div>
         );

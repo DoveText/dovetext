@@ -8,7 +8,7 @@ export interface ChatMessage {
 }
 
 export interface ChatMessageRequest {
-  type?: 'schedule' | 'tasks' | 'general';
+  type?: 'schedule' | 'tasks' | 'general' | 'interactive_response';
   content: string;
   connectionId?: string;
   currentPage?: string;
