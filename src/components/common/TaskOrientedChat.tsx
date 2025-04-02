@@ -414,8 +414,38 @@ export default function TaskOrientedChat({
     }
   }, [chatHistory, currentTask, setIsUserInitiated, minimizeChat, clearChatHistory, setIsActive]);
   
-  // Container classes for positioning
-  const containerClasses = `fixed bottom-4 right-4 z-50 ${className}`;
+  // Determine classes based on animation state
+  const containerClasses = (() => {
+    const baseClass = `fixed z-50 ${className}`;
+    
+    // When fully closed and not expanded, show just the chat bubble in the corner
+    if (!isExpanded && animationState === 'closed') {
+      return `${baseClass} bottom-4 right-4 w-12 h-12`;
+    }
+    
+    // For all other states, show the full-screen container
+    return `${baseClass} inset-0 flex items-center justify-center bg-black bg-opacity-50`;
+  })();
+  
+  const chatClasses = (() => {
+    // Base classes for different states
+    const expandedClass = 'bg-white shadow-xl rounded-2xl w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 max-w-4xl h-3/4';
+    const closedClass = 'bg-white shadow-xl overflow-hidden rounded-full h-12 w-12';
+    
+    if (!isExpanded && animationState === 'closed') {
+      return closedClass;
+    }
+    
+    // For opening/closing animations
+    if (animationState === 'opening' || animationState === 'closing') {
+      return `${expandedClass} transform transition-all duration-300 ease-in-out ${
+        animationState === 'opening' ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+      }`;
+    }
+    
+    // Fully open state
+    return expandedClass;
+  })();
   
   // If chat is minimized and animation is complete, show the chat bubble
   if (!isExpanded && animationState === 'closed') {
@@ -433,11 +463,15 @@ export default function TaskOrientedChat({
   
   // Otherwise, show the full chat interface
   return (
-    <div className={containerClasses}>
+    <div className={containerClasses} onClick={(e) => {
+      // Close the modal when clicking the overlay background
+      if (e.target === e.currentTarget) {
+        handleClose();
+      }
+    }}>
       <div 
-        className={`bg-white rounded-lg shadow-xl overflow-hidden flex flex-col ${
-          isExpanded ? 'w-96 h-[500px]' : 'w-0 h-0 opacity-0'
-        } transition-all duration-300 ease-in-out`}
+        className={chatClasses}
+        onClick={(e) => e.stopPropagation()}
         style={{ transformOrigin: 'bottom right' }}
       >
         {/* Chat Header */}
