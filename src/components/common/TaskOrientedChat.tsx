@@ -11,6 +11,7 @@ import { useSSEConnection, SSEEventCallbacks, SSEConnectionOptions } from '@/hoo
 import { useChatState, ChatTask } from '@/hooks/useChatState';
 import { useAnimationState } from '@/hooks/useAnimationState';
 import { useNavigationHandler, NavigationHandlerOptions } from '@/hooks/useNavigationHandler';
+import { useChatTriggerHandler, ChatTriggerOptions } from '@/hooks/useChatTriggerHandler';
 
 // Import our UI components
 import { 
@@ -33,6 +34,7 @@ interface TaskOrientedChatProps {
   onSwitchContext?: (contextType: 'schedule' | 'tasks' | 'general') => void;
   className?: string;
   enableNavigation?: boolean; // New prop to enable/disable navigation
+  enableChatTrigger?: boolean; // New prop to enable/disable chat trigger
 }
 
 /**
@@ -42,6 +44,7 @@ interface TaskOrientedChatProps {
  * - Expands to a full chat interface when clicked
  * - Handles multi-step conversations with task completion tracking
  * - Can navigate between pages and trigger UI actions (optional)
+ * - Can be triggered with a pre-filled message from elsewhere (optional)
  * - Resets to initial state after task completion
  * - Context-aware based on current page/tab
  */
@@ -49,7 +52,8 @@ export default function TaskOrientedChat({
   contextType = 'general',
   onSwitchContext,
   className = '',
-  enableNavigation = false // Disabled by default
+  enableNavigation = false, // Disabled by default
+  enableChatTrigger = true  // Enabled by default
 }: TaskOrientedChatProps) {
   // Detect current page to provide context-aware assistance
   const [currentPage, setCurrentPage] = useState('');
@@ -194,6 +198,22 @@ export default function TaskOrientedChat({
     connectToSSE
   } = useSSEConnection(sseCallbacks, sseOptions);
   
+  // Set up chat trigger handler if enabled
+  const chatTriggerOptions: ChatTriggerOptions = {
+    onTrigger: (message) => {
+      expandChat();
+      setChatHistory([{ type: 'user', content: message }]);
+    },
+    onError: (error) => {
+      showError('An error occurred processing your message. Please try again.');
+    },
+    contextType,
+    enabled: enableChatTrigger
+  };
+  
+  // Use our custom hook for handling chat triggers
+  useChatTriggerHandler(connectionId, connectToSSE, chatTriggerOptions);
+  
   // Handle message submission
   const handleSubmit = useCallback(async (currentMessage: string) => {
     // Add user message to chat history
@@ -285,66 +305,14 @@ export default function TaskOrientedChat({
     const handleRouteChange = () => {
       setCurrentPage(window.location.pathname);
     };
-    
-    // Listen for chat trigger events from dashboard input
-    const handleChatTrigger = async (event: CustomEvent) => {
-      expandChat();
-      
-      if (event.detail?.message) {
-        const userMessage = event.detail.message;
-        
-        // Add the user message directly to chat history
-        setChatHistory([{ type: 'user', content: userMessage }]);
-        
-        // Ensure we have a connection before processing the message
-        try {
-          console.log('[TaskOrientedChat] Chat triggered with message, ensuring connection is established first');
-          
-          // If no connection or connecting, wait for connection to be established
-          let activeConnectionId = connectionId;
-          if (!activeConnectionId) {
-            console.log('[TaskOrientedChat] No active connection, attempting to connect first');
-            
-            // Wait for connection to be established
-            const result = await connectToSSE();
-            activeConnectionId = result.connectionId;
-            
-            if (!activeConnectionId) {
-              console.error('[TaskOrientedChat] Failed to establish connection');
-              showError('An error occurred connecting to the chat service. Please try again.');
-              return;
-            }
-            
-            console.log('[TaskOrientedChat] Connection established successfully:', activeConnectionId);
-          }
-          
-          // Now that we have a connection, process the message
-          console.log('[TaskOrientedChat] Processing triggered message with connectionId:', activeConnectionId);
-          
-          // Send the message using the obtained connectionId
-          await chatApi.sendMessage({
-            type: contextType,
-            content: userMessage,
-            connectionId: activeConnectionId,
-            currentPage: window.location.pathname
-          });
-          
-        } catch (error) {
-          console.error('[TaskOrientedChat] Error processing triggered message:', error);
-          showError('An error occurred processing your message. Please try again.');
-        }
-      }
-    };
 
-    // Add event listeners
+    // Add event listener for route changes
     window.addEventListener('popstate', handleRouteChange);
-    window.addEventListener('triggerChatBubble', (handleChatTrigger as unknown) as EventListener);
 
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
-      window.removeEventListener('triggerChatBubble', (handleChatTrigger as unknown) as EventListener);
     };
-  }, [connectionId, contextType, expandChat, setChatHistory, connectToSSE, showError]);
+  }, []);
   
   // Handle closing the chat
   const handleClose = useCallback(() => {

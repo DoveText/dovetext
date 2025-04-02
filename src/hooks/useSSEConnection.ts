@@ -3,16 +3,27 @@
 import { useState, useCallback, useEffect } from 'react';
 import { chatApi } from '@/app/api/chat';
 
+/**
+ * Result type returned by the connectToSSE function
+ * Contains the connectionId that can be used immediately without waiting for state updates
+ */
 interface SSEConnectionResult {
   connectionId: string | null;
 }
 
+/**
+ * Possible connection status values for the SSE connection
+ */
 type ConnectionStatus = 'connected' | 'disconnected' | 'reconnecting';
 
-// Define the event types that can be received from the SSE connection
+/**
+ * Defines the event types that can be received from the SSE connection
+ */
 export type SSEEventType = 'thinking' | 'processing' | 'message' | 'task_update' | 'action';
 
-// Define the structure of SSE event data
+/**
+ * Defines the structure of SSE event data received from the server
+ */
 export interface SSEEventData {
   type: SSEEventType;
   content?: string;
@@ -24,30 +35,86 @@ export interface SSEEventData {
   [key: string]: any; // Allow for additional properties
 }
 
-// Define callback types for different event types
+/**
+ * Callback types for different SSE event types
+ * These callbacks are invoked when corresponding events are received
+ */
 export interface SSEEventCallbacks {
+  /** Called when the AI is thinking about a response */
   onThinking?: (content: string) => void;
+  /** Called when the AI is processing a response */
   onProcessing?: (content: string) => void;
+  /** Called when a message is received from the AI */
   onMessage?: (content: string, id?: string) => void;
+  /** Called when a task update is received */
   onTaskUpdate?: (task: { complete: boolean, steps: number, currentStep: number }) => void;
+  /** Called when an action event is received */
   onAction?: (actionType: string, data: any) => void;
+  /** Called when an error occurs with the SSE connection */
   onError?: (error: Error) => void;
+  /** Called when the connection status changes */
   onConnectionStatusChange?: (status: ConnectionStatus) => void;
 }
 
-// Define options for the hook
+/**
+ * Configuration options for the SSE connection
+ */
 export interface SSEConnectionOptions {
-  autoConnect?: boolean; // Whether to automatically connect when isActive becomes true
-  autoReconnect?: boolean; // Whether to automatically attempt reconnection when disconnected
-  maxReconnectAttempts?: number; // Maximum number of automatic reconnection attempts
-  isActive?: boolean; // Whether the connection should be active (e.g., chat is expanded)
+  /** Whether to automatically connect when isActive becomes true */
+  autoConnect?: boolean;
+  /** Whether to automatically attempt reconnection when disconnected */
+  autoReconnect?: boolean;
+  /** Maximum number of automatic reconnection attempts */
+  maxReconnectAttempts?: number;
+  /** Whether the connection should be active (e.g., chat is expanded) */
+  isActive?: boolean;
 }
 
-// Define a custom EventSource interface that matches what chatApi.createChatStream returns
+/**
+ * Custom EventSource interface that matches what chatApi.createChatStream returns
+ */
 interface CustomEventSource {
   close: () => void;
 }
 
+/**
+ * A hook that manages Server-Sent Events (SSE) connections for real-time communication.
+ * 
+ * This hook handles:
+ * - Connection establishment and termination
+ * - Automatic reconnection with exponential backoff
+ * - Event processing and callback invocation
+ * - Connection status tracking
+ * 
+ * It addresses common issues like race conditions between connection establishment
+ * and message sending by returning the connectionId immediately from connectToSSE.
+ * 
+ * @param callbacks - Callbacks for different event types
+ * @param options - Configuration options for the connection
+ * 
+ * @returns An object containing connection state and methods to control the connection
+ * 
+ * @example
+ * // Basic usage
+ * const { connectionId, connectionStatus, connectToSSE } = useSSEConnection();
+ * 
+ * // With callbacks
+ * const callbacks = {
+ *   onMessage: (content) => console.log('Message received:', content),
+ *   onError: (error) => console.error('Connection error:', error)
+ * };
+ * 
+ * const { connectionId, handleReconnect } = useSSEConnection(callbacks);
+ * 
+ * // With options
+ * const options = { 
+ *   autoConnect: true,
+ *   autoReconnect: true,
+ *   isActive: isExpanded 
+ * };
+ * 
+ * const { connectionId } = useSSEConnection(callbacks, options);
+ */
 export function useSSEConnection(callbacks?: SSEEventCallbacks, options?: SSEConnectionOptions) {
   // Default options
   const {
@@ -106,7 +173,13 @@ export function useSSEConnection(callbacks?: SSEEventCallbacks, options?: SSECon
     }
   }, [callbacks]);
 
-  // Function to establish SSE connection
+  /**
+   * Establishes an SSE connection to the server
+   * Returns the connectionId immediately for use without waiting for state updates
+   * 
+   * @param isReconnecting - Whether this is a reconnection attempt
+   * @returns An object containing the connectionId
+   */
   const connectToSSE = useCallback(async (isReconnecting = false): Promise<SSEConnectionResult> => {
     console.log('[useSSEConnection] Starting SSE connection...');
     try {
@@ -166,7 +239,10 @@ export function useSSEConnection(callbacks?: SSEEventCallbacks, options?: SSECon
     }
   }, [isConnecting, connectionId, connectionStatus, processSSEEvent, callbacks]);
 
-  // Function to handle manual reconnection
+  /**
+   * Handles manual reconnection attempts
+   * Can be called by the UI when automatic reconnection fails
+   */
   const handleReconnect = useCallback(async () => {
     if (connectionStatus === 'reconnecting') return;
     
@@ -174,7 +250,9 @@ export function useSSEConnection(callbacks?: SSEEventCallbacks, options?: SSECon
     await connectToSSE(true);
   }, [connectToSSE, connectionStatus]);
 
-  // Centralized function to handle connection termination
+  /**
+   * Terminates the SSE connection and cleans up resources
+   */
   const terminateConnection = useCallback(() => {
     if (eventSource) {
       console.log('[useSSEConnection] Terminating SSE connection');

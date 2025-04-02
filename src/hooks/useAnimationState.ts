@@ -2,8 +2,47 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
+/**
+ * Possible animation states for the chat component
+ */
 type AnimationState = 'opening' | 'open' | 'closing' | 'closed';
 
+/**
+ * A hook that manages animation states for expandable/collapsible UI components.
+ * 
+ * This hook handles the transition between different animation states:
+ * - opening: Component is in the process of expanding/maximizing
+ * - open: Component is fully expanded/maximized
+ * - closing: Component is in the process of collapsing/minimizing
+ * - closed: Component is fully collapsed/minimized
+ * 
+ * It also tracks whether the animation was initiated by the user and whether
+ * the component is currently active.
+ * 
+ * @param {boolean} initialExpanded - Initial expanded state of the component
+ * @returns An object containing animation state and methods to control it
+ * 
+ * @example
+ * // Basic usage
+ * const {
+ *   isExpanded,
+ *   animationState,
+ *   expandChat,
+ *   minimizeChat,
+ *   toggleChat
+ * } = useAnimationState();
+ * 
+ * // In your JSX:
+ * return (
+ *   <div className={`chat-container ${animationState}`}>
+ *     {isExpanded ? (
+ *       <FullChatInterface onClose={minimizeChat} />
+ *     ) : (
+ *       <ChatBubble onClick={expandChat} />
+ *     )}
+ *   </div>
+ * );
+ */
 export function useAnimationState(initialExpanded = false) {
   // Expanded state controls whether the chat is expanded or minimized
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
@@ -19,7 +58,9 @@ export function useAnimationState(initialExpanded = false) {
   // Active state tracks whether the chat is actively being used
   const [isActive, setIsActive] = useState(false);
   
-  // Handle animation transitions when expanded state changes
+  /**
+   * Handle animation transitions when expanded state changes
+   */
   useEffect(() => {
     let animationTimer: NodeJS.Timeout;
     
@@ -42,20 +83,26 @@ export function useAnimationState(initialExpanded = false) {
     };
   }, [isExpanded]);
   
-  // Function to expand the chat
+  /**
+   * Expand the chat with animation
+   */
   const expandChat = useCallback((userInitiated = true) => {
     setIsUserInitiated(userInitiated);
     setIsExpanded(true);
     setIsActive(true);
   }, []);
   
-  // Function to minimize the chat
+  /**
+   * Minimize the chat with animation
+   */
   const minimizeChat = useCallback((userInitiated = true) => {
     setIsUserInitiated(userInitiated);
     setIsExpanded(false);
   }, []);
   
-  // Function to toggle the chat state
+  /**
+   * Toggle the chat state with animation
+   */
   const toggleChat = useCallback(() => {
     setIsUserInitiated(true);
     setIsExpanded(prev => !prev);
