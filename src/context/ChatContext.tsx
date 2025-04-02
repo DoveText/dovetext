@@ -224,13 +224,13 @@ export function ChatProvider({
     
     try {
       // Process different event types
-      if (eventData.type === 'thinking' || eventData.type === 'processing') {
+      if (eventType === 'thinking' || eventType === 'processing') {
         const content = eventData.content || 'Thinking...';
         setProcessing(true, content);
-      } else if (eventData.type === 'message') {
+      } else if (eventType === 'message') {
         setProcessing(false);
         addSystemMessage(eventData.content, eventData.id);
-      } else if (eventData.type === 'task_update') {
+      } else if (eventType === 'task_update') {
         updateTask({
           complete: eventData.complete || false,
           steps: eventData.steps || 1,
@@ -243,7 +243,7 @@ export function ChatProvider({
             clearChatHistory();
           }, 5000);
         }
-      } else if (eventData.type === 'action') {
+      } else if (eventType === 'action') {
         // Handle action events (navigation, form filling, etc.)
         // This would need to be expanded based on your application's needs
         console.log('[ChatContext] Action received:', eventData.actionType);
