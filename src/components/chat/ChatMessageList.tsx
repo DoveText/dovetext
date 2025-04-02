@@ -103,7 +103,13 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
               {message.interactive && message.interactiveData && (
                 <InteractiveMessageHandler
                   message={message.interactiveData}
-                  onResponse={(response) => handleInteractiveResponse(message.id || `message-${index}`, response)}
+                  onResponse={(response) => {
+                    // Use the exact message ID for interactive responses
+                    // The backend expects the ID without any modifications
+                    const messageId = message.id || `interactive-${index}-${Date.now()}`;
+                    console.log('[ChatMessageList] Handling interactive response for message ID:', messageId);
+                    handleInteractiveResponse(messageId, response);
+                  }}
                   isResponseSubmitted={!!message.isResponseSubmitted}
                 />
               )}

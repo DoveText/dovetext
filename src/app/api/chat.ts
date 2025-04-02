@@ -239,6 +239,7 @@ export const chatApi = {
               
               // Call the message handler if provided
               if (onMessage && typeof onMessage === 'function') {
+                // Pass the event type and data to the handler
                 onMessage(event.event, data);
               }
             } catch (err) {

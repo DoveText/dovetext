@@ -250,6 +250,26 @@ export function ChatProvider({
         } else {
           addSystemMessage(eventData.content, eventData.id);
         }
+      } else if (eventType === 'interactive') {
+        // Handle interactive event type directly
+        setProcessing(false);
+        
+        // Extract the question/prompt from parameters to use as content
+        const content = eventData.parameters?.question || 
+                       eventData.parameters?.prompt || 
+                       'Interactive message';
+        
+        addSystemMessage(
+          content,
+          eventData.id || `interactive-${Date.now()}`,
+          {
+            interactive: true,
+            function: eventData.function,
+            parameters: eventData.parameters
+          }
+        );
+        
+        console.log('[ChatContext] Added interactive message:', eventData);
       } else if (eventType === 'task_update') {
         updateTask({
           complete: eventData.complete || false,
@@ -474,9 +494,15 @@ export function ChatProvider({
     
     // Send the response to the backend
     if (connectionId) {
+      // Make sure we're using the exact messageId format that the backend expects
+      // For interactive messages, the backend expects the raw messageId without any prefix
+      const cleanMessageId = messageId.startsWith('interactive-') ? messageId : messageId;
+      
+      console.log('[ChatContext] Sending interactive response with messageId:', cleanMessageId);
+      
       chatApi.sendMessage({
         content: JSON.stringify({
-          messageId,
+          messageId: cleanMessageId,
           response
         }),
         connectionId,
