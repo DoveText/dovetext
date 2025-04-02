@@ -11,6 +11,7 @@ interface InteractiveMessageHandlerProps {
   message: InteractiveMessage;
   onResponse: (response: any) => void;
   isResponseSubmitted: boolean;
+  parentMessage?: any; // Add reference to the parent ChatMessage
 }
 
 /**
@@ -20,7 +21,8 @@ interface InteractiveMessageHandlerProps {
 const InteractiveMessageHandler: React.FC<InteractiveMessageHandlerProps> = ({
   message,
   onResponse,
-  isResponseSubmitted
+  isResponseSubmitted,
+  parentMessage
 }) => {
   const { function: functionType, parameters } = message;
 
@@ -41,6 +43,7 @@ const InteractiveMessageHandler: React.FC<InteractiveMessageHandlerProps> = ({
           parameters={parameters} 
           onResponse={onResponse} 
           isResponseSubmitted={isResponseSubmitted}
+          message={parentMessage} // Pass the parent message
         />
       );
     

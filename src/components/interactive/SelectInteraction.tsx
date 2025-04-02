@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SelectInteractionParams } from '@/types/interactive';
 
 interface SelectInteractionProps {
   parameters: Record<string, any>;
   onResponse: (response: string) => void;
   isResponseSubmitted: boolean;
+  message?: any; 
 }
 
 /**
@@ -15,17 +16,33 @@ interface SelectInteractionProps {
 const SelectInteraction: React.FC<SelectInteractionProps> = ({
   parameters,
   onResponse,
-  isResponseSubmitted
+  isResponseSubmitted,
+  message
 }) => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [customOption, setCustomOption] = useState<string | null>(null);
   const params = parameters as SelectInteractionParams;
   
   const { question, options, placeholder } = params;
+  
+  // Effect to check if there's a responseValue to use
+  useEffect(() => {
+    if (isResponseSubmitted && message?.responseValue) {
+      const responseValueStr = String(message.responseValue);
+      setSelectedOption(responseValueStr);
+      
+      // Check if it's a custom option
+      if (!options.includes(responseValueStr)) {
+        setCustomOption(responseValueStr);
+      }
+    }
+  }, [isResponseSubmitted, message, options]);
   
   const handleOptionClick = (option: string) => {
     if (isResponseSubmitted) return;
     
     setSelectedOption(option);
+    setCustomOption(null); // Clear any custom option when selecting a predefined one
     onResponse(option);
   };
   
@@ -47,6 +64,13 @@ const SelectInteraction: React.FC<SelectInteractionProps> = ({
           </button>
         ))}
       </div>
+      
+      {/* Show custom option message if applicable */}
+      {customOption && isResponseSubmitted && (
+        <div className="mt-2 text-sm text-amber-600 bg-amber-50 p-2 rounded">
+          User provided custom option: <span className="font-semibold">"{customOption}"</span>
+        </div>
+      )}
     </div>
   );
 };

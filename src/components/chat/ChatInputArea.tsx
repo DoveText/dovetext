@@ -96,7 +96,7 @@ export const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>
       if (interactiveType === 'form') {
         return 'Please fill out the form above';
       } else if (interactiveType === 'confirm') {
-        return 'Please select Yes or No from the options above';
+        return 'Please select one of the options shown above';
       }
     }
     

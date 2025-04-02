@@ -480,14 +480,15 @@ export function ChatProvider({
    * Handles responses from interactive messages
    */
   const handleInteractiveResponse = useCallback((messageId: string, response: any) => {
-    console.log('[ChatContext] Interactive response received:', { messageId, response });
+    console.log('[ChatContext] Handling interactive response for message ID:', messageId, 'response:', response);
     
-    // Mark the message as responded to
+    // Mark the message as having received a response
     setChatHistory(prev => prev.map(message => {
-      if (message.id === messageId || (!message.id && messageId.startsWith('message-'))) {
+      if (message.id === messageId) {
         return {
           ...message,
-          isResponseSubmitted: true
+          isResponseSubmitted: true,
+          responseValue: response // Store the actual response value
         };
       }
       return message;

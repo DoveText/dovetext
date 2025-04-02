@@ -15,6 +15,7 @@ export interface ChatMessage {
   interactive?: boolean;
   interactiveData?: InteractiveMessage;
   isResponseSubmitted?: boolean;
+  responseValue?: any; // Store the actual response value
 }
 
 /**

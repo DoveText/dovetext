@@ -216,8 +216,23 @@ export default function TaskOrientedChat({
       
       switch (lastInteractive.interactiveData?.function) {
         case 'select':
-          // For select, just pass the text as the selected option
-          formattedResponse = message;
+          // For select, check if the text matches any of the options (case insensitive)
+          const options = lastInteractive.interactiveData.parameters?.options || [];
+          const normalizedMessage = message.toLowerCase().trim();
+          const normalizedOptions = options.map((opt: string) => opt.toLowerCase().trim());
+          const matchIndex = normalizedOptions.findIndex((opt: string) => opt === normalizedMessage);
+          
+          if (matchIndex >= 0) {
+            // If there's a match, use the original option text (preserving case)
+            formattedResponse = options[matchIndex];
+            console.log('[TaskOrientedChat] Text input matched option:', formattedResponse);
+            // Trigger highlighting in the SelectInteraction component
+            // We do this by using the exact matched option from the original list
+          } else {
+            // If no match, use the custom input
+            formattedResponse = message;
+            console.log('[TaskOrientedChat] Text input did not match any option, using as custom input');
+          }
           break;
           
         case 'form':

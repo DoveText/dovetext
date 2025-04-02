@@ -111,6 +111,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                     handleInteractiveResponse(messageId, response);
                   }}
                   isResponseSubmitted={!!message.isResponseSubmitted}
+                  parentMessage={message} // Pass the whole message object
                 />
               )}
             </div>
