@@ -10,6 +10,7 @@ import { chatApi, ChatMessageRequest } from '@/app/api/chat';
 import { useSSEConnection, SSEEventCallbacks, SSEConnectionOptions } from '@/hooks/useSSEConnection';
 import { useChatState, ChatTask } from '@/hooks/useChatState';
 import { useAnimationState } from '@/hooks/useAnimationState';
+import { useNavigationHandler, NavigationHandlerOptions } from '@/hooks/useNavigationHandler';
 
 // Import our UI components
 import { 
@@ -22,7 +23,6 @@ import {
 
 // Import our utility functions
 import { 
-  detectNavigationIntent, 
   getContextTitle, 
   getContextExample,
   handlePageSpecificCommand
@@ -32,6 +32,7 @@ interface TaskOrientedChatProps {
   contextType?: 'schedule' | 'tasks' | 'general';
   onSwitchContext?: (contextType: 'schedule' | 'tasks' | 'general') => void;
   className?: string;
+  enableNavigation?: boolean; // New prop to enable/disable navigation
 }
 
 /**
@@ -40,14 +41,15 @@ interface TaskOrientedChatProps {
  * - Starts as a minimized chat bubble
  * - Expands to a full chat interface when clicked
  * - Handles multi-step conversations with task completion tracking
- * - Can navigate between pages and trigger UI actions
+ * - Can navigate between pages and trigger UI actions (optional)
  * - Resets to initial state after task completion
  * - Context-aware based on current page/tab
  */
 export default function TaskOrientedChat({ 
   contextType = 'general',
   onSwitchContext,
-  className = ''
+  className = '',
+  enableNavigation = false // Disabled by default
 }: TaskOrientedChatProps) {
   // Detect current page to provide context-aware assistance
   const [currentPage, setCurrentPage] = useState('');
@@ -105,71 +107,20 @@ export default function TaskOrientedChat({
     return getContextExample(contextType, currentPage);
   }, [contextType, currentPage]);
   
-  // Function to handle navigation
-  const handleNavigation = useCallback((action: string) => {
-    // Set a message that we're navigating
-    addSystemMessage(`I'll help you with that. Navigating to the appropriate page...`);
-    
-    // Wait a moment before navigation to show the message
-    setTimeout(() => {
-      switch (action) {
-        case 'create-delivery-method':
-          // Set the pending action in context and navigate
-          actionContext.setPendingAction('create-delivery-method');
-          router.push('/notifications/delivery-methods');
-          break;
-        case 'view-delivery-methods':
-          router.push('/notifications/delivery-methods');
-          break;
-        case 'create-task':
-          // If already on dashboard, switch to tasks tab and open create dialog
-          if (window.location.pathname === '/dashboard') {
-            // Switch context if provided
-            if (onSwitchContext) {
-              onSwitchContext('tasks');
-            }
-            window.dispatchEvent(new CustomEvent('switchTab', { detail: { tab: 1 } })); // Switch to Tasks tab
-            actionContext.setPendingAction('create-task');
-          } else {
-            // Set the pending action in context and navigate
-            actionContext.setPendingAction('create-task');
-            router.push('/dashboard');
-          }
-          break;
-        case 'create-schedule':
-          // If already on dashboard, switch to schedule tab and open create dialog
-          if (window.location.pathname === '/dashboard') {
-            // Switch context if provided
-            if (onSwitchContext) {
-              onSwitchContext('schedule');
-            }
-            window.dispatchEvent(new CustomEvent('switchTab', { detail: { tab: 0 } })); // Switch to Schedule tab
-            actionContext.setPendingAction('create-task');
-          } else {
-            // Set the pending action in context and navigate
-            actionContext.setPendingAction('create-task');
-            router.push('/dashboard');
-          }
-          break;
-        case 'dashboard':
-          router.push('/dashboard');
-          break;
-        case 'settings':
-          actionContext.setPendingAction('open-settings');
-          router.push('/settings');
-          break;
-        case 'profile':
-          router.push('/profile');
-          break;
-        default:
-          // No navigation needed
-          break;
-      }
-      
-      // Reset chat after navigation
+  // Set up navigation handler if enabled
+  const navigationOptions: NavigationHandlerOptions = {
+    onSwitchContext,
+    onNavigationStart: (action) => {
+      addSystemMessage(`I'll help you with that. Navigating to the appropriate page...`);
+    },
+    onNavigationComplete: () => {
       updateTask({ complete: true, steps: 1, currentStep: 1 });
-    }, 1000);
-  }, [actionContext, onSwitchContext, router, addSystemMessage, updateTask]);
+    }
+  };
+  
+  const { processNavigationIntent } = useNavigationHandler(
+    enableNavigation ? navigationOptions : undefined
+  );
   
   // Handle page-specific commands
   const handlePageSpecificCommandForPage = useCallback((text: string) => {
@@ -297,12 +248,13 @@ export default function TaskOrientedChat({
         return;
       }
       
-      // Check for navigation intents in the message
-      const navigationIntent = detectNavigationIntent(currentMessage);
-      if (navigationIntent) {
-        console.log('[TaskOrientedChat] Navigation intent detected:', navigationIntent);
-        handleNavigation(navigationIntent);
-        return;
+      // Check for navigation intents if navigation is enabled
+      if (enableNavigation) {
+        const handled = processNavigationIntent(currentMessage);
+        if (handled) {
+          console.log('[TaskOrientedChat] Navigation intent handled');
+          return;
+        }
       }
       
       // Check for page-specific commands
@@ -321,7 +273,7 @@ export default function TaskOrientedChat({
       // Add error message to chat with reconnect instructions
       addSystemMessage('Sorry, there was an error sending your message. Please use the reconnect button to try again.');
     }
-  }, [connectionId, connectToSSE, contextType, addUserMessage, setIsSending, addSystemMessage, handleNavigation, handlePageSpecificCommandForPage]);
+  }, [connectionId, connectToSSE, contextType, addUserMessage, setIsSending, addSystemMessage, enableNavigation, processNavigationIntent, handlePageSpecificCommandForPage]);
   
   // Get current page on mount and when route changes
   useEffect(() => {
@@ -429,7 +381,7 @@ export default function TaskOrientedChat({
   
   const chatClasses = (() => {
     // Base classes for different states
-    const expandedClass = 'bg-white shadow-xl rounded-2xl w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 max-w-4xl h-3/4';
+    const expandedClass = 'bg-white shadow-xl rounded-2xl w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 max-w-4xl h-3/4 flex flex-col overflow-hidden';
     const closedClass = 'bg-white shadow-xl overflow-hidden rounded-full h-12 w-12';
     
     if (!isExpanded && animationState === 'closed') {
@@ -490,13 +442,15 @@ export default function TaskOrientedChat({
         )}
 
         {/* Chat Messages */}
-        <ChatMessageList 
-          chatHistory={chatHistory}
-          isProcessing={isProcessing}
-          processingHint={processingHint}
-          currentTask={currentTask}
-          getContextExample={getContextExampleForPage}
-        />
+        <div className="flex-1 overflow-y-auto">
+          <ChatMessageList 
+            chatHistory={chatHistory}
+            isProcessing={isProcessing}
+            processingHint={processingHint}
+            currentTask={currentTask}
+            getContextExample={getContextExampleForPage}
+          />
+        </div>
         
         {/* Connection lost message */}
         {connectionStatus === 'disconnected' && reconnectAttempts >= MAX_AUTO_RECONNECT_ATTEMPTS && (
@@ -516,12 +470,14 @@ export default function TaskOrientedChat({
         
         {/* Input Form */}
         {showInputForm && (
-          <ChatInputArea 
-            onSubmit={handleSubmit}
-            isSending={isSending}
-            showInputForm={showInputForm}
-            currentTask={currentTask}
-          />
+          <div className="mt-auto border-t">
+            <ChatInputArea 
+              onSubmit={handleSubmit}
+              isSending={isSending}
+              showInputForm={showInputForm}
+              currentTask={currentTask}
+            />
+          </div>
         )}
       </div>
     </div>
