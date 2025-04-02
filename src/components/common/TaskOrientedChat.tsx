@@ -12,6 +12,7 @@ import { useChatState, ChatTask } from '@/hooks/useChatState';
 import { useAnimationState } from '@/hooks/useAnimationState';
 import { useNavigationHandler, NavigationHandlerOptions } from '@/hooks/useNavigationHandler';
 import { useChatTriggerHandler, ChatTriggerOptions } from '@/hooks/useChatTriggerHandler';
+import { useMessageSubmitHandler, MessageSubmitOptions } from '@/hooks/useMessageSubmitHandler';
 
 // Import our UI components
 import { 
@@ -214,86 +215,23 @@ export default function TaskOrientedChat({
   // Use our custom hook for handling chat triggers
   useChatTriggerHandler(connectionId, connectToSSE, chatTriggerOptions);
   
-  // Handle message submission
-  const handleSubmit = useCallback(async (currentMessage: string) => {
-    // Add user message to chat history
-    addUserMessage(currentMessage);
-    
-    // Set sending state to show loading animation on submit button
-    setIsSending(true);
-    
-    try {
-      console.log('[TaskOrientedChat] Sending message with connectionId:', connectionId);
-      
-      // Ensure we have a connection to the chat backend
-      let activeConnectionId = connectionId;
-      if (!activeConnectionId) {
-        console.log('[TaskOrientedChat] No active connection, attempting to connect first');
-        const result = await connectToSSE();
-        activeConnectionId = result.connectionId;
-        if (!activeConnectionId) {
-          throw new Error('Failed to establish connection');
-        }
-      }
-      
-      // Send the message
-      const response = await chatApi.sendMessage({
-        type: contextType as 'schedule' | 'tasks' | 'general',
-        content: currentMessage,
-        connectionId: activeConnectionId,
-        currentPage: window.location.pathname
-      });
-      
-      // Turn off the sending indicator
-      setIsSending(false);
-      
-      // Check if we got an error response
-      if (response.type === 'error') {
-        console.warn('[TaskOrientedChat] Error response:', response.content);
-        
-        // Handle connection lost errors
-        if (response.content.includes('Connection lost') || response.content.includes('reconnect')) {
-          console.warn('[TaskOrientedChat] Connection lost, attempting to reconnect');
-          
-          // Show the error in the chat with a reconnect button
-          addSystemMessage('Connection lost. Please click the reconnect button to continue chatting.');
-          
-          // Don't automatically reconnect - let the user click the button
-          return;
-        }
-        
-        // Handle other errors
-        addSystemMessage(response.content);
-        
-        return;
-      }
-      
-      // Check for navigation intents if navigation is enabled
-      if (enableNavigation) {
-        const handled = processNavigationIntent(currentMessage);
-        if (handled) {
-          console.log('[TaskOrientedChat] Navigation intent handled');
-          return;
-        }
-      }
-      
-      // Check for page-specific commands
-      const handled = handlePageSpecificCommandForPage(currentMessage);
-      if (handled) {
-        console.log('[TaskOrientedChat] Page-specific command handled');
-        return;
-      }
-      
-    } catch (error) {
-      console.error('[TaskOrientedChat] Error sending message:', error);
-      
-      // Turn off loading states
-      setIsSending(false);
-      
-      // Add error message to chat with reconnect instructions
-      addSystemMessage('Sorry, there was an error sending your message. Please use the reconnect button to try again.');
-    }
-  }, [connectionId, connectToSSE, contextType, addUserMessage, setIsSending, addSystemMessage, enableNavigation, processNavigationIntent, handlePageSpecificCommandForPage]);
+  // Set up message submit handler
+  const messageSubmitOptions: MessageSubmitOptions = {
+    contextType,
+    addUserMessage,
+    addSystemMessage,
+    setIsSending,
+    enableNavigation,
+    processNavigationIntent: enableNavigation ? processNavigationIntent : undefined,
+    handlePageSpecificCommand: handlePageSpecificCommandForPage
+  };
+  
+  // Use our custom hook for handling message submission
+  const handleSubmit = useMessageSubmitHandler(
+    connectionId,
+    connectToSSE,
+    messageSubmitOptions
+  );
   
   // Get current page on mount and when route changes
   useEffect(() => {
