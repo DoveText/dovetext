@@ -254,22 +254,41 @@ export function ChatProvider({
         // Handle interactive event type directly
         setProcessing(false);
         
-        // Extract the question/prompt from parameters to use as content
-        const content = eventData.parameters?.question || 
-                       eventData.parameters?.prompt || 
-                       'Interactive message';
+        // Extract the appropriate content based on the function type
+        let content = '';
+        
+        if (eventData.function === 'confirm') {
+          // For confirm interactions, use the message parameter
+          content = eventData.parameters?.message || 'Confirm?';
+        } else if (eventData.function === 'select') {
+          // For select interactions, use the question parameter
+          content = eventData.parameters?.question || 'Select an option:';
+        } else if (eventData.function === 'form') {
+          // For form interactions, use the title parameter
+          content = eventData.parameters?.title || 'Please fill out this form:';
+        } else if (eventData.function === 'chat') {
+          // For chat interactions, use the question parameter
+          content = eventData.parameters?.question || 'What would you like to chat about?';
+        } else if (eventData.function === 'present') {
+          // For present interactions, use the title or content parameter
+          content = eventData.parameters?.title || eventData.parameters?.content || 'Information';
+        } else {
+          // Default fallback for unknown function types
+          content = 'Interactive message';
+        }
+        
+        console.log('[ChatContext] Extracted content for interactive message:', content);
+        console.log('[ChatContext] Full interactive message data:', eventData);
         
         addSystemMessage(
           content,
-          eventData.id || `interactive-${Date.now()}`,
+          eventData.messageId || eventData.id || `interactive-${Date.now()}`,
           {
             interactive: true,
             function: eventData.function,
             parameters: eventData.parameters
           }
         );
-        
-        console.log('[ChatContext] Added interactive message:', eventData);
       } else if (eventType === 'task_update') {
         updateTask({
           complete: eventData.complete || false,
@@ -479,7 +498,16 @@ export function ChatProvider({
     
     // Format the response based on type
     if (typeof response === 'boolean') {
-      responseContent = response ? 'Yes' : 'No';
+      // For confirm interactions, find the original message to get the button text
+      const originalMessage = chatHistory.find(msg => msg.id === messageId);
+      if (originalMessage?.interactiveData?.function === 'confirm') {
+        // Use the yesPrompt/noPrompt text as the response content
+        const params = originalMessage.interactiveData.parameters;
+        responseContent = response ? params.yesPrompt : params.noPrompt;
+      } else {
+        // Fallback if we can't find the original message
+        responseContent = response ? 'Yes' : 'No';
+      }
     } else if (typeof response === 'string') {
       responseContent = response;
     } else if (typeof response === 'object') {
@@ -512,7 +540,7 @@ export function ChatProvider({
         addErrorMessage('Failed to send your response. Please try again.');
       });
     }
-  }, [connectionId, addUserMessage, addErrorMessage]);
+  }, [connectionId, addUserMessage, addErrorMessage, chatHistory]);
 
   // Auto-connect when isActive becomes true
   useEffect(() => {

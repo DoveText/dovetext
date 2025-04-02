@@ -18,14 +18,19 @@ export interface ChatInteractionParams {
 
 // Confirm interaction - yes/no response
 export interface ConfirmInteractionParams {
-  prompt: string;
-  yesText?: string;
-  noText?: string;
+  // The main confirmation message to display
+  message: string;
+  
+  // Text for the positive/affirmative button
+  yesPrompt: string;
+  
+  // Text for the negative button
+  noPrompt: string;
 }
 
 // Select interaction - choose from options
 export interface SelectInteractionParams {
-  prompt: string;
+  question: string;
   options: string[];
   placeholder?: string;
 }

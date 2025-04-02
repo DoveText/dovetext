@@ -80,15 +80,34 @@ export const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>
     return currentTask ? 'Continue your conversation...' : 'Ask me anything...';
   };
   
-  if (!showInputForm) {
-    return null;
-  }
-  
   // Determine if input should be disabled
   const isInputDisabled = currentTask?.complete || 
     (lastInteractiveMessage?.interactive && 
-     lastInteractiveMessage?.interactiveData?.function === 'form' && 
-     !lastInteractiveMessage?.isResponseSubmitted);
+     ((lastInteractiveMessage?.interactiveData?.function === 'form' && !lastInteractiveMessage?.isResponseSubmitted) ||
+      (lastInteractiveMessage?.interactiveData?.function === 'confirm' && !lastInteractiveMessage?.isResponseSubmitted)));
+  
+  // Get warning message for disabled input
+  const getInputWarning = () => {
+    if (!isInputDisabled) return null;
+    
+    if (lastInteractiveMessage?.interactive && !lastInteractiveMessage?.isResponseSubmitted) {
+      const interactiveType = lastInteractiveMessage.interactiveData?.function as InteractiveFunction;
+      
+      if (interactiveType === 'form') {
+        return 'Please fill out the form above';
+      } else if (interactiveType === 'confirm') {
+        return 'Please select Yes or No from the options above';
+      }
+    }
+    
+    return null;
+  };
+  
+  const inputWarning = getInputWarning();
+  
+  if (!showInputForm) {
+    return null;
+  }
   
   return (
     <form onSubmit={handleSubmit} className="flex items-center p-4 border-t bg-white chat-form mb-3 rounded-b-lg">
@@ -99,9 +118,14 @@ export const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder={getPlaceholder()}
-          className={`w-full p-3 pr-12 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isInputDisabled ? 'bg-gray-100' : ''}`}
           disabled={isInputDisabled}
+          className={`w-full p-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isInputDisabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
         />
+        {inputWarning && (
+          <div className="absolute -top-6 left-0 right-0 text-center text-sm text-red-500 bg-red-50 py-1 rounded">
+            {inputWarning}
+          </div>
+        )}
         <button
           type="submit"
           disabled={currentTask?.complete || isSending || isInputDisabled}

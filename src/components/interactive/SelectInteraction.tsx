@@ -20,7 +20,7 @@ const SelectInteraction: React.FC<SelectInteractionProps> = ({
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const params = parameters as SelectInteractionParams;
   
-  const { prompt, options, placeholder } = params;
+  const { question, options, placeholder } = params;
   
   const handleOptionClick = (option: string) => {
     if (isResponseSubmitted) return;
@@ -31,7 +31,6 @@ const SelectInteraction: React.FC<SelectInteractionProps> = ({
   
   return (
     <div className="mt-2 mb-4">
-      <div className="text-sm text-gray-600 mb-2">{prompt}</div>
       <div className="flex flex-wrap gap-2">
         {options.map((option, index) => (
           <button

@@ -20,40 +20,43 @@ const ConfirmInteraction: React.FC<ConfirmInteractionProps> = ({
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const params = parameters as ConfirmInteractionParams;
   
-  const { prompt, yesText = 'Yes', noText = 'No' } = params;
+  // Extract parameters
+  const { yesPrompt, noPrompt } = params;
   
-  const handleOptionClick = (value: boolean) => {
+  console.log('[ConfirmInteraction] Parameters:', params);
+  
+  const handleOptionClick = (value: boolean, buttonText: string) => {
     if (isResponseSubmitted) return;
     
-    setSelectedOption(value ? yesText : noText);
+    // Use the button text (yesPrompt/noPrompt) as the selected option
+    setSelectedOption(buttonText);
     onResponse(value);
   };
   
   return (
     <div className="mt-2 mb-4">
-      <div className="text-sm text-gray-600 mb-2">{prompt}</div>
       <div className="flex space-x-2">
         <button
-          onClick={() => handleOptionClick(true)}
+          onClick={() => handleOptionClick(true, yesPrompt)}
           disabled={isResponseSubmitted}
           className={`px-4 py-2 rounded-md text-sm transition-colors ${isResponseSubmitted
-            ? selectedOption === yesText
+            ? selectedOption === yesPrompt
               ? 'bg-blue-500 text-white' // Selected and submitted
               : 'bg-gray-200 text-gray-500 cursor-not-allowed' // Not selected and submitted
             : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
         >
-          {yesText}
+          {yesPrompt}
         </button>
         <button
-          onClick={() => handleOptionClick(false)}
+          onClick={() => handleOptionClick(false, noPrompt)}
           disabled={isResponseSubmitted}
           className={`px-4 py-2 rounded-md text-sm transition-colors ${isResponseSubmitted
-            ? selectedOption === noText
+            ? selectedOption === noPrompt
               ? 'bg-blue-500 text-white' // Selected and submitted
               : 'bg-gray-200 text-gray-500 cursor-not-allowed' // Not selected and submitted
             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
         >
-          {noText}
+          {noPrompt}
         </button>
       </div>
     </div>

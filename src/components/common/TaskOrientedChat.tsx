@@ -199,9 +199,48 @@ export default function TaskOrientedChat({
       return;
     }
     
-    // Send the message using the ChatContext
+    // Check if there's an active interactive message that hasn't been responded to
+    const lastInteractive = getLastInteractiveMessage();
+    if (lastInteractive && !lastInteractive.isResponseSubmitted) {
+      console.log('[TaskOrientedChat] Handling text input as response to interactive message:', lastInteractive.id);
+      
+      // For confirm interactions, we don't allow text input responses - user must click the buttons
+      if (lastInteractive.interactiveData?.function === 'confirm') {
+        // Don't process text input for confirm interactions
+        console.log('[TaskOrientedChat] Text input not allowed for confirm interactions');
+        return;
+      }
+      
+      // Convert the text input to the appropriate response format based on the interactive function type
+      let formattedResponse: any;
+      
+      switch (lastInteractive.interactiveData?.function) {
+        case 'select':
+          // For select, just pass the text as the selected option
+          formattedResponse = message;
+          break;
+          
+        case 'form':
+          // For form, we can't really handle complex form data via text input
+          // Just show a message that forms need to be filled using the form interface
+          addSystemMessage('Please use the form interface to submit form data.');
+          return;
+          
+        case 'chat':
+        default:
+          // For chat and other types, just pass the text as is
+          formattedResponse = message;
+          break;
+      }
+      
+      // Handle the interactive response with the formatted response
+      handleInteractiveResponse(lastInteractive.id || `interactive-${Date.now()}`, formattedResponse);
+      return;
+    }
+    
+    // If no interactive message, send as a regular message
     sendMessage(message, contextType);
-  }, [sendMessage, contextType, handlePageSpecificCommandForPage]);
+  }, [sendMessage, contextType, handlePageSpecificCommandForPage, getLastInteractiveMessage, handleInteractiveResponse, addSystemMessage]);
   
   // Handle interactive message responses
   const handleInteractiveMessageResponse = useCallback((messageId: string, response: any) => {
