@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, FormEvent } from 'react';
+import React, { useState, useRef, FormEvent, useImperativeHandle, forwardRef } from 'react';
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline';
 import { ChatTask } from '@/types/chat';
 
@@ -11,14 +11,26 @@ interface ChatInputAreaProps {
   currentTask: ChatTask | null;
 }
 
-export function ChatInputArea({ 
+// Define the handle type for the forwarded ref
+export interface ChatInputAreaHandle {
+  focus: () => void;
+}
+
+export const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(({ 
   onSubmit, 
   isSending, 
   showInputForm,
   currentTask
-}: ChatInputAreaProps) {
+}, ref) => {
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Expose the focus method to parent components
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      inputRef.current?.focus();
+    }
+  }));
   
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -82,4 +94,8 @@ export function ChatInputArea({
       </div>
     </form>
   );
-}
+});
+
+ChatInputArea.displayName = 'ChatInputArea';
+
+export default ChatInputArea;

@@ -29,10 +29,24 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
 }) => {
   // Reference to the chat container for auto-scrolling
   const chatContainerRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom when chat history changes or when processing state changes
+  // Reference to the last message for scrolling into view
+  const lastMessageRef = useRef<HTMLDivElement>(null);
+  // Reference to the processing indicator
+  const processingIndicatorRef = useRef<HTMLDivElement>(null);
+  
+  // Scroll to the bottom when chat history or processing state changes
   useEffect(() => {
-    if (chatContainerRef.current) {
+    // If there's a processing indicator, scroll to it
+    if (isProcessing && processingIndicatorRef.current) {
+      processingIndicatorRef.current.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    
+    // If there's a last message, scroll to it
+    if (lastMessageRef.current) {
+      lastMessageRef.current.scrollIntoView({ behavior: 'smooth' });
+    } else if (chatContainerRef.current) {
+      // Fallback to scrolling the container
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [chatHistory, isProcessing]);
@@ -53,28 +67,37 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       )}
 
       {/* Display chat messages */}
-      {chatHistory.map((message, index) => (
-        <div 
-          key={message.id || `message-${index}`}
-          className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-        >
+      {chatHistory.map((message, index) => {
+        // Determine if this is the last message
+        const isLastMessage = index === chatHistory.length - 1;
+        
+        return (
           <div 
-            className={`max-w-[85%] rounded-lg px-4 py-2 ${
-              message.type === 'user' 
-                ? 'bg-blue-500 text-white' 
-                : message.type === 'error'
-                  ? 'bg-red-100 text-red-800 border border-red-200'
-                  : 'bg-white text-gray-800 border border-gray-200'
-            }`}
+            key={message.id || `message-${index}`}
+            ref={isLastMessage ? lastMessageRef : undefined}
+            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            {message.content}
+            <div 
+              className={`max-w-[85%] rounded-lg px-4 py-2 ${
+                message.type === 'user' 
+                  ? 'bg-blue-500 text-white' 
+                  : message.type === 'error'
+                    ? 'bg-red-100 text-red-800 border border-red-200'
+                    : 'bg-white text-gray-800 border border-gray-200'
+              }`}
+            >
+              {message.content}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* Show typing indicator when processing */}
       {isProcessing && (
-        <div className="flex justify-start">
+        <div 
+          ref={processingIndicatorRef}
+          className="flex justify-start"
+        >
           <div className="bg-white text-gray-800 border border-gray-200 rounded-lg px-4 py-2 max-w-[85%]">
             <div className="flex items-center">
               <span className="text-sm">{processingHint}</span>

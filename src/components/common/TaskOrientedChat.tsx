@@ -17,10 +17,12 @@ import {
 import { 
   ChatBubble, 
   ChatHeader, 
-  ChatInputArea, 
   ChatMessageList, 
   ConnectionStatus 
 } from '@/components/chat';
+
+// Import the ChatInputArea with its handle type
+import ChatInputArea, { ChatInputAreaHandle } from '@/components/chat/ChatInputArea';
 
 interface TaskOrientedChatProps {
   contextType?: 'schedule' | 'tasks' | 'general';
@@ -52,7 +54,7 @@ export default function TaskOrientedChat({
   const [currentPage, setCurrentPage] = useState('');
   const router = useRouter();
   const actionContext = useAction();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<ChatInputAreaHandle>(null);
   
   // Use our ChatContext for state management
   const {
@@ -93,6 +95,16 @@ export default function TaskOrientedChat({
     // Other methods
     setIsUserInitiated
   } = useChat();
+  
+  // Focus the input field when the chat is opened
+  useEffect(() => {
+    if (isExpanded && animationState === 'open' && inputRef.current) {
+      // Small delay to ensure the input is rendered
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [isExpanded, animationState]);
   
   // Helper function to show error messages
   const showError = (message: string) => {
@@ -277,6 +289,7 @@ export default function TaskOrientedChat({
         {showInputForm && (
           <div className="mt-auto border-t">
             <ChatInputArea 
+              ref={inputRef}
               onSubmit={handleSubmit}
               isSending={isSending}
               showInputForm={showInputForm}
