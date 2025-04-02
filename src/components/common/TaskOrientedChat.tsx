@@ -4,15 +4,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useAction } from '@/context/ActionContext';
-import { chatApi, ChatMessageRequest } from '@/app/api/chat';
+import { useChat } from '@/context/ChatContext';
 
-// Import our custom hooks
-import { useSSEConnection, SSEEventCallbacks, SSEConnectionOptions } from '@/hooks/useSSEConnection';
-import { useChatState, ChatTask } from '@/hooks/useChatState';
-import { useAnimationState } from '@/hooks/useAnimationState';
-import { useNavigationHandler, NavigationHandlerOptions } from '@/hooks/useNavigationHandler';
-import { useChatTriggerHandler, ChatTriggerOptions } from '@/hooks/useChatTriggerHandler';
-import { useMessageSubmitHandler, MessageSubmitOptions } from '@/hooks/useMessageSubmitHandler';
+// Import our utility functions
+import { 
+  getContextTitle, 
+  getContextExample,
+  handlePageSpecificCommand
+} from '@/utils/chatHelpers';
 
 // Import our UI components
 import { 
@@ -23,13 +22,6 @@ import {
   ConnectionStatus 
 } from '@/components/chat';
 
-// Import our utility functions
-import { 
-  getContextTitle, 
-  getContextExample,
-  handlePageSpecificCommand
-} from '@/utils/chatHelpers';
-
 interface TaskOrientedChatProps {
   contextType?: 'schedule' | 'tasks' | 'general';
   onSwitchContext?: (contextType: 'schedule' | 'tasks' | 'general') => void;
@@ -39,7 +31,7 @@ interface TaskOrientedChatProps {
 }
 
 /**
- * A reusable task-oriented chat component that can be used across the application.
+ * A reusable task-oriented chat component that uses the ChatContext for state management.
  * Features:
  * - Starts as a minimized chat bubble
  * - Expands to a full chat interface when clicked
@@ -62,44 +54,49 @@ export default function TaskOrientedChat({
   const actionContext = useAction();
   const inputRef = useRef<HTMLInputElement>(null);
   
-  // Use our custom hooks for chat state and animation
+  // Use our ChatContext for state management
   const {
+    // Connection state
+    connectionId,
+    connectionStatus,
+    reconnectAttempts,
+    MAX_AUTO_RECONNECT_ATTEMPTS,
+    handleReconnect,
+    
+    // Chat state
     chatHistory,
     currentTask,
     isProcessing,
     processingHint,
     showInputForm,
     isSending,
-    setChatHistory,
-    setCurrentTask,
-    setIsProcessing,
-    setProcessingHint,
-    setShowInputForm,
-    setIsSending,
+    
+    // UI state
+    isExpanded,
+    animationState,
+    isUserInitiated,
+    
+    // Chat methods
     addUserMessage,
     addSystemMessage,
     addErrorMessage,
     clearChatHistory,
     updateTask,
-    setProcessing
-  } = useChatState();
-  
-  const {
-    isExpanded,
-    animationState,
-    isUserInitiated,
-    isActive,
-    setIsExpanded,
-    setIsUserInitiated,
-    setIsActive,
+    
+    // UI methods
     expandChat,
-    minimizeChat
-  } = useAnimationState();
+    minimizeChat,
+    
+    // Message submission
+    sendMessage,
+    
+    // Other methods
+    setIsUserInitiated
+  } = useChat();
   
   // Helper function to show error messages
   const showError = (message: string) => {
     addErrorMessage(message);
-    setShowInputForm(false);
   };
   
   // Function to get context-specific title
@@ -112,126 +109,18 @@ export default function TaskOrientedChat({
     return getContextExample(contextType, currentPage);
   }, [contextType, currentPage]);
   
-  // Set up navigation handler if enabled
-  const navigationOptions: NavigationHandlerOptions = {
-    onSwitchContext,
-    onNavigationStart: (action) => {
-      addSystemMessage(`I'll help you with that. Navigating to the appropriate page...`);
-    },
-    onNavigationComplete: () => {
-      updateTask({ complete: true, steps: 1, currentStep: 1 });
-    }
-  };
-  
-  const { processNavigationIntent } = useNavigationHandler(
-    enableNavigation ? navigationOptions : undefined
-  );
-  
   // Handle page-specific commands
   const handlePageSpecificCommandForPage = useCallback((text: string) => {
     return handlePageSpecificCommand(text, currentPage, actionContext, addSystemMessage);
   }, [currentPage, actionContext, addSystemMessage]);
   
-  // Define SSE event callbacks
-  const sseCallbacks: SSEEventCallbacks = {
-    onThinking: (content) => {
-      setProcessing(true, content);
-    },
-    onProcessing: (content) => {
-      setProcessing(true, content);
-    },
-    onMessage: (content, id) => {
-      setProcessing(false);
-      addSystemMessage(content, id);
-    },
-    onTaskUpdate: (task) => {
-      updateTask(task);
-      
-      // If task is complete, notify parent component
-      if (task.complete && onSwitchContext) {
-        onSwitchContext(contextType);
-        
-        // Reset chat after a delay
-        setTimeout(() => {
-          clearChatHistory();
-        }, 5000);
-      }
-    },
-    onAction: (actionType, data) => {
-      // Handle action events (navigation, form filling, etc.)
-      if (actionContext) {
-        if (actionType === 'OPEN_DELIVERY_METHOD_FORM') {
-          actionContext.setPendingAction('create-delivery-method');
-        } else if (actionType === 'CREATE_TASK') {
-          actionContext.setPendingAction('create-task');
-        } else {
-          console.log('[TaskOrientedChat] Unknown action type:', actionType);
-        }
-      }
-    },
-    onError: (error) => {
-      console.error('[TaskOrientedChat] SSE connection error:', error);
-      addSystemMessage('Connection lost. Please click the reconnect button to continue chatting.');
-      setShowInputForm(false);
-    },
-    onConnectionStatusChange: (status) => {
-      if (status === 'disconnected') {
-        setShowInputForm(false);
-      }
+  // Handle action events from the chat
+  useEffect(() => {
+    // Listen for task completion
+    if (currentTask?.complete && onSwitchContext) {
+      onSwitchContext(contextType);
     }
-  };
-  
-  // Define SSE connection options
-  const sseOptions: SSEConnectionOptions = {
-    autoConnect: true,
-    autoReconnect: true,
-    maxReconnectAttempts: 5,
-    isActive: isExpanded // Only keep the connection active when the chat is expanded
-  };
-  
-  // Use our custom hook for SSE connection with callbacks and options
-  const {
-    connectionId,
-    connectionStatus,
-    reconnectAttempts,
-    MAX_AUTO_RECONNECT_ATTEMPTS,
-    handleReconnect,
-    connectToSSE
-  } = useSSEConnection(sseCallbacks, sseOptions);
-  
-  // Set up chat trigger handler if enabled
-  const chatTriggerOptions: ChatTriggerOptions = {
-    onTrigger: (message) => {
-      expandChat();
-      setChatHistory([{ type: 'user', content: message }]);
-    },
-    onError: (error) => {
-      showError('An error occurred processing your message. Please try again.');
-    },
-    contextType,
-    enabled: enableChatTrigger
-  };
-  
-  // Use our custom hook for handling chat triggers
-  useChatTriggerHandler(connectionId, connectToSSE, chatTriggerOptions);
-  
-  // Set up message submit handler
-  const messageSubmitOptions: MessageSubmitOptions = {
-    contextType,
-    addUserMessage,
-    addSystemMessage,
-    setIsSending,
-    enableNavigation,
-    processNavigationIntent: enableNavigation ? processNavigationIntent : undefined,
-    handlePageSpecificCommand: handlePageSpecificCommandForPage
-  };
-  
-  // Use our custom hook for handling message submission
-  const handleSubmit = useMessageSubmitHandler(
-    connectionId,
-    connectToSSE,
-    messageSubmitOptions
-  );
+  }, [currentTask, onSwitchContext, contextType]);
   
   // Get current page on mount and when route changes
   useEffect(() => {
@@ -266,11 +155,21 @@ export default function TaskOrientedChat({
       // Show confirmation if in middle of conversation
       if (confirm('Are you sure you want to close this conversation?')) {
         clearChatHistory();
-        setIsActive(false);
         closeChat();
       }
     }
-  }, [chatHistory, currentTask, setIsUserInitiated, minimizeChat, clearChatHistory, setIsActive]);
+  }, [chatHistory, currentTask, setIsUserInitiated, minimizeChat, clearChatHistory]);
+  
+  // Handle message submission
+  const handleSubmit = useCallback((message: string) => {
+    // Check for page-specific commands first
+    if (handlePageSpecificCommandForPage(message)) {
+      return;
+    }
+    
+    // Send the message using the ChatContext
+    sendMessage(message, contextType);
+  }, [sendMessage, contextType, handlePageSpecificCommandForPage]);
   
   // Determine classes based on animation state
   const containerClasses = (() => {

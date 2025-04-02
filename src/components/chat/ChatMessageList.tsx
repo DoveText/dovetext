@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { ChatTask } from '@/hooks/useChatState';
+import { ChatTask } from '@/types/chat';
 
 // Define the props for the ChatMessageList component
 interface ChatMessageListProps {

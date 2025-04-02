@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, FormEvent } from 'react';
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline';
-import { ChatTask } from '@/hooks/useChatState';
+import { ChatTask } from '@/types/chat';
 
 interface ChatInputAreaProps {
   onSubmit: (message: string) => void;

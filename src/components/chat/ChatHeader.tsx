@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ChatTask } from '@/hooks/useChatState';
+import { ChatTask } from '@/types/chat';
 
 interface ChatHeaderProps {
   contextTitle: string;
