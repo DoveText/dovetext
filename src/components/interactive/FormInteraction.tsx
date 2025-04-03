@@ -134,6 +134,11 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
     onResponse(formValues);
     setIsModalOpen(false);
   };
+
+  const handleCancel = () => {
+    onResponse({ });
+    setIsModalOpen(false);
+  };
   
   const renderField = (field: FormField) => {
     const { name, label, type, required, options, placeholder } = field;
@@ -304,19 +309,19 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
             <form onSubmit={handleSubmit} className="mt-4">
               {parsedFields.map(field => renderField(field))}
               
-              <div className="mt-6 flex items-center justify-end space-x-3">
+              <div className="flex justify-end mt-4 space-x-2">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  onClick={handleCancel}
                   disabled={isResponseSubmitted}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {params.cancelText}
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   disabled={isResponseSubmitted}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {params.submitText}
                 </button>
