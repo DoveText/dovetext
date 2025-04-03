@@ -87,23 +87,30 @@ export const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>
       (lastInteractiveMessage?.interactiveData?.function === 'confirm' && !lastInteractiveMessage?.isResponseSubmitted)));
   
   // Get warning message for disabled input
-  const getInputWarning = () => {
+  const getInputHint = () => {
     if (!isInputDisabled) return null;
     
     if (lastInteractiveMessage?.interactive && !lastInteractiveMessage?.isResponseSubmitted) {
       const interactiveType = lastInteractiveMessage.interactiveData?.function as InteractiveFunction;
-      
-      if (interactiveType === 'form') {
-        return 'Please fill out the form above';
-      } else if (interactiveType === 'confirm') {
-        return 'Please select one of the options shown above';
+
+      if(interactiveType === 'chat') {
+        return 'Please provide your answers or response according to above message'
+      }
+      else if(interactiveType === 'select') {
+        return 'Please select one option from above list or provided your custom answer'
+      }
+      else if (interactiveType === 'confirm') {
+        return 'Please confirm your selection by clicking one of above options';
+      }
+      else if (interactiveType === 'form') {
+        return 'Please provide information by completing above form';
       }
     }
     
     return null;
   };
   
-  const inputWarning = getInputWarning();
+  const inputHint = getInputHint();
   
   if (!showInputForm) {
     return null;
@@ -121,9 +128,9 @@ export const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>
           disabled={isInputDisabled}
           className={`w-full p-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isInputDisabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
         />
-        {inputWarning && (
-          <div className="absolute -top-6 left-0 right-0 text-center text-sm text-red-500 bg-red-50 py-1 rounded">
-            {inputWarning}
+        {inputHint && (
+          <div className="absolute -top-6 left-0 right-0 text-sm text-red-500 bg-red-50 py-1 rounded">
+            {inputHint}
           </div>
         )}
         <button
