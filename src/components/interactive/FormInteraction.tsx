@@ -161,12 +161,12 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
       case 'number':
       case 'password':
         return (
-          <div className="mb-4" key={name}>
-            <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="mb-4 flex items-center space-x-4" key={name}>
+            <label htmlFor={name} className="text-sm font-medium text-gray-700 min-w-[120px]">
               {label}{required && <span className="text-red-500">*</span>}
             </label>
             <input
-              type={type}
+              type={type === 'string' ? 'text' : type}
               id={name}
               name={name}
               value={formValues[name] || ''}
@@ -174,15 +174,15 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
               placeholder={placeholder}
               required={required}
               disabled={isResponseSubmitted}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         );
       
       case 'textarea':
         return (
-          <div className="mb-4" key={name}>
-            <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="mb-4 flex items-start space-x-4" key={name}>
+            <label htmlFor={name} className="text-sm font-medium text-gray-700 min-w-[120px] pt-2">
               {label}{required && <span className="text-red-500">*</span>}
             </label>
             <textarea
@@ -194,15 +194,15 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
               required={required}
               disabled={isResponseSubmitted}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         );
       
       case 'select':
         return (
-          <div className="mb-4" key={name}>
-            <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="mb-4 flex items-center space-x-4" key={name}>
+            <label htmlFor={name} className="text-sm font-medium text-gray-700 min-w-[120px]">
               {label}{required && <span className="text-red-500">*</span>}
             </label>
             <select
@@ -212,7 +212,7 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
               onChange={(e) => handleInputChange(field, e.target.value)}
               required={required}
               disabled={isResponseSubmitted}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="" disabled>{placeholder || 'Select an option'}</option>
               {options?.map((option, index) => (
@@ -224,7 +224,8 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
       
       case 'checkbox':
         return (
-          <div className="mb-4" key={name}>
+          <div className="mb-4 flex items-center space-x-4" key={name}>
+            <div className="min-w-[120px]" />
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -236,7 +237,7 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
                 disabled={isResponseSubmitted}
                 className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
-              <label htmlFor={name} className="ml-2 block text-sm text-gray-700">
+              <label htmlFor={name} className="ml-2 text-sm text-gray-700">
                 {label}{required && <span className="text-red-500">*</span>}
               </label>
             </div>
@@ -245,32 +246,30 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
       
       case 'radio':
         return (
-          <div className="mb-4" key={name}>
-            <fieldset>
-              <legend className="text-sm font-medium text-gray-700">
-                {label}{required && <span className="text-red-500">*</span>}
-              </legend>
-              <div className="mt-2 space-y-2">
-                {options?.map((option, index) => (
-                  <div key={index} className="flex items-center">
-                    <input
-                      id={`${name}-${index}`}
-                      name={name}
-                      type="radio"
-                      value={option}
-                      checked={formValues[name] === option}
-                      onChange={() => handleInputChange(field, option)}
-                      required={required}
-                      disabled={isResponseSubmitted}
-                      className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <label htmlFor={`${name}-${index}`} className="ml-2 block text-sm text-gray-700">
-                      {option}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </fieldset>
+          <div className="mb-4 flex space-x-4" key={name}>
+            <div className="text-sm font-medium text-gray-700 min-w-[120px] pt-2">
+              {label}{required && <span className="text-red-500">*</span>}
+            </div>
+            <div className="flex-1 space-y-2">
+              {options?.map((option, index) => (
+                <div key={index} className="flex items-center">
+                  <input
+                    id={`${name}-${index}`}
+                    name={name}
+                    type="radio"
+                    value={option}
+                    checked={formValues[name] === option}
+                    onChange={() => handleInputChange(field, option)}
+                    required={required}
+                    disabled={isResponseSubmitted}
+                    className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                  />
+                  <label htmlFor={`${name}-${index}`} className="ml-2 text-sm text-gray-700">
+                    {option}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
         );
       
