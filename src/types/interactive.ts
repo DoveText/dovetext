@@ -39,7 +39,7 @@ export interface SelectInteractionParams {
 export interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'email' | 'textarea' | 'select' | 'checkbox' | 'radio';
+  type: 'string' | 'number' | 'email' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'password';
   required?: boolean;
   options?: string[]; // For select, checkbox, radio
   placeholder?: string;
@@ -48,6 +48,7 @@ export interface FormField {
 
 export interface FormInteractionParams {
   title: string;
+  label?:string;
   description?: string;
   fields: FormField[];
   submitText?: string;
