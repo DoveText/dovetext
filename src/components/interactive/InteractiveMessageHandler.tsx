@@ -26,6 +26,9 @@ const InteractiveMessageHandler: React.FC<InteractiveMessageHandlerProps> = ({
 }) => {
   const { function: functionType, parameters } = message;
 
+  // Extract submitted response from parent message if available
+  const submittedResponse = parentMessage?.responseValue;
+
   // Render the appropriate interaction component based on the function type
   switch (functionType) {
     case 'confirm':
@@ -43,7 +46,7 @@ const InteractiveMessageHandler: React.FC<InteractiveMessageHandlerProps> = ({
           parameters={parameters} 
           onResponse={onResponse} 
           isResponseSubmitted={isResponseSubmitted}
-          message={parentMessage} // Pass the parent message
+          message={parentMessage}
         />
       );
     
@@ -53,6 +56,7 @@ const InteractiveMessageHandler: React.FC<InteractiveMessageHandlerProps> = ({
           parameters={parameters} 
           onResponse={onResponse} 
           isResponseSubmitted={isResponseSubmitted}
+          submittedValues={submittedResponse}
         />
       );
     

@@ -108,10 +108,12 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                     // The backend expects the ID without any modifications
                     const messageId = message.id || `interactive-${index}-${Date.now()}`;
                     console.log('[ChatMessageList] Handling interactive response for message ID:', messageId);
+                    // Save the response in the message for later display
+                    message.responseValue = response;
                     handleInteractiveResponse(messageId, response);
                   }}
                   isResponseSubmitted={!!message.isResponseSubmitted}
-                  parentMessage={message} // Pass the whole message object
+                  parentMessage={message}
                 />
               )}
             </div>

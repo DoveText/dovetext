@@ -8,6 +8,7 @@ interface FormInteractionProps {
   parameters: Record<string, any>;
   onResponse: (response: Record<string, any>) => void;
   isResponseSubmitted: boolean;
+  submittedValues?: Record<string, any>;
 }
 
 /**
@@ -16,7 +17,8 @@ interface FormInteractionProps {
 const FormInteraction: React.FC<FormInteractionProps> = ({
   parameters,
   onResponse,
-  isResponseSubmitted
+  isResponseSubmitted,
+  submittedValues
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
@@ -285,9 +287,9 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
               <div key={field.name} className="flex">
                 <span className="text-sm font-medium text-gray-600 mr-2">{field.label}:</span>
                 <span className="text-sm text-gray-800">
-                  {typeof formValues[field.name] === 'boolean' 
-                    ? (formValues[field.name] ? 'Yes' : 'No')
-                    : formValues[field.name] || 'Not provided'}
+                  {typeof submittedValues?.[field.name] === 'boolean' 
+                    ? (submittedValues[field.name] ? 'Yes' : 'No')
+                    : submittedValues?.[field.name] || 'Not provided'}
                 </span>
               </div>
             ))}
