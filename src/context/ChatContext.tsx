@@ -266,7 +266,7 @@ export function ChatProvider({
           content = eventData.parameters?.question || 'Select an option:';
         } else if (eventData.function === 'form') {
           // For form interactions, use the title parameter
-          content = eventData.parameters?.title || 'Please fill out this form:';
+          content = eventData.parameters?.prompt || 'Please fill out this form:';
         } else if (eventData.function === 'chat') {
           // For chat interactions, use the question parameter
           content = eventData.parameters?.question || 'What would you like to chat about?';

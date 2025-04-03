@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FormInteractionParams, FormField } from '@/types/interactive';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
@@ -24,10 +24,11 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [isExpanded, setIsExpanded] = useState(false);
   const [parsedFields, setParsedFields] = useState<FormField[]>([]);
+  const formButtonsRef = useRef<HTMLDivElement>(null);
 
   // Parse parameters to handle both array and object-based fields
   const parseParameters = () => {
-    const { prompt, title, description, submitText = 'Submit', cancelText = 'Cancel' } = parameters;
+    const { prompt, description, submitText = 'Submit', cancelText = 'Cancel' } = parameters;
     
     // Handle fields that might come as an array of stringified JSON
     let fieldsArray: FormField[] = [];
@@ -91,7 +92,7 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
     }
     
     return {
-      title: title || prompt || 'Please fill out this form',
+      title: prompt || 'Please fill out this form',
       description,
       fields: fieldsArray,
       submitText,
@@ -123,7 +124,16 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
       setIsModalOpen(true);
     }
   }, [parameters, isResponseSubmitted]);
-  
+
+  // Effect to scroll form buttons into view when modal is opened
+  useEffect(() => {
+    if (isModalOpen && formButtonsRef.current) {
+      setTimeout(() => {
+        formButtonsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100); // Small delay to ensure form is rendered
+    }
+  }, [isModalOpen]);
+
   const handleInputChange = (field: FormField, value: any) => {
     setFormValues(prev => ({
       ...prev,
@@ -303,15 +313,11 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
   return (
     <div className="mt-2">
       {isModalOpen && (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md">
           <div className="p-4">
-            <h3 className="text-lg font-medium text-gray-900">{params.title}</h3>
-            {params.description && <p className="mt-1 text-sm text-gray-600">{params.description}</p>}
-            
             <form onSubmit={handleSubmit} className="mt-4">
               {parsedFields.map(field => renderField(field))}
               
-              <div className="flex justify-end mt-4 space-x-2">
+              <div ref={formButtonsRef} className="flex justify-end mt-4 space-x-2">
                 <button
                   type="button"
                   onClick={handleCancel}
@@ -330,7 +336,6 @@ const FormInteraction: React.FC<FormInteractionProps> = ({
               </div>
             </form>
           </div>
-        </div>
       )}
     </div>
   );
