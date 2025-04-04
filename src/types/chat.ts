@@ -13,6 +13,7 @@ export interface ChatMessage {
   id?: string;
   timestamp?: number;
   interactive?: boolean;
+  request?: 'chat' | 'select' | 'confirm' | 'form';
   interactiveData?: InteractiveMessage;
   isResponseSubmitted?: boolean;
   responseValue?: any; // Store the actual response value

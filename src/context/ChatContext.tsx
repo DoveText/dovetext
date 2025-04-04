@@ -47,7 +47,7 @@ interface ChatContextType {
   terminateConnection: () => void;
   
   // Chat methods
-  addUserMessage: (content: string, id?: string) => void;
+  addUserMessage: (content: string, id?: string, interactive?: boolean, request?: 'chat' | 'select' | 'confirm' | 'form') => void;
   addSystemMessage: (content: string, id?: string, interactiveData?: InteractiveMessage, isResponseSubmitted?: boolean) => void;
   addErrorMessage: (content: string, id?: string) => void;
   clearChatHistory: () => void;
@@ -122,12 +122,19 @@ export function ChatProvider({
   /**
    * Adds a user message to the chat history
    */
-  const addUserMessage = useCallback((content: string, id?: string) => {
+  const addUserMessage = useCallback((
+    content: string, 
+    id?: string, 
+    interactive: boolean = false,
+    request: 'chat' | 'select' | 'confirm' | 'form' = 'chat'
+  ) => {
     setChatHistory(prev => [...prev, {
       type: 'user',
       content,
       id,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      interactive,
+      request: interactive ? request : undefined
     }]);
   }, []);
   
@@ -411,7 +418,7 @@ export function ChatProvider({
    */
   const sendMessage = useCallback(async (message: string, contextType: 'schedule' | 'tasks' | 'general') => {
     // Add user message to chat history
-    addUserMessage(message);
+    addUserMessage(message, undefined, false, 'chat'); // Explicitly mark as non-interactive chat message
     
     // Set sending state to show loading animation on submit button
     setIsSending(true);
@@ -476,7 +483,13 @@ export function ChatProvider({
   const handleChatTrigger = useCallback((message: string) => {
     // Expand the chat and add the message
     expandChat();
-    setChatHistory([{ type: 'user', content: message }]);
+    setChatHistory([{ 
+      type: 'user', 
+      content: message,
+      timestamp: Date.now(),
+      interactive: false,
+      request: 'chat'
+    }]);
     
     // Send the message to the backend
     sendMessage(message, 'general');
@@ -500,10 +513,8 @@ export function ChatProvider({
       return message;
     }));
     
-    // Add the response as a user message
+    // Format the response based on type and get response content
     let responseContent = '';
-    
-    // Format the response based on type
     if (typeof response === 'boolean') {
       // For confirm interactions, find the original message to get the button text
       const originalMessage = chatHistory.find(msg => msg.id === messageId);
@@ -525,7 +536,15 @@ export function ChatProvider({
     }
     
     // Add the response as a user message
-    addUserMessage(responseContent);
+    const originalMessage = chatHistory.find(msg => msg.id === messageId);
+    const requestType = originalMessage?.interactiveData?.function as 'form' | 'select' | 'confirm' | undefined;
+    
+    addUserMessage(
+      responseContent,
+      `response-${messageId}`, // Use original message ID to link the response
+      true, // This is an interactive message
+      requestType || 'chat' // Use the original message's function type
+    );
     
     // Send the response to the backend
     if (connectionId) {

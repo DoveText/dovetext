@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ChatMessage, ChatTask } from '@/types/chat';
 import InteractiveMessageHandler from '@/components/interactive/InteractiveMessageHandler';
+import { InformationCircleIcon } from '@heroicons/react/24/outline';
 
 // Define the props for the ChatMessageList component
 interface ChatMessageListProps {
@@ -86,7 +87,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           <div 
             key={message.id || `message-${index}`}
             ref={isLastMessage ? lastMessageRef : undefined}
-            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex flex-col ${message.type === 'user' ? 'items-end' : 'items-start'}`}
           >
             <div 
               className={`max-w-[85%] rounded-lg px-4 py-2 ${
@@ -97,8 +98,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                     : 'bg-white text-gray-800 border border-gray-200'
               }`}
             >
-              {message.content}
-              
+              <div>{message.content}</div>
               {/* Render interactive components if this is an interactive message */}
               {message.interactive && message.interactiveData && (
                 <InteractiveMessageHandler
@@ -117,6 +117,16 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                 />
               )}
             </div>
+            { message.type === 'user' && message.interactive && (
+              <div className="flex items-center mt-1 space-x-1 text-xs text-gray-500 italic">
+                <InformationCircleIcon className="h-3 w-3 text-blue-400" />
+                <span>
+                  {message.request === 'form' && 'Response to form submission'}
+                  {message.request === 'select' && 'Response to selection prompt'}
+                  {message.request === 'confirm' && 'Response to confirmation prompt'}
+                </span>
+              </div>
+            )}
           </div>
         );
       })}

@@ -108,7 +108,8 @@ export default function TaskOrientedChat({
     // Search from the end of the chat history
     for (let i = chatHistory.length - 1; i >= 0; i--) {
       const message = chatHistory[i];
-      if (message.interactive && !message.isResponseSubmitted) {
+      // Only consider system messages that are interactive and not responded to
+      if (message.type === 'system' && message.interactive && !message.isResponseSubmitted) {
         return message;
       }
     }
