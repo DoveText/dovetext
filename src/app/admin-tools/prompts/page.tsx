@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { promptService } from '@/lib/services/promptService';
+import { usePromptService } from '@/lib/services/promptService';
 import { FormEvent } from 'react';
 
 // Define types for our component
@@ -23,6 +23,7 @@ interface PromptFormData {
 }
 
 export default function PromptsAdminPage() {
+  const promptService = usePromptService();
   const [prompts, setPrompts] = useState<LlmPromptDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -166,145 +167,118 @@ export default function PromptsAdminPage() {
         </div>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left column: Form */}
-        <div className="md:col-span-1">
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              {editMode ? 'Edit Prompt' : 'Create New Prompt'}
-            </h2>
-            
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                  required
-                />
-              </div>
-              
-              <div className="mb-4">
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <input
-                  type="text"
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                  required
-                />
-              </div>
-              
-              <div className="mb-4">
-                <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 mb-1">
-                  Prompt Template
-                </label>
-                <textarea
-                  id="prompt"
-                  name="prompt"
-                  value={formData.prompt}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 h-40"
-                  required
-                />
-              </div>
-              
-              <div className="flex space-x-3">
-                <button
-                  type="submit"
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
-                  disabled={loading}
+      <div className="flex flex-col md:flex-row h-[calc(100vh-200px)]">
+        {/* Left sidebar: Prompt List */}
+        <div className="md:w-1/4 bg-white shadow rounded-lg p-4 mb-4 md:mb-0 md:mr-4 overflow-y-auto">
+          <h2 className="text-xl font-semibold mb-4">Prompts</h2>
+          
+          {loading && prompts.length === 0 ? (
+            <p className="text-gray-500">Loading prompts...</p>
+          ) : prompts.length === 0 ? (
+            <p className="text-gray-500">No prompts found. Create your first one!</p>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {prompts.map((prompt) => (
+                <li 
+                  key={prompt.id} 
+                  className={`py-3 px-2 cursor-pointer hover:bg-gray-50 ${
+                    currentPrompt?.id === prompt.id ? 'bg-blue-50 border-l-4 border-blue-500 pl-1' : ''
+                  }`}
+                  onClick={() => handleEdit(prompt)}
                 >
-                  {loading ? 'Processing...' : editMode ? 'Update Prompt' : 'Create Prompt'}
-                </button>
-                
-                {editMode && (
-                  <button
-                    type="button"
-                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded"
-                    onClick={handleAddNew}
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </form>
-          </div>
+                  <div className="font-medium text-gray-900 truncate">{prompt.name}</div>
+                  <div className="text-sm text-gray-500 truncate">{prompt.description}</div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-gray-400">
+                      {prompt.createdAt ? new Date(prompt.createdAt).toLocaleDateString() : 'N/A'}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        prompt.id && handleDelete(prompt.id);
+                      }}
+                      className="text-xs text-red-600 hover:text-red-900"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         
-        {/* Right column: List */}
-        <div className="md:col-span-2">
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Existing Prompts</h2>
+        {/* Right content: Form */}
+        <div className="md:w-3/4 bg-white shadow rounded-lg p-6 flex-1 overflow-y-auto">
+          <h2 className="text-xl font-semibold mb-4">
+            {editMode ? `Edit Prompt: ${currentPrompt?.name}` : 'Create New Prompt'}
+          </h2>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+                required
+              />
+            </div>
             
-            {loading && prompts.length === 0 ? (
-              <p className="text-gray-500">Loading prompts...</p>
-            ) : prompts.length === 0 ? (
-              <p className="text-gray-500">No prompts found. Create your first one!</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Description
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Created
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {prompts.map((prompt) => (
-                      <tr key={prompt.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{prompt.name}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-500 truncate max-w-xs">{prompt.description}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {prompt.createdAt ? new Date(prompt.createdAt).toLocaleDateString() : 'N/A'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => handleEdit(prompt)}
-                            className="text-indigo-600 hover:text-indigo-900 mr-3"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => prompt.id && handleDelete(prompt.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <input
+                type="text"
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+                required
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 mb-1">
+                Prompt Template
+              </label>
+              <textarea
+                id="prompt"
+                name="prompt"
+                value={formData.prompt}
+                onChange={handleInputChange}
+                className="w-full border border-gray-300 rounded px-3 py-2 h-80 font-mono"
+                required
+              />
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                type="submit"
+                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+                disabled={loading}
+              >
+                {loading ? 'Processing...' : editMode ? 'Update Prompt' : 'Create Prompt'}
+              </button>
+              
+              {editMode && (
+                <button
+                  type="button"
+                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded"
+                  onClick={handleAddNew}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
         </div>
       </div>
     </div>

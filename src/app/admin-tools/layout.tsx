@@ -18,7 +18,7 @@ export default function AdminToolsLayout({
     if (!loading) {
       if (!user) {
         router.push('/signin?redirect=/admin-tools/prompts');
-      } else if (user.role !== 'admin') {
+      } else if (user.settings?.role !== 'admin') {
         // Redirect non-admin users
         router.push('/dashboard');
       } else {
