@@ -200,10 +200,7 @@ export const chatApi = {
           },
           onmessage(event) {
             // Check if this is a heartbeat message (empty event name or data starting with colon)
-            if (!event.event && (
-                !event.data || 
-                (typeof event.data === 'string' && event.data.trim().startsWith(':'))
-            )) {
+            if (!event.event && (!event.data || event.data.trim().startsWith(':'))) {
               console.log('[Chat API] Received heartbeat');
               return;
             }
