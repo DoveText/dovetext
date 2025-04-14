@@ -483,17 +483,10 @@ export function ChatProvider({
   const handleChatTrigger = useCallback((message: string) => {
     // Expand the chat and add the message
     expandChat();
-    setChatHistory([{ 
-      type: 'user', 
-      content: message,
-      timestamp: Date.now(),
-      interactive: false,
-      request: 'chat'
-    }]);
-    
+
     // Send the message to the backend
     sendMessage(message, 'general');
-  }, [expandChat, setChatHistory, sendMessage]);
+  }, [expandChat, sendMessage]);
   
   /**
    * Handles responses from interactive messages
