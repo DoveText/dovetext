@@ -89,6 +89,12 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
             ref={isLastMessage ? lastMessageRef : undefined}
             className={`flex flex-col ${message.type === 'user' ? 'items-end' : 'items-start'}`}
           >
+            {/* Timestamp display */}
+            <div className="text-xs text-gray-400 mb-1 px-1">
+              {message.timestamp 
+                ? `${message.type === 'user' ? 'Sent' : 'Received'} at ${new Date(message.timestamp).toLocaleString()}`
+                : ''}
+            </div>
             <div 
               className={`max-w-[85%] rounded-lg px-4 py-2 ${
                 message.type === 'user' 
