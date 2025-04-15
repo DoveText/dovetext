@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react';
 import { usePromptService } from '@/lib/services/promptService';
 import { FormEvent } from 'react';
 
+// Helper function to format byte size to human-readable format
+const formatByteSize = (bytes: number): string => {
+  if (bytes < 1000) return `${bytes} bytes`;
+  if (bytes < 1000000) return `${(bytes / 1000).toFixed(1)}k bytes`;
+  return `${(bytes / 1000000).toFixed(1)}M bytes`;
+};
+
 // Define types for our component
 interface LlmPromptDto {
   id?: number;
@@ -186,7 +193,12 @@ export default function PromptsAdminPage() {
                   }`}
                   onClick={() => handleEdit(prompt)}
                 >
-                  <div className="font-medium text-gray-900 truncate">{prompt.name}</div>
+                  <div className="flex justify-between items-center">
+                    <div className="font-medium text-gray-900 truncate">{prompt.name}</div>
+                    <div className="text-xs text-gray-400 ml-2 whitespace-nowrap">
+                      {formatByteSize(new TextEncoder().encode(prompt.prompt).length)}
+                    </div>
+                  </div>
                   <div className="text-sm text-gray-500 truncate">{prompt.description}</div>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-xs text-gray-400">

@@ -319,6 +319,29 @@ export function ChatProvider({
         // Handle action events (navigation, form filling, etc.)
         // This would need to be expanded based on your application's needs
         console.log('[ChatContext] Action received:', eventData.actionType);
+      } else if (eventType === 'complete') {
+        // Handle session completion event
+        console.log('[ChatContext] Session completed:', eventData);
+        
+        // Add a system message to indicate completion
+        addSystemMessage(eventData.content || 'Session completed');
+        
+        // Set processing to false
+        setProcessing(false);
+        
+        // Wait a moment to allow the user to see the completion message
+        setTimeout(() => {
+          // Minimize the chat window
+          minimizeChat();
+          
+          // Terminate the SSE connection
+          terminateConnection();
+          
+          // Optional: Clear chat history after a delay if desired
+          // setTimeout(() => {
+          //   clearChatHistory();
+          // }, 3000);
+        }, 2000);
       }
     } catch (error) {
       console.error('[ChatContext] Error processing SSE event:', error);
@@ -481,12 +504,25 @@ export function ChatProvider({
    * Handles a chat trigger event (e.g., from dashboard input)
    */
   const handleChatTrigger = useCallback((message: string) => {
-    // Expand the chat and add the message
+    // Expand the chat
     expandChat();
 
-    // Send the message to the backend
+    // Check if we need to reset the connection
+    if (connectionStatus === 'disconnected') {
+      console.log('[ChatContext] Connection is disconnected, resetting connection state before sending message');
+      
+      // Reset connection state
+      setConnectionId(null);
+      setEventSource(null);
+      setConnectionStatus('reconnecting');
+      
+      // Clear chat history for a fresh start
+      clearChatHistory();
+    }
+
+    // Send the message to the backend (this will establish a new connection if needed)
     sendMessage(message, 'general');
-  }, [expandChat, sendMessage]);
+  }, [expandChat, sendMessage, connectionStatus, setConnectionId, setEventSource, setConnectionStatus, clearChatHistory]);
   
   /**
    * Handles responses from interactive messages
