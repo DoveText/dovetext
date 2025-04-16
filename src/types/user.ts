@@ -8,6 +8,7 @@ export interface UserSettings {
   };
   provider?: 'email' | 'google' | 'github';
   validated?: boolean;
+  role?: 'user' | 'admin'; // Role for permission management
   // Add more settings as needed
 }
 

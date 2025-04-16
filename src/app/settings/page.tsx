@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Switch } from '@headlessui/react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import Link from 'next/link';
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
@@ -21,6 +22,13 @@ interface SecuritySetting {
   name: string;
   description: string;
   enabled: boolean;
+}
+
+interface AdminTool {
+  id: string;
+  name: string;
+  description: string;
+  path: string;
 }
 
 export default function SettingsPage() {
@@ -63,6 +71,17 @@ export default function SettingsPage() {
     },
   ]);
 
+  // Admin tools available to users with admin role
+  const adminTools: AdminTool[] = [
+    {
+      id: 'prompts-manager',
+      name: 'LLM Prompts Manager',
+      description: 'Create, edit, and delete LLM prompts used throughout the system',
+      path: '/admin-tools/prompts',
+    },
+    // Add more admin tools here as needed
+  ];
+
   const handleNotificationToggle = (settingId: string) => {
     setNotificationSettings(settings =>
       settings.map(setting =>
@@ -94,6 +113,8 @@ export default function SettingsPage() {
       setIsSaving(false);
     }
   };
+
+  const isAdmin = user?.settings?.role === 'admin';
 
   if (!user) {
     return null; // or redirect to login
@@ -185,6 +206,40 @@ export default function SettingsPage() {
               </ul>
             </div>
           </div>
+
+          {/* Admin Tools Section - Only visible to admin users */}
+          {isAdmin && (
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg font-medium leading-6 text-gray-900">
+                  Admin Tools
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Access administrator tools and settings
+                </p>
+              </div>
+              <div className="border-t border-gray-200">
+                <ul role="list" className="divide-y divide-gray-200">
+                  {adminTools.map((tool) => (
+                    <li key={tool.id} className="px-4 py-4 sm:px-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <p className="text-sm font-medium text-gray-900">{tool.name}</p>
+                          <p className="text-sm text-gray-500">{tool.description}</p>
+                        </div>
+                        <Link 
+                          href={tool.path}
+                          className="px-4 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors"
+                        >
+                          Access
+                        </Link>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
 
           {/* Save Button */}
           <div className="flex justify-end">
