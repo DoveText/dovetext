@@ -102,6 +102,10 @@ export function ChatProvider({
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [isConnecting, setIsConnecting] = useState(false);
   const MAX_AUTO_RECONNECT_ATTEMPTS = maxReconnectAttempts;
+
+  // Track last time a heartbeat is received from server
+  const [lastHeartbeatReceivedTime, setLastHeartbeatReceivedTime] = useState<number | null>(null);
+  const HEARTBEAT_TIMEOUT_MS = 45 * 1000;
   
   // ===== Chat State =====
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -238,6 +242,16 @@ export function ChatProvider({
     
     try {
       // Process different event types
+      if (eventType === 'heartbeat') {
+        setLastHeartbeatReceivedTime(Date.now());
+        return;
+      }
+      if (eventType === 'connected') {
+        setConnectionStatus('connected');
+        setConnectionId(eventData.connectionId);
+        setReconnectAttempts(0);
+        setLastHeartbeatReceivedTime(Date.now());
+      }
       if (eventType === 'thinking' || eventType === 'processing') {
         const content = eventData.content || 'Thinking...';
         setProcessing(true, content);
@@ -434,71 +448,93 @@ export function ChatProvider({
       setConnectionId(null);
       setConnectionStatus('disconnected');
     }
-  }, [eventSource]);
+
+    clearChatHistory();
+  }, [eventSource, clearChatHistory]);
   
   /**
    * Handles sending a message to the chat backend
+   * - If no heartbeat for 30s, reconnect first
+   * - If 404 error, reconnect and retry ONCE
    */
   const sendMessage = useCallback(async (message: string, contextType: 'schedule' | 'tasks' | 'general') => {
-    // Add user message to chat history
-    addUserMessage(message, undefined, false, 'chat'); // Explicitly mark as non-interactive chat message
-    
-    // Set sending state to show loading animation on submit button
+    addUserMessage(message, undefined, false, 'chat');
     setIsSending(true);
-    
-    try {
-      console.log('[ChatContext] Sending message with connectionId:', connectionId);
-      
-      // Ensure we have a connection to the chat backend
-      let activeConnectionId = connectionId;
+    let activeConnectionId = connectionId;
+    let triedReconnect = false;
+
+    // Helper to reconnect SSE and get new connectionId
+    const reconnect = async () => {
+      setConnectionStatus('reconnecting');
+      setConnectionId(null);
+      if (eventSource) {
+        eventSource.close();
+        setEventSource(null);
+      }
+      const result = await connectToSSE();
+      setLastHeartbeatReceivedTime(Date.now());
+      return result.connectionId;
+    };
+
+    // Check heartbeat freshness
+    const now = Date.now();
+    if (!lastHeartbeatReceivedTime || now - lastHeartbeatReceivedTime > HEARTBEAT_TIMEOUT_MS) {
+      console.log('[ChatContext] No recent heartbeat, reconnecting before sending message');
+      activeConnectionId = await reconnect();
       if (!activeConnectionId) {
-        console.log('[ChatContext] No active connection, attempting to connect first');
-        const result = await connectToSSE();
-        activeConnectionId = result.connectionId;
-        if (!activeConnectionId) {
-          throw new Error('Failed to establish connection');
-        }
+        setIsSending(false);
+        addSystemMessage('Failed to reconnect before sending message.');
+        return;
       }
-      
-      // Send the message
-      const response = await chatApi.sendMessage({
-        type: contextType,
-        content: message,
-        connectionId: activeConnectionId,
-        currentPage: window.location.pathname
-      });
-      
-      // Turn off the sending indicator
-      setIsSending(false);
-      
-      // Check if we got an error response
-      if (response.type === 'error') {
-        console.warn('[ChatContext] Error response:', response.content);
-        
-        // Handle connection lost errors
-        if (response.content.includes('Connection lost') || response.content.includes('reconnect')) {
-          console.warn('[ChatContext] Connection lost, attempting to reconnect');
-          
-          // Show the error in the chat with a reconnect button
-          addSystemMessage('Connection lost. Please click the reconnect button to continue chatting.');
-          
-          // Don't automatically reconnect - let the user click the button
-          return;
-        }
-        
-        // Handle other errors
-        addSystemMessage(response.content);
-      }
-    } catch (error) {
-      console.error('[ChatContext] Error sending message:', error);
-      
-      // Turn off loading states
-      setIsSending(false);
-      
-      // Add error message to chat with reconnect instructions
-      addSystemMessage('Sorry, there was an error sending your message. Please use the reconnect button to try again.');
     }
-  }, [connectionId, connectToSSE, addUserMessage, addSystemMessage, setIsSending]);
+
+    // Try sending message, retry ONCE on error (response or 404 exception)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await chatApi.sendMessage({
+          type: contextType,
+          content: message,
+          connectionId: activeConnectionId ?? undefined,
+          currentPage: window.location.pathname
+        });
+        setIsSending(false);
+        // Update heartbeat timestamp on any successful response (connection is alive)
+        if (response && response.type !== 'error') {
+          setLastHeartbeatReceivedTime(Date.now());
+        }
+        if (response.type === 'error') {
+          if (!triedReconnect) {
+            console.log('[ChatContext] Error response, reconnecting and retrying message');
+            activeConnectionId = await reconnect();
+            triedReconnect = true;
+            continue; // retry
+          } else {
+            addSystemMessage('Connection lost. Please click the reconnect button to continue chatting.');
+            return;
+          }
+        }
+        // Success
+        return;
+      } catch (error: any) {
+        // Axios or network error: check for 404 status
+        setIsSending(false);
+        if (error && error.response && error.response.status === 404) {
+          if (!triedReconnect) {
+            console.log('[ChatContext] 404 error (exception), reconnecting and retrying message');
+            activeConnectionId = await reconnect();
+            triedReconnect = true;
+            continue; // retry
+          } else {
+            addSystemMessage('Connection lost. Please click the reconnect button to continue chatting.');
+            return;
+          }
+        }
+        console.error('[ChatContext] Error sending message:', error);
+        addSystemMessage('Sorry, there was an error sending your message. Please use the reconnect button to try again.');
+        return;
+      }
+    }
+  }, [connectionId, connectToSSE, addUserMessage, addSystemMessage, setIsSending, eventSource, lastHeartbeatReceivedTime]);
   
   /**
    * Handles a chat trigger event (e.g., from dashboard input)
@@ -506,6 +542,8 @@ export function ChatProvider({
   const handleChatTrigger = useCallback((message: string) => {
     // Expand the chat
     expandChat();
+
+    clearChatHistory();
 
     // Check if we need to reset the connection
     if (connectionStatus === 'disconnected') {
