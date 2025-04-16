@@ -26,8 +26,8 @@ import {
 import ChatInputArea, { ChatInputAreaHandle } from '@/components/chat/ChatInputArea';
 
 interface TaskOrientedChatProps {
-  contextType?: 'schedule' | 'tasks' | 'general';
-  onSwitchContext?: (contextType: 'schedule' | 'tasks' | 'general') => void;
+  contextType?: string;
+  onSwitchContext?: (contextType: string) => void;
   className?: string;
   enableNavigation?: boolean; // New prop to enable/disable navigation
   enableChatTrigger?: boolean; // New prop to enable/disable chat trigger
@@ -216,7 +216,7 @@ export default function TaskOrientedChat({
       if (lastInteractive.interactiveData?.function === 'present') {
         console.log('[TaskOrientedChat] Present interaction does not expect responses, treating as new message');
         // Send as a regular message
-        sendMessage(message, contextType);
+        sendMessage(message, 'chat', contextType);
         return;
       }
       
@@ -258,18 +258,18 @@ export default function TaskOrientedChat({
       }
       
       // Handle the interactive response with the formatted response
-      handleInteractiveResponse(lastInteractive.id || `interactive-${Date.now()}`, formattedResponse);
+      handleInteractiveResponse(lastInteractive.id || `interactive-${Date.now()}`, formattedResponse, contextType);
       return;
     }
     
     // If no interactive message, send as a regular message
-    sendMessage(message, contextType);
+    sendMessage(message, 'chat', contextType);
   }, [sendMessage, contextType, handlePageSpecificCommandForPage, getLastInteractiveMessage, handleInteractiveResponse, addSystemMessage]);
   
   // Handle interactive message responses
   const handleInteractiveMessageResponse = useCallback((messageId: string, response: any) => {
-    handleInteractiveResponse(messageId, response);
-  }, [handleInteractiveResponse]);
+    handleInteractiveResponse(messageId, response, contextType);
+  }, [handleInteractiveResponse, contextType]);
   
   // Get the last interactive message that hasn't been responded to
   const lastInteractiveMessage = getLastInteractiveMessage();

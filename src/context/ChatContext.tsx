@@ -47,7 +47,7 @@ interface ChatContextType {
   terminateConnection: () => void;
   
   // Chat methods
-  addUserMessage: (content: string, id?: string, interactive?: boolean, request?: 'chat' | 'select' | 'confirm' | 'form') => void;
+  addUserMessage: (content: string, id?: string, interactive?: boolean, request?: string) => void;
   addSystemMessage: (content: string, id?: string, interactiveData?: InteractiveMessage, isResponseSubmitted?: boolean) => void;
   addErrorMessage: (content: string, id?: string) => void;
   clearChatHistory: () => void;
@@ -55,15 +55,15 @@ interface ChatContextType {
   setProcessing: (processing: boolean, hint?: string) => void;
   
   // Interactive message methods
-  handleInteractiveResponse: (messageId: string, response: any) => void;
+  handleInteractiveResponse: (messageId: string, response: any, contextType?: string) => void;
   
   // Message submission
-  sendMessage: (message: string, contextType: 'schedule' | 'tasks' | 'general') => Promise<void>;
+  sendMessage: (message: string, type?: string, contextType: string) => Promise<void>;
   
   // UI methods
   expandChat: () => void;
   minimizeChat: () => void;
-  handleChatTrigger: (message: string) => void;
+  handleChatTrigger: (message: string, contextType: string) => void;
 }
 
 // Create the context with a default value of null
@@ -130,7 +130,7 @@ export function ChatProvider({
     content: string, 
     id?: string, 
     interactive: boolean = false,
-    request: 'chat' | 'select' | 'confirm' | 'form' = 'chat'
+    request: string = 'chat'
   ) => {
     setChatHistory(prev => [...prev, {
       type: 'user',
@@ -138,7 +138,7 @@ export function ChatProvider({
       id,
       timestamp: Date.now(),
       interactive,
-      request: interactive ? request : undefined
+      request
     }]);
   }, []);
   
@@ -457,7 +457,7 @@ export function ChatProvider({
    * - If no heartbeat for 30s, reconnect first
    * - If 404 error, reconnect and retry ONCE
    */
-  const sendMessage = useCallback(async (message: string, contextType: 'schedule' | 'tasks' | 'general') => {
+  const sendMessage = useCallback(async (message: string, type?: string, contextType: string) => {
     addUserMessage(message, undefined, false, 'chat');
     setIsSending(true);
     let activeConnectionId = connectionId;
@@ -492,7 +492,8 @@ export function ChatProvider({
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const response = await chatApi.sendMessage({
-          type: contextType,
+          type: type ?? "chat",
+          context: contextType,
           content: message,
           connectionId: activeConnectionId ?? undefined,
           currentPage: window.location.pathname
@@ -539,7 +540,7 @@ export function ChatProvider({
   /**
    * Handles a chat trigger event (e.g., from dashboard input)
    */
-  const handleChatTrigger = useCallback((message: string) => {
+  const handleChatTrigger = useCallback((message: string, contextType: string) => {
     // Expand the chat
     expandChat();
 
@@ -559,13 +560,13 @@ export function ChatProvider({
     }
 
     // Send the message to the backend (this will establish a new connection if needed)
-    sendMessage(message, 'general');
+    sendMessage(message, 'new_chat', contextType);
   }, [expandChat, sendMessage, connectionStatus, setConnectionId, setEventSource, setConnectionStatus, clearChatHistory]);
   
   /**
    * Handles responses from interactive messages
    */
-  const handleInteractiveResponse = useCallback((messageId: string, response: any) => {
+  const handleInteractiveResponse = useCallback((messageId: string, response: any, contextType: string = 'general') => {
     console.log('[ChatContext] Handling interactive response for message ID:', messageId, 'response:', response);
     
     // Mark the message as having received a response
@@ -604,7 +605,7 @@ export function ChatProvider({
     
     // Add the response as a user message
     const originalMessage = chatHistory.find(msg => msg.id === messageId);
-    const requestType = originalMessage?.interactiveData?.function as 'form' | 'select' | 'confirm' | undefined;
+    const requestType = originalMessage?.interactiveData?.function as string;
     
     addUserMessage(
       responseContent,
@@ -622,12 +623,13 @@ export function ChatProvider({
       console.log('[ChatContext] Sending interactive response with messageId:', cleanMessageId);
       
       chatApi.sendMessage({
+        type: 'interactive_response',
+        context: contextType,
         content: JSON.stringify({
           messageId: cleanMessageId,
           response
         }),
-        connectionId,
-        type: 'interactive_response'
+        connectionId
       }).catch(error => {
         console.error('[ChatContext] Error sending interactive response:', error);
         addErrorMessage('Failed to send your response. Please try again.');
@@ -684,7 +686,7 @@ export function ChatProvider({
   useEffect(() => {
     const handleChatTriggerEvent = (event: CustomEvent) => {
       if (event.detail?.message) {
-        handleChatTrigger(event.detail.message);
+        handleChatTrigger(event.detail.message, event.detail.contextType);
       }
     };
     

@@ -8,7 +8,8 @@ export interface ChatMessage {
 }
 
 export interface ChatMessageRequest {
-  type?: 'schedule' | 'tasks' | 'general' | 'interactive_response';
+  type?: string;  // one of 'keepalive', 'chat', 'new_chat', 'interactive_response'
+  context: string;   // the context type, eg. 'schedule', 'automation', 'general', etc.
   content: string;
   connectionId?: string;
   currentPage?: string;
