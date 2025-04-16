@@ -18,8 +18,8 @@ export function ChatHeader({
     <div className="bg-blue-500 text-white px-4 py-4 flex justify-between items-center">
       <h3 className="font-medium text-lg">
         {currentTask 
-          ? `${contextTitle} Assistant (${currentTask.currentStep}/${currentTask.steps})` 
-          : `${contextTitle} Assistant`}
+          ? `DoveText Virtual Assistant (${currentTask.currentStep}/${currentTask.steps})`
+          : `DoveText Virtual Assistant (${contextTitle})`}
       </h3>
       <button 
         onClick={onClose}
