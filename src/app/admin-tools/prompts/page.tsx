@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePromptService } from '@/lib/services/promptService';
 import { FormEvent } from 'react';
+import PromptTestChat from '@/components/common/PromptTestChat';
 
 // Helper function to format byte size to human-readable format
 const formatByteSize = (bytes: number): string => {
@@ -42,6 +43,8 @@ export default function PromptsAdminPage() {
     description: '',
     prompt: '',
   });
+
+  const [testChatOpen, setTestChatOpen] = useState(false);
 
   // Load prompts on initial render
   useEffect(() => {
@@ -156,6 +159,15 @@ export default function PromptsAdminPage() {
     }
   };
 
+  // Open chat for testing current prompt
+  const handleTestPrompt = () => {
+    setTestChatOpen(true);
+  };
+
+  const handleCloseTestChat = () => {
+    setTestChatOpen(false);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -225,7 +237,15 @@ export default function PromptsAdminPage() {
           <h2 className="text-xl font-semibold mb-4">
             {editMode ? `Edit Prompt: ${currentPrompt?.name}` : 'Create New Prompt'}
           </h2>
-          
+          {editMode && (
+            <button
+              className="mb-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+              onClick={handleTestPrompt}
+              type="button"
+            >
+              Test
+            </button>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -293,6 +313,15 @@ export default function PromptsAdminPage() {
           </form>
         </div>
       </div>
+      
+      {/* PromptTestChat dialog */}
+      {currentPrompt && (
+        <PromptTestChat
+          systemPrompt={currentPrompt.prompt}
+          open={testChatOpen}
+          onClose={handleCloseTestChat}
+        />
+      )}
     </div>
   );
 }
