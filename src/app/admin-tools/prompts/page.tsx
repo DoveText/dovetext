@@ -37,6 +37,7 @@ export default function PromptsAdminPage() {
   const [error, setError] = useState<string | null>(null);
   
   const [editMode, setEditMode] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState<LlmPromptDto | null>(null);
   const [formData, setFormData] = useState<PromptFormData>({
     name: '',
@@ -69,6 +70,7 @@ export default function PromptsAdminPage() {
   // Set form for creating new prompt
   const handleAddNew = () => {
     setEditMode(false);
+    setPreviewMode(false);
     setCurrentPrompt(null);
     setFormData({
       name: '',
@@ -77,9 +79,22 @@ export default function PromptsAdminPage() {
     });
   };
 
+  // Set preview for selected prompt
+  const handlePreview = (prompt: LlmPromptDto) => {
+    setEditMode(false);
+    setPreviewMode(true);
+    setCurrentPrompt(prompt);
+    setFormData({
+      name: prompt.name,
+      description: prompt.description,
+      prompt: prompt.prompt,
+    });
+  };
+
   // Set form for editing existing prompt
   const handleEdit = (prompt: LlmPromptDto) => {
     setEditMode(true);
+    setPreviewMode(false);
     setCurrentPrompt(prompt);
     setFormData({
       name: prompt.name,
@@ -121,12 +136,24 @@ export default function PromptsAdminPage() {
       });
       setCurrentPrompt(null);
       fetchPrompts();
+      // After edit, return to preview if editing existing prompt
+      if (editMode && currentPrompt?.id) {
+        setEditMode(false);
+        setPreviewMode(true);
+        setCurrentPrompt({ ...currentPrompt, ...formData });
+      }
     } catch (err) {
       setError(`Failed to ${editMode ? 'update' : 'create'} prompt. Please try again.`);
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Cancel edit returns to preview
+  const handleCancelEdit = () => {
+    setEditMode(false);
+    setPreviewMode(true);
   };
 
   // Delete prompt
@@ -203,7 +230,7 @@ export default function PromptsAdminPage() {
                   className={`py-3 px-2 cursor-pointer hover:bg-gray-50 ${
                     currentPrompt?.id === prompt.id ? 'bg-blue-50 border-l-4 border-blue-500 pl-1' : ''
                   }`}
-                  onClick={() => handleEdit(prompt)}
+                  onClick={() => handlePreview(prompt)}
                 >
                   <div className="flex justify-between items-center">
                     <div className="font-medium text-gray-900 truncate">{prompt.name}</div>
@@ -232,85 +259,137 @@ export default function PromptsAdminPage() {
           )}
         </div>
         
-        {/* Right content: Form */}
+        {/* Right content: Preview, Edit, or Create */}
         <div className="md:w-3/4 bg-white shadow rounded-lg p-6 flex-1 overflow-y-auto">
-          <h2 className="text-xl font-semibold mb-4">
-            {editMode ? `Edit Prompt: ${currentPrompt?.name}` : 'Create New Prompt'}
-          </h2>
-          {editMode && (
-            <button
-              className="mb-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-              onClick={handleTestPrompt}
-              type="button"
-            >
-              Test
-            </button>
+          {/* Preview mode */}
+          {previewMode && currentPrompt && !editMode && (
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold">{currentPrompt.name}</h2>
+                  <div className="text-gray-500 mb-2">{currentPrompt.description}</div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                    onClick={handleTestPrompt}
+                  >Test</button>
+                  <button
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
+                    onClick={() => handleEdit(currentPrompt)}
+                  >Edit</button>
+                </div>
+              </div>
+              <pre className="bg-gray-100 rounded p-4 font-mono whitespace-pre-wrap text-sm max-h-[60vh] overflow-auto border">
+                {currentPrompt.prompt}
+              </pre>
+            </div>
           )}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Edit mode (form) */}
+          {editMode && (
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-                required
-              />
+              <h2 className="text-xl font-semibold mb-4">Edit Prompt: {currentPrompt?.name}</h2>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <input
+                    type="text"
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 mb-1">Prompt Template</label>
+                  <textarea
+                    id="prompt"
+                    name="prompt"
+                    value={formData.prompt}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded px-3 py-2 h-80 font-mono"
+                    required
+                  />
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    type="submit"
+                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+                    disabled={loading}
+                  >{loading ? 'Processing...' : 'Update Prompt'}</button>
+                  <button
+                    type="button"
+                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded"
+                    onClick={handleCancelEdit}
+                  >Cancel</button>
+                </div>
+              </form>
             </div>
-            
+          )}
+          {/* Create mode (no prompt selected) */}
+          {!editMode && !previewMode && (
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <input
-                type="text"
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-                required
-              />
+              <h2 className="text-xl font-semibold mb-4">Create New Prompt</h2>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <input
+                    type="text"
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 mb-1">Prompt Template</label>
+                  <textarea
+                    id="prompt"
+                    name="prompt"
+                    value={formData.prompt}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded px-3 py-2 h-80 font-mono"
+                    required
+                  />
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    type="submit"
+                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+                    disabled={loading}
+                  >{loading ? 'Processing...' : 'Create Prompt'}</button>
+                </div>
+              </form>
             </div>
-            
-            <div>
-              <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 mb-1">
-                Prompt Template
-              </label>
-              <textarea
-                id="prompt"
-                name="prompt"
-                value={formData.prompt}
-                onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-3 py-2 h-80 font-mono"
-                required
-              />
-            </div>
-            
-            <div className="flex space-x-3">
-              <button
-                type="submit"
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
-                disabled={loading}
-              >
-                {loading ? 'Processing...' : editMode ? 'Update Prompt' : 'Create Prompt'}
-              </button>
-              
-              {editMode && (
-                <button
-                  type="button"
-                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded"
-                  onClick={handleAddNew}
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </form>
+          )}
         </div>
       </div>
       
