@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '@/app/api/chat';
-import { openTestSession, sendTestMessage, closeTestSession, getAvailableTools } from '@/app/api/systemPromptTest';
+import { openTestSession, sendTestMessage, closeTestSession, getAvailableTools, listenTestSessionEvents, keepAliveTestSession } from '@/app/api/systemPromptTest';
 import { Maximize2, Minimize2 } from 'lucide-react';
 
 interface PromptTestChatProps {
@@ -54,7 +54,95 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     }
   }, [open]);
 
-  // Start session handler
+  // Restore focus to textarea after sending completes
+  useEffect(() => {
+    if (!isSending && sessionId && inputRef.current && !inputRef.current.disabled) {
+      inputRef.current.focus();
+    }
+  }, [isSending, sessionId]);
+
+  // Listen to SSE events for server-pushed messages and keepalive
+  useEffect(() => {
+    if (!sessionId) return;
+    let stopped = false;
+    const es = listenTestSessionEvents(
+      sessionId,
+      (msg) => {
+        setMessages(prev => [...prev, msg]);
+      },
+      (status) => {
+        if (status.status === 'session_closed') {
+          setStatus('idle');
+        }
+      },
+      () => {
+        // Optionally handle keepalive from server (noop or log)
+        // console.log('Received keepalive from server');
+      }
+    );
+    // Keepalive interval (every 30s)
+    const keepAliveInterval = setInterval(async () => {
+      try {
+        await keepAliveTestSession(sessionId);
+      } catch (err: any) {
+        if (err?.response?.status === 404) {
+          setStatus('error');
+          setInitError('Session expired or closed. Please start a new test session.');
+          es.close();
+          stopped = true;
+          clearInterval(keepAliveInterval);
+        }
+      }
+    }, 30000);
+    // Handle SSE error event (network/server issues)
+    es.addEventListener('error', () => {
+      if (!stopped) {
+        setStatus('error');
+        setInitError('Lost connection to server. Please try again.');
+        es.close();
+        clearInterval(keepAliveInterval);
+      }
+    });
+    return () => {
+      es.close();
+      clearInterval(keepAliveInterval);
+    };
+  }, [sessionId]);
+
+  // Close session on unmount or when dialog closes
+  useEffect(() => {
+    if (!open) return;
+    return () => {
+      if (sessionId) closeTestSession(sessionId);
+    };
+  }, [open, sessionId]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || !sessionId) return;
+    const userMessage: ChatMessage = { type: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    setIsSending(true);
+    setStatus('responding');
+    setInput('');
+    try {
+      const response = await sendTestMessage(sessionId, input);
+      setMessages(prev => [...prev, { type: 'system', content: response }]);
+    } catch {
+      setMessages(prev => [...prev, { type: 'system', content: 'Error receiving response from server.' }]);
+      setStatus('error');
+    } finally {
+      setIsSending(false);
+      setStatus('idle');
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
   const handleStart = async () => {
     setInitLoading(true);
     setInitError(null);
@@ -73,42 +161,6 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
       setInitError('Failed to start test session.');
     } finally {
       setInitLoading(false);
-    }
-  };
-
-  // Close session on unmount or when dialog closes
-  useEffect(() => {
-    if (!open) return;
-    return () => {
-      if (sessionId) closeTestSession(sessionId);
-    };
-  }, [open, sessionId]);
-
-  const sendMessage = async () => {
-    if (!input.trim() || !sessionId) return;
-    const userMessage: ChatMessage = { type: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setIsSending(true);
-    setStatus('responding');
-    setInput('');
-    inputRef.current?.focus();
-    try {
-      const response = await sendTestMessage(sessionId, input);
-      setMessages(prev => [...prev, { type: 'system', content: response }]);
-    } catch {
-      setMessages(prev => [...prev, { type: 'system', content: 'Error receiving response from server.' }]);
-      setStatus('error');
-    } finally {
-      setIsSending(false);
-      setStatus('idle');
-      inputRef.current?.focus();
-    }
-  };
-
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
     }
   };
 

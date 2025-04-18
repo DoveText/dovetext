@@ -52,6 +52,23 @@ export default function PromptsAdminPage() {
     fetchPrompts();
   }, []);
 
+  // Auto-select first prompt if available when prompts change
+  useEffect(() => {
+    if (prompts.length > 0) {
+      // Only select if nothing is selected and not editing/creating
+      if (!currentPrompt && !editMode) {
+        handlePreview(prompts[0]);
+      }
+    } else {
+      // No prompts: show create prompt page
+      setEditMode(false);
+      setPreviewMode(false);
+      setCurrentPrompt(null);
+      setFormData({ name: '', description: '', prompt: '' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prompts]);
+
   // Fetch all prompts
   const fetchPrompts = async () => {
     try {
@@ -125,10 +142,23 @@ export default function PromptsAdminPage() {
         await promptService.updatePrompt(currentPrompt.id, formData);
       } else {
         // Create new prompt
-        await promptService.createPrompt(formData);
+        const created = await promptService.createPrompt(formData);
+        // Immediately select the new prompt for review
+        fetchPrompts();
+        setTimeout(() => {
+          // Find the prompt by id or name
+          setCurrentPrompt(created);
+          setFormData({
+            name: created.name,
+            description: created.description,
+            prompt: created.prompt,
+          });
+          setEditMode(false);
+          setPreviewMode(true);
+        }, 0);
+        setLoading(false);
+        return;
       }
-      
-      // Reset form and refresh list
       setFormData({
         name: '',
         description: '',
