@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ChatMessage } from '@/app/api/chat';
-import { openTestSession, sendTestMessage, closeTestSession, getAvailableTools, listenTestSessionEvents, keepAliveTestSession } from '@/app/api/systemPromptTest';
+import { openTestSessionSSE, startTestSession, sendTestMessage, closeTestSession, getAvailableTools, keepAliveTestSession } from '@/app/api/systemPromptTest';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import PromptTestChatUI from './PromptTestChatUI';
 
@@ -28,6 +28,11 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
   const [initLoading, setInitLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
+  // SSE controller ref for cleanup
+  const [sseController, setSseController] = useState<{ close: () => void } | null>(null);
+  // Keepalive interval ref
+  const [keepAliveInterval, setKeepAliveInterval] = useState<NodeJS.Timeout | null>(null);
+
   // Only fetch tools on open, before session is started
   useEffect(() => {
     if (open && !initialized) {
@@ -51,62 +56,84 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     }
   }, [open]);
 
-  // Listen to SSE events for server-pushed messages and keepalive
+  // Cleanup SSE and keepalive on unmount or dialog close
   useEffect(() => {
-    if (!sessionId) return;
-    let stopped = false;
-    let sseController: { close: () => void } | null = null;
-    let keepAliveInterval: NodeJS.Timeout | null = null;
-    let didError = false;
-    (async () => {
-      try {
-        sseController = await listenTestSessionEvents(
-          sessionId,
-          (msg) => {
-            setMessages(prev => [...prev, msg]);
-          },
-          (status) => {
-            if (status.status === 'session_closed') {
-              setStatus('idle');
-            }
-          },
-          () => {
-            // Optionally handle keepalive from server
-          }
-        );
-        // Keepalive interval (every 30s)
-        keepAliveInterval = setInterval(async () => {
-          try {
-            await keepAliveTestSession(sessionId);
-          } catch (err: any) {
-            if (err?.response?.status === 404) {
-              setStatus('error');
-              setInitError('Session expired or closed. Please start a new test session.');
-              if (sseController) sseController.close();
-              stopped = true;
-              if (keepAliveInterval) clearInterval(keepAliveInterval);
-            }
-          }
-        }, 30000);
-      } catch (err) {
-        didError = true;
-        setStatus('error');
-        setInitError('Lost connection to server. Please try again.');
-        if (keepAliveInterval) clearInterval(keepAliveInterval);
-      }
-    })();
     return () => {
       if (sseController) sseController.close();
       if (keepAliveInterval) clearInterval(keepAliveInterval);
     };
-  }, [sessionId]);
+  }, [sseController, keepAliveInterval]);
+
+  // Start session handler: open SSE, get sessionId, then POST to <session>/start
+  const handleStart = async () => {
+    setInitLoading(true);
+    setInitError(null);
+    setMessages([]);
+    setSessionId(null);
+    setInitialized(false);
+    if (sseController) sseController.close();
+    if (keepAliveInterval) clearInterval(keepAliveInterval);
+    try {
+      const controller = await openTestSessionSSE(
+        async (session, welcomeMsg) => {
+          setSessionId(session);
+          setInitialized(true);
+          setStatus('idle');
+          if (welcomeMsg) {
+            setMessages([{ type: 'system', content: welcomeMsg }]);
+          } else {
+            setMessages([]);
+          }
+          // Start the test session after getting sessionId
+          try {
+            await startTestSession(session, systemPrompt, selectedTools, selectedModel);
+          } catch {
+            setStatus('error');
+            setInitError('Failed to start test session.');
+            controller.close();
+            return;
+          }
+          // Start keepalive interval
+          const interval = setInterval(async () => {
+            try {
+              await keepAliveTestSession(session);
+            } catch (err: any) {
+              if (err?.response?.status === 404) {
+                setStatus('error');
+                setInitError('Session expired or closed. Please start a new test session.');
+                controller.close();
+                clearInterval(interval);
+              }
+            }
+          }, 30000);
+          setKeepAliveInterval(interval);
+        },
+        (msg) => {
+          setMessages(prev => [...prev, msg]);
+        },
+        (status) => {
+          if (status.status === 'session_closed') {
+            setStatus('idle');
+          }
+        },
+        () => {
+          // Optionally handle keepalive from server
+        }
+      );
+      setSseController(controller);
+    } catch (err) {
+      setStatus('error');
+      setInitError('Lost connection to server. Please try again.');
+    } finally {
+      setInitLoading(false);
+    }
+  };
 
   // Close session on unmount or when dialog closes
   useEffect(() => {
-    if (!open) return;
-    return () => {
-      if (sessionId) closeTestSession(sessionId);
-    };
+    if (!open && sessionId) {
+      closeTestSession(sessionId);
+    }
   }, [open, sessionId]);
 
   const sendMessage = async (message: string) => {
@@ -124,27 +151,6 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     } finally {
       setIsSending(false);
       setStatus('idle');
-    }
-  };
-
-  const handleStart = async () => {
-    setInitLoading(true);
-    setInitError(null);
-    try {
-      const resp = await openTestSession(systemPrompt, selectedTools, selectedModel);
-      setSessionId(resp.session);
-      setInitialized(true);
-      setStatus('idle');
-      // If backend returns a welcome message, display it
-      if (resp.message) {
-        setMessages([{ type: 'system', content: resp.message }]);
-      } else {
-        setMessages([]);
-      }
-    } catch (err: any) {
-      setInitError('Failed to start test session.');
-    } finally {
-      setInitLoading(false);
     }
   };
 
