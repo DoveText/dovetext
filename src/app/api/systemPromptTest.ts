@@ -18,7 +18,8 @@ export async function openTestSessionSSE(
   onSession: (sessionId: string, initialMessage?: string) => void,
   onMessage: (msg: any) => void,
   onStatus?: (status: any) => void,
-  onKeepAlive?: () => void
+  onKeepAlive?: () => void,
+  onError?: (err: unknown) => void
 ): Promise<{ close: () => void }> {
   const user = auth.currentUser;
   if (!user) throw new Error('User not authenticated');
@@ -51,8 +52,9 @@ export async function openTestSessionSSE(
         }
       } catch {}
     },
-    onerror(err) {
+    onerror(err: unknown) {
       abortController.abort();
+      if (onError) onError(err);
     }
   });
 

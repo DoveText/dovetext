@@ -98,18 +98,20 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
             try {
               await keepAliveTestSession(session);
             } catch (err: any) {
-              if (err?.response?.status === 404) {
-                setStatus('error');
-                setInitError('Session expired or closed. Please start a new test session.');
-                controller.close();
-                clearInterval(interval);
-              }
+              // Handle any network or server error (not just 404)
+              setStatus('error');
+              setInitError('Lost connection to server. Please try again.');
+              controller.close();
+              clearInterval(interval);
             }
           }, 30000);
           setKeepAliveInterval(interval);
         },
         (msg) => {
-          setMessages(prev => [...prev, msg]);
+          // Only add chat messages (type: 'user' or 'system') to chat history
+          if (msg && (msg.type === 'user' || msg.type === 'system')) {
+            setMessages(prev => [...prev, msg]);
+          }
         },
         (status) => {
           if (status.status === 'session_closed') {
@@ -118,6 +120,12 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
         },
         () => {
           // Optionally handle keepalive from server
+        },
+        (err: unknown) => {
+          setStatus('error');
+          setInitError('Lost connection to server. Please try again.');
+          if (controller) controller.close();
+          if (keepAliveInterval) clearInterval(keepAliveInterval);
         }
       );
       setSseController(controller);
@@ -154,6 +162,18 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     }
   };
 
+  // Helper to close session and then call parent onClose
+  const handleChatClose = async () => {
+    if (sessionId) {
+      try {
+        await closeTestSession(sessionId);
+      } catch (e) {
+        // Optionally log error
+      }
+    }
+    onClose();
+  };
+
   if (!open) return null;
   if (!initialized) {
     return (
@@ -165,7 +185,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
             </div>
             <button
               className="text-gray-600 hover:text-black bg-white rounded-full shadow p-2"
-              onClick={onClose}
+              onClick={handleChatClose}
               aria-label="Close chat"
             >
               ×
@@ -235,7 +255,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
           isSending={isSending}
           status={status === 'idle' && sessionId ? 'connected' : status === 'error' ? 'disconnected' : status}
           onSend={sendMessage}
-          onClose={onClose}
+          onClose={handleChatClose}
           onReconnect={() => handleStart()}
           inputDisabled={isSending || !sessionId}
           processingHint={status === 'responding' ? 'Waiting for LLM response...' : ''}
