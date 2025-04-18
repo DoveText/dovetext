@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ChatMessage } from '@/app/api/chat';
 import { openTestSession, sendTestMessage, closeTestSession, getAvailableTools, listenTestSessionEvents, keepAliveTestSession } from '@/app/api/systemPromptTest';
 import { Maximize2, Minimize2 } from 'lucide-react';
+import PromptTestChatUI from './PromptTestChatUI';
 
 interface PromptTestChatProps {
   systemPrompt: string;
@@ -17,7 +18,6 @@ const MODEL_OPTIONS = [
 export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTestChatProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isLarge, setIsLarge] = useState(false);
   const [status, setStatus] = useState<'idle' | 'opening' | 'waiting' | 'responding' | 'error'>('idle');
@@ -27,8 +27,6 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
   const [initError, setInitError] = useState<string | null>(null);
   const [initLoading, setInitLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
-
-  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Only fetch tools on open, before session is started
   useEffect(() => {
@@ -42,7 +40,6 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     if (!open) {
       setSessionId(null);
       setMessages([]);
-      setInput('');
       setIsSending(false);
       setStatus('idle');
       setAvailableTools([]);
@@ -54,58 +51,53 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     }
   }, [open]);
 
-  // Restore focus to textarea after sending completes
-  useEffect(() => {
-    if (!isSending && sessionId && inputRef.current && !inputRef.current.disabled) {
-      inputRef.current.focus();
-    }
-  }, [isSending, sessionId]);
-
   // Listen to SSE events for server-pushed messages and keepalive
   useEffect(() => {
     if (!sessionId) return;
     let stopped = false;
-    const es = listenTestSessionEvents(
-      sessionId,
-      (msg) => {
-        setMessages(prev => [...prev, msg]);
-      },
-      (status) => {
-        if (status.status === 'session_closed') {
-          setStatus('idle');
-        }
-      },
-      () => {
-        // Optionally handle keepalive from server (noop or log)
-        // console.log('Received keepalive from server');
-      }
-    );
-    // Keepalive interval (every 30s)
-    const keepAliveInterval = setInterval(async () => {
+    let sseController: { close: () => void } | null = null;
+    let keepAliveInterval: NodeJS.Timeout | null = null;
+    let didError = false;
+    (async () => {
       try {
-        await keepAliveTestSession(sessionId);
-      } catch (err: any) {
-        if (err?.response?.status === 404) {
-          setStatus('error');
-          setInitError('Session expired or closed. Please start a new test session.');
-          es.close();
-          stopped = true;
-          clearInterval(keepAliveInterval);
-        }
-      }
-    }, 30000);
-    // Handle SSE error event (network/server issues)
-    es.addEventListener('error', () => {
-      if (!stopped) {
+        sseController = await listenTestSessionEvents(
+          sessionId,
+          (msg) => {
+            setMessages(prev => [...prev, msg]);
+          },
+          (status) => {
+            if (status.status === 'session_closed') {
+              setStatus('idle');
+            }
+          },
+          () => {
+            // Optionally handle keepalive from server
+          }
+        );
+        // Keepalive interval (every 30s)
+        keepAliveInterval = setInterval(async () => {
+          try {
+            await keepAliveTestSession(sessionId);
+          } catch (err: any) {
+            if (err?.response?.status === 404) {
+              setStatus('error');
+              setInitError('Session expired or closed. Please start a new test session.');
+              if (sseController) sseController.close();
+              stopped = true;
+              if (keepAliveInterval) clearInterval(keepAliveInterval);
+            }
+          }
+        }, 30000);
+      } catch (err) {
+        didError = true;
         setStatus('error');
         setInitError('Lost connection to server. Please try again.');
-        es.close();
-        clearInterval(keepAliveInterval);
+        if (keepAliveInterval) clearInterval(keepAliveInterval);
       }
-    });
+    })();
     return () => {
-      es.close();
-      clearInterval(keepAliveInterval);
+      if (sseController) sseController.close();
+      if (keepAliveInterval) clearInterval(keepAliveInterval);
     };
   }, [sessionId]);
 
@@ -117,15 +109,14 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     };
   }, [open, sessionId]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || !sessionId) return;
-    const userMessage: ChatMessage = { type: 'user', content: input };
+  const sendMessage = async (message: string) => {
+    if (!message.trim() || !sessionId) return;
+    const userMessage: ChatMessage = { type: 'user', content: message };
     setMessages(prev => [...prev, userMessage]);
     setIsSending(true);
     setStatus('responding');
-    setInput('');
     try {
-      const response = await sendTestMessage(sessionId, input);
+      const response = await sendTestMessage(sessionId, message);
       setMessages(prev => [...prev, { type: 'system', content: response }]);
     } catch {
       setMessages(prev => [...prev, { type: 'system', content: 'Error receiving response from server.' }]);
@@ -133,13 +124,6 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     } finally {
       setIsSending(false);
       setStatus('idle');
-    }
-  };
-
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
     }
   };
 
@@ -239,69 +223,18 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div
-        className={`relative mx-auto bg-white rounded shadow-lg flex flex-col transition-all duration-200 ${isLarge ? 'w-[900px] h-[700px]' : 'w-full max-w-xl'} `}
-        style={isLarge ? { height: 700, width: 900 } : {}}
-      >
-        <div className="flex items-center justify-between px-4 py-2 border-b">
-          <div className="flex items-center gap-2 font-semibold">
-            <button
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full p-1 flex items-center"
-              onClick={() => setIsLarge(v => !v)}
-              aria-label={isLarge ? 'Shrink' : 'Enlarge'}
-              style={{ zIndex: 10 }}
-              tabIndex={0}
-            >
-              {isLarge ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
-            </button>
-            Test Prompt Chat
-          </div>
-          <button
-            className="text-gray-600 hover:text-black bg-white rounded-full shadow p-2"
-            onClick={onClose}
-            aria-label="Close chat"
-          >
-            ×
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-2" style={{ minHeight: isLarge ? 500 : 300, maxHeight: isLarge ? 600 : 400 }}>
-          {status === 'opening' && (
-            <div className="text-center text-gray-400 animate-pulse">Opening test session...</div>
-          )}
-          {messages.map((msg, idx) => (
-            <div key={idx} className={`text-sm ${msg.type === 'user' ? 'text-right' : 'text-left'} w-full`}>
-              <span className={msg.type === 'user' ? 'bg-blue-100 text-blue-800 rounded px-2 py-1 inline-block' : 'bg-gray-100 text-gray-800 rounded px-2 py-1 inline-block'}>
-                {msg.content}
-              </span>
-            </div>
-          ))}
-          {status === 'responding' && (
-            <div className="flex items-center gap-2 text-gray-400 animate-pulse">
-              <span className="inline-block w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>
-              Waiting for LLM response...
-            </div>
-          )}
-        </div>
-        <div className="border-t px-4 py-3 flex gap-2 items-end bg-gray-50">
-          <textarea
-            ref={inputRef}
-            className="flex-1 border rounded px-3 py-2 text-sm resize-y min-h-[48px] max-h-40 font-mono"
-            placeholder="Type your message..."
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleInputKeyDown}
-            disabled={isSending || !sessionId}
-            rows={2}
-          />
-          <button
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-            onClick={sendMessage}
-            disabled={isSending || !input.trim() || !sessionId}
-            style={{ minWidth: 80 }}
-          >
-            Send
-          </button>
-        </div>
+      <div className={`relative mx-auto w-full max-w-xl h-[600px]`}>
+        <PromptTestChatUI
+          messages={messages}
+          isSending={isSending}
+          status={status === 'idle' && sessionId ? 'connected' : status === 'error' ? 'disconnected' : status}
+          onSend={sendMessage}
+          onClose={onClose}
+          onReconnect={() => handleStart()}
+          inputDisabled={isSending || !sessionId}
+          processingHint={status === 'responding' ? 'Waiting for LLM response...' : ''}
+          contextTitle="Prompt Test"
+        />
       </div>
     </div>
   );

@@ -1,4 +1,6 @@
 import { apiClient } from './client';
+import { auth } from '@/lib/firebase/config';
+import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 // Open a new test session with a system prompt, tools, and model
 export interface OpenSessionResponse {
@@ -33,28 +35,45 @@ export async function getAvailableTools(): Promise<{ name: string; description: 
   return res.data.tools;
 }
 
-// Listen to SSE events for a prompt test session
-export function listenTestSessionEvents(session: string, onMessage: (msg: any) => void, onStatus?: (status: any) => void, onKeepAlive?: () => void): EventSource {
+// Listen to SSE events for a prompt test session (with Firebase Auth)
+export async function listenTestSessionEvents(
+  session: string,
+  onMessage: (msg: any) => void,
+  onStatus?: (status: any) => void,
+  onKeepAlive?: () => void
+): Promise<{ close: () => void }> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('User not authenticated');
+  const token = await user.getIdToken();
   const url = `/api/v1/prompt/test/${session}/events`;
-  const es = new EventSource(url);
-  es.addEventListener('message', (e) => {
-    try {
-      const data = JSON.parse((e as MessageEvent).data);
-      onMessage(data);
-    } catch {}
-  });
-  if (onStatus) {
-    es.addEventListener('status', (e) => {
+  const abortController = new AbortController();
+
+  fetchEventSource(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'text/event-stream',
+      'Cache-Control': 'no-cache'
+    },
+    signal: abortController.signal,
+    onmessage(event) {
+      if (!event.data) return;
       try {
-        const data = JSON.parse((e as MessageEvent).data);
-        onStatus(data);
+        if (event.event === 'status' && onStatus) {
+          onStatus(JSON.parse(event.data));
+        } else if (event.event === 'keepalive' && onKeepAlive) {
+          onKeepAlive();
+        } else {
+          onMessage(JSON.parse(event.data));
+        }
       } catch {}
-    });
-  }
-  if (onKeepAlive) {
-    es.addEventListener('keepalive', () => {
-      onKeepAlive();
-    });
-  }
-  return es;
+    },
+    onerror(err) {
+      abortController.abort();
+    }
+  });
+
+  return {
+    close: () => abortController.abort()
+  };
 }
