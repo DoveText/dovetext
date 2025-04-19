@@ -58,6 +58,11 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     }
   }, [open]);
 
+  // Reset sessionClosedRef when a new session is started
+  useEffect(() => {
+    if (open) sessionClosedRef.current = false;
+  }, [open]);
+
   // Cleanup SSE and keepalive on unmount or dialog close
   useEffect(() => {
     return () => {
@@ -140,9 +145,10 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     }
   };
 
-  // Close session on unmount or when dialog closes
+  // Close session on unmount or when dialog closes, but only if not already closed
   useEffect(() => {
-    if (!open && sessionId) {
+    if (!open && sessionId && !sessionClosedRef.current) {
+      sessionClosedRef.current = true;
       closeTestSession(sessionId);
     }
   }, [open, sessionId]);
@@ -165,31 +171,14 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     }
   };
 
-  // Helper to close session and then call parent onClose
-  const handleChatClose = async () => {
-    if (sessionClosedRef.current) return;
-    sessionClosedRef.current = true;
-    if (keepaliveIntervalRef.current) {
-      clearInterval(keepaliveIntervalRef.current);
-      keepaliveIntervalRef.current = null;
+  // Handler for close icon
+  const handleChatClose = () => {
+    if (!sessionClosedRef.current && sessionId) {
+      sessionClosedRef.current = true;
+      closeTestSession(sessionId);
     }
-    if (sessionId) {
-      try {
-        await closeTestSession(sessionId);
-      } catch {}
-    }
-    // Reset sessionClosedRef immediately so dialog can be reopened
-    sessionClosedRef.current = false;
     onClose();
   };
-
-  // In useEffect cleanup, use the same close logic
-  useEffect(() => {
-    return () => {
-      // Only cleanup if dialog is open when unmounting
-      if (open) handleChatClose();
-    };
-  }, [open]);
 
   if (!open) return null;
   if (!initialized) {
@@ -273,7 +262,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
           status={status === 'idle' && sessionId ? 'connected' : status === 'error' ? 'disconnected' : status}
           onSend={sendMessage}
           onClose={handleChatClose}
-          onReconnect={() => handleStart()}
+          onReconnect={handleStart}
           inputDisabled={isSending || !sessionId}
           processingHint={status === 'responding' ? 'Waiting for LLM response...' : ''}
           contextTitle="Prompt Test"

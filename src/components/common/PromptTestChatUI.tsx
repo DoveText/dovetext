@@ -55,7 +55,7 @@ export default function PromptTestChatUI({
           </h3>
         </div>
         <button
-          onClick={onClose}
+          onClick={() => { console.log('[PromptTestChatUI] Close icon clicked'); onClose(); }}
           className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-1.5 flex items-center justify-center transition-colors cursor-pointer"
           aria-label="Close chat"
         >
