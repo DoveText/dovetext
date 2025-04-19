@@ -20,7 +20,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isLarge, setIsLarge] = useState(true);
-  const [status, setStatus] = useState<'idle' | 'opening' | 'waiting' | 'responding' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'opening' | 'waiting' | 'responding' | 'error' | 'disconnected' | 'connected'>('idle');
   const [availableTools, setAvailableTools] = useState<{ name: string; description: string }[]>([]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>(MODEL_OPTIONS[0].value);
@@ -38,6 +38,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
   // Only fetch tools on open, before session is started
   useEffect(() => {
     if (open && !initialized) {
+      console.log('[PromptTestChat] open effect: open=', open, 'initialized=', initialized, 'sessionId=', sessionId);
       getAvailableTools().then(setAvailableTools).catch(() => setAvailableTools([]));
     }
   }, [open, initialized]);
@@ -45,10 +46,11 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
+      console.log('[PromptTestChat] Dialog closed, resetting state. SessionId before reset:', sessionId);
+      setStatusWithLog('idle');
       setSessionId(null);
       setMessages([]);
       setIsSending(false);
-      setStatus('idle');
       setAvailableTools([]);
       setSelectedTools([]);
       setSelectedModel(MODEL_OPTIONS[0].value);
@@ -66,6 +68,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
   // Cleanup SSE and keepalive on unmount or dialog close
   useEffect(() => {
     return () => {
+      console.log('[PromptTestChat] Cleanup: closing SSE and clearing keepalive');
       if (sseController) sseController.close();
       if (keepaliveIntervalRef.current) clearInterval(keepaliveIntervalRef.current);
     };
@@ -73,6 +76,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
 
   // Start session handler: open SSE, get sessionId, then POST to <session>/start
   const handleStart = async () => {
+    console.log('[PromptTestChat] handleStart called. open:', open, 'initialized:', initialized, 'sessionId:', sessionId);
     setInitLoading(true);
     setInitError(null);
     setMessages([]);
@@ -83,9 +87,10 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     try {
       const controller = await openTestSessionSSE(
         async (session, welcomeMsg) => {
+          console.log('[PromptTestChat] SSE opened. sessionId:', session);
           setSessionId(session);
           setInitialized(true);
-          setStatus('idle');
+          setStatusWithLog('connected');
           if (welcomeMsg) {
             setMessages([{ type: 'system', content: welcomeMsg }]);
           } else {
@@ -95,7 +100,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
           try {
             await startTestSession(session, systemPrompt, selectedTools, selectedModel);
           } catch {
-            setStatus('error');
+            setStatusWithLog('error');
             setInitError('Failed to start test session.');
             controller.close();
             return;
@@ -107,8 +112,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
             try {
               await keepAliveTestSession(session);
             } catch (err: any) {
-              // Handle any network or server error (not just 404)
-              setStatus('error');
+              setStatusWithLog('disconnected');
               setInitError('Lost connection to server. Please try again.');
               controller.close();
               clearInterval(keepaliveIntervalRef.current!);
@@ -116,29 +120,26 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
           }, 30000);
         },
         (msg) => {
-          // Only add chat messages (type: 'user' or 'system') to chat history
           if (msg && (msg.type === 'user' || msg.type === 'system')) {
             setMessages(prev => [...prev, msg]);
           }
         },
         (status) => {
           if (status.status === 'session_closed') {
-            setStatus('idle');
+            setStatusWithLog('idle');
           }
         },
-        () => {
-          // Optionally handle keepalive from server
-        },
+        () => {},
         (err: unknown) => {
-          setStatus('error');
+          setStatusWithLog('disconnected');
           setInitError('Lost connection to server. Please try again.');
-          if (controller) controller.close();
           if (keepaliveIntervalRef.current) clearInterval(keepaliveIntervalRef.current);
+          if (sseController) sseController.close();
         }
       );
       setSseController(controller);
     } catch (err) {
-      setStatus('error');
+      setStatusWithLog('disconnected');
       setInitError('Lost connection to server. Please try again.');
     } finally {
       setInitLoading(false);
@@ -153,21 +154,31 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     }
   }, [open, sessionId]);
 
+  // Add logging for connection status changes
+  useEffect(() => {
+    console.log('[PromptTestChat] Connection status changed:', status, 'sessionId:', sessionId);
+  }, [status, sessionId]);
+
+  const setStatusWithLog = (newStatus: typeof status) => {
+    console.log('[PromptTestChat] setStatus:', newStatus, 'sessionId:', sessionId);
+    setStatus(newStatus);
+  };
+
   const sendMessage = async (message: string) => {
     if (!message.trim() || !sessionId) return;
     const userMessage: ChatMessage = { type: 'user', content: message };
     setMessages(prev => [...prev, userMessage]);
     setIsSending(true);
-    setStatus('responding');
+    setStatusWithLog('responding');
     try {
       const response = await sendTestMessage(sessionId, message);
       setMessages(prev => [...prev, { type: 'system', content: response }]);
     } catch {
       setMessages(prev => [...prev, { type: 'system', content: 'Error receiving response from server.' }]);
-      setStatus('error');
+      setStatusWithLog('error');
     } finally {
       setIsSending(false);
-      setStatus('idle');
+      setStatusWithLog('idle');
     }
   };
 
@@ -259,15 +270,15 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
         <PromptTestChatUI
           messages={messages}
           isSending={isSending}
-          status={status === 'idle' && sessionId ? 'connected' : status === 'error' ? 'disconnected' : status}
+          status={status}
           onSend={sendMessage}
           onClose={handleChatClose}
           onReconnect={handleStart}
-          inputDisabled={isSending || !sessionId}
-          processingHint={status === 'responding' ? 'Waiting for LLM response...' : ''}
+          inputDisabled={isSending || status === 'opening' || status === 'waiting' || status === 'disconnected'}
+          processingHint={status === 'responding' ? 'Model is thinking...' : ''}
           contextTitle="Prompt Test"
           isLarge={isLarge}
-          onToggleSize={() => setIsLarge(l => !l)}
+          onToggleSize={() => setIsLarge(!isLarge)}
         />
       </div>
     </div>

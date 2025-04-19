@@ -35,6 +35,13 @@ export default function PromptTestChatUI({
 }: PromptTestChatUIProps) {
   const inputRef = useRef<ChatInputAreaHandle>(null);
 
+  const handleReconnect = () => {
+    console.log('[PromptTestChatUI] onReconnect triggered');
+    if (typeof onReconnect === 'function') {
+      onReconnect();
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full bg-white rounded shadow-lg">
       <div className="bg-blue-500 text-white px-4 py-4 flex justify-between items-center">
@@ -64,7 +71,7 @@ export default function PromptTestChatUI({
           </svg>
         </button>
       </div>
-      <ConnectionStatus connectionStatus={status === 'connected' ? 'connected' : status === 'reconnecting' ? 'reconnecting' : 'disconnected'} onReconnect={onReconnect || (() => {})} />
+      <ConnectionStatus connectionStatus={status === 'connected' ? 'connected' : status === 'reconnecting' ? 'reconnecting' : 'disconnected'} onReconnect={handleReconnect} />
       <div className="flex-1 overflow-y-auto p-4">
         <ChatMessageList
           chatHistory={messages}
