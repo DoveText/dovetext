@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChatMessage } from '@/app/api/chat';
 import { openTestSessionSSE, startTestSession, sendTestMessage, closeTestSession, getAvailableTools, keepAliveTestSession } from '@/app/api/systemPromptTest';
 import { Maximize2, Minimize2 } from 'lucide-react';
@@ -19,7 +19,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
-  const [isLarge, setIsLarge] = useState(false);
+  const [isLarge, setIsLarge] = useState(true);
   const [status, setStatus] = useState<'idle' | 'opening' | 'waiting' | 'responding' | 'error'>('idle');
   const [availableTools, setAvailableTools] = useState<{ name: string; description: string }[]>([]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
@@ -31,7 +31,9 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
   // SSE controller ref for cleanup
   const [sseController, setSseController] = useState<{ close: () => void } | null>(null);
   // Keepalive interval ref
-  const [keepAliveInterval, setKeepAliveInterval] = useState<NodeJS.Timeout | null>(null);
+  const keepaliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Add ref to track session close
+  const sessionClosedRef = useRef(false);
 
   // Only fetch tools on open, before session is started
   useEffect(() => {
@@ -60,9 +62,9 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
   useEffect(() => {
     return () => {
       if (sseController) sseController.close();
-      if (keepAliveInterval) clearInterval(keepAliveInterval);
+      if (keepaliveIntervalRef.current) clearInterval(keepaliveIntervalRef.current);
     };
-  }, [sseController, keepAliveInterval]);
+  }, [sseController, keepaliveIntervalRef]);
 
   // Start session handler: open SSE, get sessionId, then POST to <session>/start
   const handleStart = async () => {
@@ -72,7 +74,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     setSessionId(null);
     setInitialized(false);
     if (sseController) sseController.close();
-    if (keepAliveInterval) clearInterval(keepAliveInterval);
+    if (keepaliveIntervalRef.current) clearInterval(keepaliveIntervalRef.current);
     try {
       const controller = await openTestSessionSSE(
         async (session, welcomeMsg) => {
@@ -94,7 +96,9 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
             return;
           }
           // Start keepalive interval
-          const interval = setInterval(async () => {
+          if (keepaliveIntervalRef.current) clearInterval(keepaliveIntervalRef.current);
+          keepaliveIntervalRef.current = setInterval(async () => {
+            if (sessionClosedRef.current) return;
             try {
               await keepAliveTestSession(session);
             } catch (err: any) {
@@ -102,10 +106,9 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
               setStatus('error');
               setInitError('Lost connection to server. Please try again.');
               controller.close();
-              clearInterval(interval);
+              clearInterval(keepaliveIntervalRef.current!);
             }
           }, 30000);
-          setKeepAliveInterval(interval);
         },
         (msg) => {
           // Only add chat messages (type: 'user' or 'system') to chat history
@@ -125,7 +128,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
           setStatus('error');
           setInitError('Lost connection to server. Please try again.');
           if (controller) controller.close();
-          if (keepAliveInterval) clearInterval(keepAliveInterval);
+          if (keepaliveIntervalRef.current) clearInterval(keepaliveIntervalRef.current);
         }
       );
       setSseController(controller);
@@ -164,15 +167,29 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
 
   // Helper to close session and then call parent onClose
   const handleChatClose = async () => {
+    if (sessionClosedRef.current) return;
+    sessionClosedRef.current = true;
+    if (keepaliveIntervalRef.current) {
+      clearInterval(keepaliveIntervalRef.current);
+      keepaliveIntervalRef.current = null;
+    }
     if (sessionId) {
       try {
         await closeTestSession(sessionId);
-      } catch (e) {
-        // Optionally log error
-      }
+      } catch {}
     }
+    // Reset sessionClosedRef immediately so dialog can be reopened
+    sessionClosedRef.current = false;
     onClose();
   };
+
+  // In useEffect cleanup, use the same close logic
+  useEffect(() => {
+    return () => {
+      // Only cleanup if dialog is open when unmounting
+      if (open) handleChatClose();
+    };
+  }, [open]);
 
   if (!open) return null;
   if (!initialized) {
@@ -249,7 +266,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className={`relative mx-auto w-full max-w-xl h-[600px]`}>
+      <div className={`relative mx-auto w-full ${isLarge ? 'max-w-5xl' : 'max-w-xl'} h-[600px]`}>
         <PromptTestChatUI
           messages={messages}
           isSending={isSending}
@@ -260,6 +277,8 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
           inputDisabled={isSending || !sessionId}
           processingHint={status === 'responding' ? 'Waiting for LLM response...' : ''}
           contextTitle="Prompt Test"
+          isLarge={isLarge}
+          onToggleSize={() => setIsLarge(l => !l)}
         />
       </div>
     </div>

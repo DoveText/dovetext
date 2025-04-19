@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePromptService } from '@/lib/services/promptService';
 import { FormEvent } from 'react';
 import PromptTestChat from '@/components/common/PromptTestChat';
+import CopyButton from '@/components/common/CopyButton';
 
 // Helper function to format byte size to human-readable format
 const formatByteSize = (bytes: number): string => {
@@ -310,8 +311,9 @@ export default function PromptsAdminPage() {
                   >Edit</button>
                 </div>
               </div>
-              <pre className="bg-gray-100 rounded p-4 font-mono whitespace-pre-wrap text-sm max-h-[60vh] overflow-auto border">
+              <pre className="bg-gray-100 rounded p-4 font-mono whitespace-pre-wrap text-sm max-h-[60vh] overflow-auto border flex items-start">
                 {currentPrompt.prompt}
+                <CopyButton text={currentPrompt.prompt} className="ml-2 mt-1" size="md" />
               </pre>
             </div>
           )}

@@ -1,4 +1,6 @@
 import { ClipboardIcon } from '@heroicons/react/24/outline';
+import { CheckIcon } from '@heroicons/react/24/outline';
+import { useState } from 'react';
 
 interface CopyButtonProps {
   text: string;
@@ -7,6 +9,8 @@ interface CopyButtonProps {
 }
 
 export default function CopyButton({ text, className = '', size = 'sm' }: CopyButtonProps) {
+  const [copied, setCopied] = useState(false);
+
   const handleCopy = () => {
     const textArea = document.createElement('textarea');
     textArea.value = text;
@@ -14,6 +18,8 @@ export default function CopyButton({ text, className = '', size = 'sm' }: CopyBu
     try {
       textArea.select();
       document.execCommand('copy');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
     } catch (err) {
       console.error('Failed to copy text:', err);
     } finally {
@@ -31,9 +37,13 @@ export default function CopyButton({ text, className = '', size = 'sm' }: CopyBu
       type="button"
       onClick={handleCopy}
       className={`ml-2 flex-shrink-0 ${className}`}
-      title="Copy to clipboard"
+      title={copied ? 'Copied!' : 'Copy to clipboard'}
     >
-      <ClipboardIcon className={`${sizeClasses[size]} text-gray-400 hover:text-gray-600`} />
+      {copied ? (
+        <CheckIcon className={`${sizeClasses[size]} text-green-500`} />
+      ) : (
+        <ClipboardIcon className={`${sizeClasses[size]} text-gray-400 hover:text-gray-600`} />
+      )}
     </button>
   );
 }
