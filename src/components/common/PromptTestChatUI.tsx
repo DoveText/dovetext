@@ -9,7 +9,8 @@ import { Maximize2, Minimize2 } from 'lucide-react';
 interface PromptTestChatUIProps {
   messages: ChatMessage[];
   isSending: boolean;
-  status: 'connected' | 'disconnected' | 'reconnecting' | 'idle' | 'opening' | 'waiting' | 'responding' | 'error';
+  status: 'connected' | 'disconnected' | 'reconnecting' | 'idle' | 'opening' | 'error';
+  messageStatus?: 'idle' | 'sending' | 'responding';
   onSend: (msg: string) => void;
   onClose: () => void;
   onReconnect?: () => void;
@@ -24,6 +25,7 @@ export default function PromptTestChatUI({
   messages,
   isSending,
   status,
+  messageStatus = 'idle',
   onSend,
   onClose,
   onReconnect,
@@ -75,7 +77,7 @@ export default function PromptTestChatUI({
       <div className="flex-1 overflow-y-auto p-4">
         <ChatMessageList
           chatHistory={messages}
-          isProcessing={isSending || status === 'responding'}
+          isProcessing={isSending || messageStatus === 'responding'}
           processingHint={processingHint}
           currentTask={null}
           getContextExample={() => ''}

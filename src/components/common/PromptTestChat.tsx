@@ -20,7 +20,8 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isLarge, setIsLarge] = useState(true);
-  const [status, setStatus] = useState<'idle' | 'opening' | 'waiting' | 'responding' | 'error' | 'disconnected' | 'connected'>('idle');
+  const [status, setStatus] = useState<'idle' | 'opening' | 'connected' | 'disconnected' | 'error'>('idle');
+  const [messageStatus, setMessageStatus] = useState<'idle' | 'sending' | 'responding'>('idle');
   const [availableTools, setAvailableTools] = useState<{ name: string; description: string }[]>([]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>(MODEL_OPTIONS[0].value);
@@ -169,7 +170,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
     const userMessage: ChatMessage = { type: 'user', content: message };
     setMessages(prev => [...prev, userMessage]);
     setIsSending(true);
-    setStatusWithLog('responding');
+    setMessageStatus('responding');
     try {
       const response = await sendTestMessage(sessionId, message);
       setMessages(prev => [...prev, { type: 'system', content: response }]);
@@ -178,7 +179,7 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
       setStatusWithLog('error');
     } finally {
       setIsSending(false);
-      setStatusWithLog('idle');
+      setMessageStatus('idle');
     }
   };
 
@@ -271,11 +272,12 @@ export default function PromptTestChat({ systemPrompt, open, onClose }: PromptTe
           messages={messages}
           isSending={isSending}
           status={status}
+          messageStatus={messageStatus}
           onSend={sendMessage}
           onClose={handleChatClose}
           onReconnect={handleStart}
-          inputDisabled={isSending || status === 'opening' || status === 'waiting' || status === 'disconnected'}
-          processingHint={status === 'responding' ? 'Model is thinking...' : ''}
+          inputDisabled={isSending || status === 'opening' || status === 'disconnected'}
+          processingHint={messageStatus === 'responding' ? 'Model is thinking...' : ''}
           contextTitle="Prompt Test"
           isLarge={isLarge}
           onToggleSize={() => setIsLarge(!isLarge)}

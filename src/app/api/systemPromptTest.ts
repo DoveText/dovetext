@@ -7,11 +7,6 @@ export interface OpenSessionResponse {
   session: string;
   message?: string;
 }
-export async function openTestSession(systemPrompt: string, tools: string[], model: string): Promise<OpenSessionResponse> {
-  const res = await apiClient.post('/api/v1/prompt/test/open', { prompt: systemPrompt, tools, model });
-  if (res.data && typeof res.data.session === 'string') return res.data;
-  throw new Error('Invalid response from /open');
-}
 
 // Open a new test session SSE stream, retrieve sessionId from the first SSE message
 export async function openTestSessionSSE(
