@@ -256,7 +256,11 @@ export function ChatProvider({
         const content = eventData.content || 'Thinking...';
         setProcessing(true, content);
       } else if (eventType === 'message') {
-        setProcessing(false);
+        // Only set processing to false if the message is complete
+        if (eventData.complete !== false) {
+          console.log("######## Processing completed")
+          setProcessing(false);
+        }
         
         // Check if this is an interactive message
         if (eventData.interactive) {

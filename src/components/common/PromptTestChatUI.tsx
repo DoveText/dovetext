@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { ChatMessage } from '@/types/chat';
 import { ChatHeader } from '@/components/chat/ChatHeader';
 import ChatMessageList from '@/components/chat/ChatMessageList';
@@ -36,6 +36,16 @@ export default function PromptTestChatUI({
   onToggleSize,
 }: PromptTestChatUIProps) {
   const inputRef = useRef<ChatInputAreaHandle>(null);
+
+  // Auto-focus the input field whenever possible
+  useEffect(() => {
+    if (!inputDisabled && status !== 'disconnected' && status !== 'error') {
+      // Small timeout to ensure input is rendered
+      setTimeout(() => {
+        inputRef.current?.focus?.();
+      }, 50);
+    }
+  }, [status, isSending, inputDisabled]);
 
   const handleReconnect = () => {
     console.log('[PromptTestChatUI] onReconnect triggered');
