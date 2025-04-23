@@ -708,10 +708,11 @@ export function ChatProvider({
   useEffect(() => {
     return () => {
       if (eventSource) {
+        console.log('#### Terminating connection due to eventSource unmount')
         terminateConnection();
       }
     };
-  }, [eventSource, terminateConnection]);
+  }, []);
   
   // Create the context value
   const contextValue: ChatContextType = {
