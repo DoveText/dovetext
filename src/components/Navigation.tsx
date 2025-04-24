@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
@@ -13,6 +14,30 @@ function classNames(...classes: string[]) {
 
 export default function Navigation() {
   const { user, logout } = useAuth();
+  const router = useRouter();
+  
+  // Function to handle navigation with loading indicator
+  const handleNavigation = (href: string, e: React.MouseEvent, closeMenu?: () => void) => {
+    e.preventDefault();
+    
+    // Check if we're already on this page
+    if (window.location.pathname === href) {
+      // If we're already on this page, just close the menu if provided
+      if (closeMenu) closeMenu();
+      return;
+    }
+    
+    // Dispatch a custom event to signal route change start
+    document.dispatchEvent(new CustomEvent('routeChangeStart'));
+    
+    // Close the menu if provided
+    if (closeMenu) closeMenu();
+    
+    // Navigate to the new page
+    setTimeout(() => {
+      router.push(href);
+    }, 50); // Small delay to ensure the loading indicator appears
+  };
 
   const handleSignOut = async () => {
     try {
@@ -50,6 +75,7 @@ export default function Navigation() {
             <div className="hidden md:flex items-center ml-10 space-x-10">
               <Link
                 href="/dashboard"
+                onClick={(e) => handleNavigation('/dashboard', e)}
                 className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center px-3 py-2 rounded-md hover:bg-gray-50"
               >
                 <HomeIcon className="h-4 w-4 mr-2" />
@@ -57,6 +83,7 @@ export default function Navigation() {
               </Link>
               <Link
                 href="/schedule"
+                onClick={(e) => handleNavigation('/schedule', e)}
                 className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center px-3 py-2 rounded-md hover:bg-gray-50"
               >
                 <CalendarIcon className="h-4 w-4 mr-2" />
@@ -64,6 +91,7 @@ export default function Navigation() {
               </Link>
               <Link
                 href="/tasks"
+                onClick={(e) => handleNavigation('/tasks', e)}
                 className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center px-3 py-2 rounded-md hover:bg-gray-50"
               >
                 <SparklesIcon className="h-4 w-4 mr-2" />
@@ -101,9 +129,10 @@ export default function Navigation() {
                     <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                       <div className="py-1">
                         <Menu.Item>
-                          {({ active }) => (
+                          {({ active, close }) => (
                             <Link
                               href="/notifications/delivery-methods"
+                              onClick={(e) => handleNavigation('/notifications/delivery-methods', e, close)}
                               className={classNames(
                                 active ? 'bg-gray-100' : '',
                                 'block px-4 py-2 text-sm text-gray-700'
@@ -114,9 +143,10 @@ export default function Navigation() {
                           )}
                         </Menu.Item>
                         <Menu.Item>
-                          {({ active }) => (
+                          {({ active, close }) => (
                             <Link
                               href="/notifications/delivery-channels"
+                              onClick={(e) => handleNavigation('/notifications/delivery-channels', e, close)}
                               className={classNames(
                                 active ? 'bg-gray-100' : '',
                                 'block px-4 py-2 text-sm text-gray-700'
@@ -127,9 +157,10 @@ export default function Navigation() {
                           )}
                         </Menu.Item>
                         <Menu.Item>
-                          {({ active }) => (
+                          {({ active, close }) => (
                             <Link
                               href="/notifications/escalation-chains"
+                              onClick={(e) => handleNavigation('/notifications/escalation-chains', e, close)}
                               className={classNames(
                                 active ? 'bg-gray-100' : '',
                                 'block px-4 py-2 text-sm text-gray-700'
@@ -140,9 +171,10 @@ export default function Navigation() {
                           )}
                         </Menu.Item>
                         <Menu.Item>
-                          {({ active }) => (
+                          {({ active, close }) => (
                             <Link
                               href="/notifications/delivery-rules"
+                              onClick={(e) => handleNavigation('/notifications/delivery-rules', e, close)}
                               className={classNames(
                                 active ? 'bg-gray-100' : '',
                                 'block px-4 py-2 text-sm text-gray-700'
@@ -188,9 +220,10 @@ export default function Navigation() {
                     <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                       <div className="py-1">
                         <Menu.Item>
-                          {({ active }) => (
+                          {({ active, close }) => (
                             <Link
                               href="/user/profile"
+                              onClick={(e) => handleNavigation('/user/profile', e, close)}
                               className={classNames(
                                 active ? 'bg-gray-100' : '',
                                 'block px-4 py-2 text-sm text-gray-700'
@@ -201,9 +234,10 @@ export default function Navigation() {
                           )}
                         </Menu.Item>
                         <Menu.Item>
-                          {({ active }) => (
+                          {({ active, close }) => (
                             <Link
                               href="/user/settings"
+                              onClick={(e) => handleNavigation('/user/settings', e, close)}
                               className={classNames(
                                 active ? 'bg-gray-100' : '',
                                 'block px-4 py-2 text-sm text-gray-700'

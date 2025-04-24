@@ -8,6 +8,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { AuthProvider } from '@/context/AuthContext';
 import { ActionProvider } from '@/context/ActionContext';
 import { ChatProvider } from '@/context/ChatContext';
+import LoadingIndicator from '@/components/common/LoadingIndicator';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -31,6 +32,7 @@ export default function RootLayout({
         <AuthProvider>
           <ActionProvider>
             <ChatProvider>
+              <LoadingIndicator />
               <Navigation />
               <main className="min-h-screen flex flex-col">
                 {children}
