@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   BellIcon, 
@@ -21,6 +21,25 @@ export default function NotificationsLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  
+  // Function to handle tab navigation with loading indicator
+  const handleTabNavigation = (href: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    // Check if we're already on this page
+    if (pathname === href) {
+      return;
+    }
+    
+    // Dispatch a custom event to signal route change start
+    document.dispatchEvent(new CustomEvent('routeChangeStart'));
+    
+    // Navigate to the new page
+    setTimeout(() => {
+      router.push(href);
+    }, 50); // Small delay to ensure the loading indicator appears
+  };
 
   const navigation = [
     {
@@ -58,6 +77,7 @@ export default function NotificationsLayout({
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={(e) => handleTabNavigation(item.href, e)}
                 className={classNames(
                   item.current
                     ? 'border-indigo-500 text-indigo-600'
