@@ -9,8 +9,9 @@ This document outlines the implementation of the global action context system th
 ### Core Components
 
 1. **ActionContext**: A global context that manages actions across the application
-2. **TaskOrientedChat**: A chat interface component that sets actions in the context
-3. **ProtectedRoute**: A wrapper component that provides authentication protection and includes the chat component
+2. **ChatContext**: A context that manages chat state, messages, and SSE connections
+3. **TaskOrientedChat**: A chat interface component that sets actions in the context
+4. **ProtectedRoute**: A wrapper component that provides authentication protection and includes the chat component
 
 ### Flow Diagram
 
@@ -20,8 +21,15 @@ This document outlines the implementation of the global action context system th
 │  User Request   │────▶│ TaskOrientedChat│────▶│  ActionContext  │
 │                 │     │                 │     │                 │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
-                                                         │
-                                                         ▼
+                                │
+                                ▼
+                        ┌─────────────────┐
+                        │                 │
+                        │   ChatContext   │
+                        │                 │
+                        └─────────────────┘
+                                │
+                                ▼
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │                 │     │                 │     │                 │
 │  UI Response    │◀────│   Page Component│◀────│  Action Handler │
@@ -42,9 +50,17 @@ The ActionContext provides a global state for managing actions across the applic
 
 ```tsx
 // src/context/ActionContext.tsx
-import { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-type ActionType = 'none' | 'create-delivery-method' | 'create-task' | 'open-settings';
+// Define the types of actions that can be performed across the app
+export type ActionType = 
+  | 'create-delivery-method'
+  | 'edit-delivery-method'
+  | 'create-task'
+  | 'edit-task'
+  | 'create-event'
+  | 'open-settings'
+  | 'none';
 
 interface ActionContextType {
   pendingAction: ActionType;
@@ -59,77 +75,104 @@ export function ActionProvider({ children }: { children: ReactNode }) {
   const [pendingAction, setPendingActionState] = useState<ActionType>('none');
   const [actionPayload, setActionPayload] = useState<any>(null);
 
-  const setPendingAction = (action: ActionType, payload?: any) => {
+  // Set a pending action with optional payload
+  const setPendingAction = (action: ActionType, payload: any = null) => {
     setPendingActionState(action);
-    setActionPayload(payload || null);
+    setActionPayload(payload);
   };
 
+  // Clear the pending action
   const clearPendingAction = () => {
     setPendingActionState('none');
     setActionPayload(null);
   };
 
+  // Context value
+  const contextValue: ActionContextType = {
+    pendingAction,
+    actionPayload,
+    setPendingAction,
+    clearPendingAction
+  };
+
   return (
-    <ActionContext.Provider value={{ 
-      pendingAction, 
-      actionPayload, 
-      setPendingAction, 
-      clearPendingAction 
-    }}>
+    <ActionContext.Provider value={contextValue}>
       {children}
     </ActionContext.Provider>
   );
 }
 
+// Default empty context value
+const defaultContextValue: ActionContextType = {
+  pendingAction: 'none',
+  actionPayload: null,
+  setPendingAction: () => {},
+  clearPendingAction: () => {}
+};
+
+// Custom hook to use the action context
 export function useAction() {
   const context = useContext(ActionContext);
-  return context || {
-    pendingAction: 'none',
-    actionPayload: null,
-    setPendingAction: () => {},
-    clearPendingAction: () => {}
-  };
+  // Return default context if not within provider instead of throwing
+  return context || defaultContextValue;
 }
 ```
 
-### 2. Root Layout
+### 2. ChatContext
 
-The ActionProvider is included in the root layout to ensure it's available throughout the application:
+The ChatContext provides a comprehensive state management system for the chat functionality:
 
 ```tsx
-// src/app/layout.tsx
-import { AuthProvider } from '@/context/AuthContext';
-import { ActionProvider } from '@/context/ActionContext';
+// src/context/ChatContext.tsx (simplified)
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        <AuthProvider>
-          <ActionProvider>
-            <Navigation />
-            <main>
-              {children}
-            </main>
-            <Footer />
-          </ActionProvider>
-        </AuthProvider>
-      </body>
-    </html>
-  );
+interface ChatContextType {
+  // Connection state
+  connectionId: string | null;
+  connectionStatus: ConnectionStatus;
+  reconnectAttempts: number;
+  
+  // Chat state
+  chatHistory: ChatMessage[];
+  currentTask: ChatTask | null;
+  isProcessing: boolean;
+  
+  // UI state
+  isExpanded: boolean;
+  animationState: AnimationState;
+  
+  // Methods
+  addUserMessage: (content: string, id?: string) => void;
+  addSystemMessage: (content: string, id?: string, interactiveData?: InteractiveMessage) => void;
+  handleInteractiveResponse: (messageId: string, response: any, contextType?: string) => void;
+  sendMessage: (message: string, type?: string, contextType: string) => Promise<void>;
+  expandChat: () => void;
+  minimizeChat: () => void;
+}
+
+export function ChatProvider({ children }: { children: ReactNode }) {
+  // Implementation details...
+}
+
+export function useChat() {
+  const context = useContext(ChatContext);
+  if (!context) {
+    throw new Error('useChat must be used within a ChatProvider');
+  }
+  return context;
 }
 ```
 
 ### 3. ProtectedRoute Component
 
-The ProtectedRoute component wraps authenticated pages and includes the TaskOrientedChat component:
+The ProtectedRoute component wraps authenticated pages and includes the TaskOrientedChat component with context-aware functionality:
 
 ```tsx
 // src/components/auth/ProtectedRoute.tsx
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import TaskOrientedChat from '@/components/ui/TaskOrientedChat';
+import TaskOrientedChat from '@/components/common/TaskOrientedChat';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, needsValidation, isActive } = useAuth();
@@ -155,10 +198,13 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     return null;
   }
 
+  const pathname = usePathname();
+  const contextType = pathname?.includes('/schedule') ? 'schedule' : pathname?.includes('/tasks') ? 'automation' : 'general';
+
   return (
     <>
       {children}
-      <TaskOrientedChat contextType="general" />
+      <TaskOrientedChat contextType={contextType} />
     </>  
   );
 }
@@ -166,39 +212,124 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
 ### 4. TaskOrientedChat Component
 
-The TaskOrientedChat component uses the ActionContext to set pending actions based on user input:
+The TaskOrientedChat component uses both the ActionContext and ChatContext to manage user interactions:
 
 ```tsx
-// src/components/ui/TaskOrientedChat.tsx (simplified)
+// src/components/common/TaskOrientedChat.tsx (simplified)
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAction } from '@/context/ActionContext';
+import { useChat } from '@/context/ChatContext';
+import { 
+  getContextTitle, 
+  getContextExample,
+  handlePageSpecificCommand
+} from '@/utils/chatHelpers';
 
-function TaskOrientedChat({ contextType }: { contextType: string }) {
+interface TaskOrientedChatProps {
+  contextType?: string;
+  onSwitchContext?: (contextType: string) => void;
+  className?: string;
+  enableNavigation?: boolean;
+  enableChatTrigger?: boolean;
+}
+
+export default function TaskOrientedChat({ 
+  contextType = 'general',
+  onSwitchContext,
+  className = '',
+  enableNavigation = false,
+  enableChatTrigger = true
+}: TaskOrientedChatProps) {
+  const [currentPage, setCurrentPage] = useState('');
   const router = useRouter();
   const actionContext = useAction();
+  const {
+    chatHistory,
+    currentTask,
+    isProcessing,
+    isExpanded,
+    animationState,
+    expandChat,
+    minimizeChat,
+    sendMessage,
+    // ...other chat context values
+  } = useChat();
   
   // Handle user input
-  const handleUserInput = (text: string) => {
-    const lowerText = text.toLowerCase();
-    
-    // Check for delivery method commands
-    if (currentPage.includes('/notifications/delivery-methods')) {
-      if (/add.*method|create.*method|new method/i.test(lowerText)) {
-        actionContext.setPendingAction('create-delivery-method');
-        // Update chat history
-        return true;
-      }
+  const handleSubmit = useCallback((message: string) => {
+    // Check for page-specific commands first
+    if (handlePageSpecificCommandForPage(message)) {
+      return;
     }
     
-    // Check for dashboard commands
-    if (currentPage.includes('/dashboard')) {
-      if (/create.*task|add.*task|new task/i.test(lowerText)) {
-        actionContext.setPendingAction('create-task');
-        // Update chat history
-        return true;
-      }
-    }
+    // Handle interactive messages or send as regular message
+    // ...implementation details
     
-    // Handle navigation commands
+    sendMessage(message, 'chat', contextType);
+  }, [sendMessage, contextType, handlePageSpecificCommandForPage]);
+  
+  // ...other component logic
+}
+```
+
+### 5. Chat Helpers
+
+The chat helper utilities provide functions for detecting user intent and handling page-specific commands:
+
+```tsx
+// src/utils/chatHelpers.ts
+export function detectNavigationIntent(text: string): string | null {
+  const lowerText = text.toLowerCase();
+  
+  // Comprehensive navigation patterns
+  const navigationPatterns = [
+    { pattern: /create.*delivery method|add.*delivery method|new delivery method/i, action: 'create-delivery-method' },
+    { pattern: /create.*task|add.*task|new task/i, action: 'create-task' },
+    { pattern: /create.*schedule|add.*schedule|new schedule|create.*event|add.*event|new event/i, action: 'create-schedule' },
+    // ...other patterns
+  ];
+  
+  // Check if message matches any navigation pattern
+  for (const { pattern, action } of navigationPatterns) {
+    if (pattern.test(lowerText)) {
+      return action;
+    }
+  }
+  
+  return null;
+}
+
+export function handlePageSpecificCommand(
+  text: string, 
+  currentPage: string,
+  actionContext: any,
+  addSystemMessage: (message: string) => void
+): boolean {
+  const lowerText = text.toLowerCase();
+  
+  // Dashboard page commands
+  if (currentPage.includes('/dashboard')) {
+    if (/show.*schedule|view.*schedule|my schedule/i.test(lowerText)) {
+      window.dispatchEvent(new CustomEvent('switchTab', { detail: { tab: 0 } }));
+      addSystemMessage(`I've switched to the Schedule tab for you.`);
+      return true;
+    }
+    // ...other dashboard commands
+  }
+  
+  // Delivery methods page commands
+  if (currentPage.includes('/notifications/delivery-methods')) {
+    if (/add.*method|create.*method|new method/i.test(lowerText)) {
+      actionContext.setPendingAction('create-delivery-method');
+      addSystemMessage(`I'm opening the dialog to create a new delivery method.`);
+      return true;
+    }
+  }
+  
+  return false;
+}
+```
     if (/go to|navigate to|open/i.test(lowerText)) {
       const action = extractAction(lowerText);
       switch (action) {

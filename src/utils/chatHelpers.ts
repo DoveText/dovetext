@@ -18,8 +18,8 @@ export function detectNavigationIntent(text: string): string | null {
     
     // Navigation patterns
     { pattern: /go to.*dashboard|show.*dashboard|open.*dashboard|dashboard|home/i, action: 'dashboard' },
-    { pattern: /go to.*settings|show.*settings|open.*settings|settings/i, action: 'settings' },
-    { pattern: /go to.*profile|show.*profile|open.*profile|profile/i, action: 'profile' },
+    { pattern: /go to.*settings|show.*settings|open.*settings|settings/i, action: 'user-settings' },
+    { pattern: /go to.*profile|show.*profile|open.*profile|profile/i, action: 'user-profile' },
   ];
   
   // Check if message matches any navigation pattern
@@ -45,9 +45,9 @@ export function getContextTitle(contextType: string, currentPage: string): strin
     return 'Delivery Methods';
   } else if (currentPage.includes('/notifications')) {
     return 'Notifications';
-  } else if (currentPage.includes('/profile')) {
+  } else if (currentPage.includes('/user/profile')) {
     return 'Profile';
-  } else if (currentPage.includes('/settings')) {
+  } else if (currentPage.includes('/user/settings')) {
     return 'Settings';
   }
   
@@ -67,9 +67,9 @@ export function getContextExample(contextType: string, currentPage: string): str
     return '"Create a new delivery method"';
   } else if (currentPage.includes('/notifications')) {
     return '"Show me my notification settings"';
-  } else if (currentPage.includes('/profile')) {
+  } else if (currentPage.includes('/user/profile')) {
     return '"Update my profile information"';
-  } else if (currentPage.includes('/settings')) {
+  } else if (currentPage.includes('/user/settings')) {
     return '"Change my notification preferences"';
   }
   
