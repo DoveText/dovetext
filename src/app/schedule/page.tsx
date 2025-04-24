@@ -9,7 +9,7 @@ import { useAction } from '@/context/ActionContext';
 import Calendar, { ScheduleEvent, CalendarViewType } from '@/components/calendar/Calendar';
 import CreateEventDialog from '@/components/calendar/CreateEventDialog';
 import EventDetailsDialog from '@/components/calendar/EventDetailsDialog';
-import { getMockScheduleEvents } from '@/lib/mockData/scheduleEvents';
+import { schedulesApi } from '@/app/api/schedules';
 
 function ScheduleContent() {
   const { user } = useAuth();
@@ -21,10 +21,38 @@ function ScheduleContent() {
   const [selectedView, setSelectedView] = useState<CalendarViewType>('week');
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
   
-  // Load mock events on component mount
+  // Load events from API on component mount
   useEffect(() => {
-    setEvents(getMockScheduleEvents());
-  }, []);
+    const loadEvents = async () => {
+      try {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30); // Get events from 30 days ago
+        
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 60); // Get events up to 60 days in the future
+        
+        const data = await schedulesApi.getByDateRange(
+          startDate.toISOString(),
+          endDate.toISOString()
+        );
+        
+        // Convert ISO date strings to Date objects
+        const formattedEvents: ScheduleEvent[] = data.map(event => ({
+          ...event,
+          start: new Date(event.start),
+          end: new Date(event.end)
+        }));
+        
+        setEvents(formattedEvents);
+      } catch (error) {
+        console.error('Error loading events:', error);
+      }
+    };
+    
+    if (user) {
+      loadEvents();
+    }
+  }, [user]);
 
   // Handle event click
   const handleEventClick = (event: ScheduleEvent) => {
@@ -46,27 +74,54 @@ function ScheduleContent() {
   };
 
   // Handle save event
-  const handleSaveEvent = (eventData: any) => {
-    const newEvent: ScheduleEvent = {
-      id: `event-${Date.now()}`, // Generate a unique ID
-      ...eventData
-    };
-    
-    setEvents([...events, newEvent]);
-    setShowCreateEventDialog(false);
-    setSelectedEvent(null); // Clear the selected event after saving
+  const handleSaveEvent = async (eventData: any) => {
+    try {
+      // Convert Date objects to ISO strings for API
+      const apiEventData = {
+        title: eventData.title,
+        start: eventData.start.toISOString(),
+        end: eventData.end.toISOString(),
+        isAllDay: eventData.isAllDay,
+        type: eventData.type,
+        location: eventData.location,
+        description: eventData.description
+      };
+      
+      // Save to API
+      const savedEvent = await schedulesApi.create(apiEventData);
+      
+      // Add to local state with Date objects
+      const newEvent: ScheduleEvent = {
+        ...savedEvent,
+        start: new Date(savedEvent.start),
+        end: new Date(savedEvent.end)
+      };
+      
+      setEvents([...events, newEvent]);
+      setShowCreateEventDialog(false);
+      setSelectedEvent(null); // Clear the selected event after saving
+    } catch (error) {
+      console.error('Error saving event:', error);
+      // Could add error handling UI here
+    }
   };
   
   // Handle edit event
   const handleEditEvent = (event: ScheduleEvent) => {
     setSelectedEvent(event);
     setShowCreateEventDialog(true);
-    // In a real app, you would pre-populate the form with the event data
   };
   
   // Handle delete event
-  const handleDeleteEvent = (eventId: string) => {
-    setEvents(events.filter(event => event.id !== eventId));
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      await schedulesApi.delete(eventId);
+      setEvents(events.filter(event => event.id !== eventId));
+      setShowEventDetailsDialog(false);
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      // Could add error handling UI here
+    }
   };
 
   return (
