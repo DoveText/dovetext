@@ -82,6 +82,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   const [selectionEnd, setSelectionEnd] = useState<{hour: number, minute: number} | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [hoverSlot, setHoverSlot] = useState<{hour: number, minute: number} | null>(null);
+  const [isMouseOverCalendar, setIsMouseOverCalendar] = useState(false);
   
   // Scroll to 9:00 AM when component mounts
   useEffect(() => {
@@ -209,7 +210,21 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div 
+      className="flex flex-col h-full overflow-hidden"
+      onMouseEnter={() => setIsMouseOverCalendar(true)}
+      onMouseLeave={() => {
+        setIsMouseOverCalendar(false);
+        setHoverSlot(null);
+        
+        // Reset selection if needed
+        if (isSelecting) {
+          setIsSelecting(false);
+          setSelectionStart(null);
+          setSelectionEnd(null);
+        }
+      }}
+    >
       {/* All-day events section */}
       {allDayEvents.length > 0 && (
         <div className="border-b p-2">
@@ -274,16 +289,6 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                   // Update selection end if selecting
                   if (isSelecting && selectionStart) {
                     setSelectionEnd({ hour: slot.hour, minute: minutes });
-                  }
-                }}
-                onMouseLeave={() => {
-                  setHoverSlot(null);
-                  
-                  // Reset selection if needed
-                  if (isSelecting) {
-                    setIsSelecting(false);
-                    setSelectionStart(null);
-                    setSelectionEnd(null);
                   }
                 }}
                 onMouseDown={(e) => {
@@ -364,7 +369,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
           )}
           
           {/* Hover highlight */}
-          {hoverSlot && !isSelecting && (
+          {hoverSlot && !isSelecting && isMouseOverCalendar && (
             <div
               className="absolute left-16 right-2 bg-blue-50 opacity-50 rounded-md border border-blue-200 z-0"
               style={{

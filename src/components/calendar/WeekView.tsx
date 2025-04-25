@@ -107,7 +107,9 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
   const [isSelecting, setIsSelecting] = useState(false);
   const [currentSelectionDay, setCurrentSelectionDay] = useState<Date | null>(null);
   const [hoverSlot, setHoverSlot] = useState<{day: Date, hour: number, minute: number} | null>(null);
-  
+
+  const [isMouseOverCalendar, setIsMouseOverCalendar] = useState(false);
+
   // Clean up any timeouts when component unmounts
   useEffect(() => {
     return () => {
@@ -116,7 +118,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
       }
     };
   }, []);
-  
+
   // Scroll to 9:00 AM when component mounts
   useEffect(() => {
     if (scrollContainerRef.current) {
@@ -124,53 +126,53 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
       scrollContainerRef.current.scrollTop = 540;
     }
   }, []);
-  
+
   const showTooltip = (content: React.ReactNode, e: React.MouseEvent) => {
     if (tooltipTimeoutRef.current) {
       clearTimeout(tooltipTimeoutRef.current);
     }
-    
+
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltipContent(content);
     setTooltipPosition({
       top: rect.top,
       left: rect.left + rect.width / 2
     });
-    
+
     tooltipTimeoutRef.current = setTimeout(() => {
       setIsTooltipVisible(true);
     }, 100);
   };
-  
+
   const hideTooltip = () => {
     if (tooltipTimeoutRef.current) {
       clearTimeout(tooltipTimeoutRef.current);
     }
     setIsTooltipVisible(false);
   };
-  
+
   // Check if a day is today
   const isToday = (day: Date) => {
     return day.getDate() === currentTime.getDate() &&
            day.getMonth() === currentTime.getMonth() &&
            day.getFullYear() === currentTime.getFullYear();
   };
-  
+
   // Format day for display
   const formatDay = (day: Date) => {
     return day.toLocaleDateString('en-US', { weekday: 'short' });
   };
-  
+
   // Format date for display
   const formatDate = (day: Date) => {
     return day.getDate().toString();
   };
-  
+
   // Calculate current time position for the time indicator
   const currentHour = currentTime.getHours();
   const currentMinute = currentTime.getMinutes();
   const currentTimePosition = `${(currentHour + currentMinute / 60) * 60}px`;
-  
+
   // Filter events for each day
   const getEventsForDay = (day: Date) => {
     return events.filter(event => {
@@ -180,36 +182,36 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
              eventDate.getFullYear() === day.getFullYear();
     });
   };
-  
+
   // Get all-day events for each day
   const getAllDayEventsForDay = (day: Date) => {
     const dayEvents = getEventsForDay(day);
     return dayEvents.filter(event => event.isAllDay || event.type === 'all-day');
   };
-  
+
   // Get timed events for each day
   const getTimedEventsForDay = (day: Date) => {
     const dayEvents = getEventsForDay(day);
     return dayEvents.filter(event => !event.isAllDay && event.type !== 'all-day');
   };
-  
+
   // Helper function to position events on the timeline
   const getEventStyle = (event: ScheduleEvent) => {
     const startHour = event.start.getHours();
     const startMinute = event.start.getMinutes();
     const endHour = event.end.getHours();
     const endMinute = event.end.getMinutes();
-    
+
     const top = (startHour + startMinute / 60) * 60;
     const height = ((endHour + endMinute / 60) - (startHour + startMinute / 60)) * 60;
-    
+
     return {
       top: `${top}px`,
       height: `${Math.max(height, 30)}px`, // Minimum height for very short events
       backgroundColor: event.color || getEventColor(event.type)
     };
   };
-  
+
   // Handle drag start
   const handleDragStart = (event: React.DragEvent, scheduleEvent: ScheduleEvent) => {
     event.dataTransfer.setData('text/plain', JSON.stringify({
@@ -219,38 +221,38 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
     }));
     event.dataTransfer.effectAllowed = 'move';
   };
-  
+
   // Handle drag over
   const handleDragOver = (event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
   };
-  
+
   // Handle drop
   const handleDrop = (event: React.DragEvent, day: Date, hour: number) => {
     event.preventDefault();
     const data = JSON.parse(event.dataTransfer.getData('text/plain'));
-    
+
     if (!data.id || !onEventDrop) return;
-    
+
     const timeSlotElement = event.currentTarget as HTMLElement;
     const rect = timeSlotElement.getBoundingClientRect();
     const { hours, minutes } = getTimeFromPosition(event.clientY, rect.top);
-    
+
     // Find the original event
     const originalEvent = events.find(e => e.id === data.id);
     if (!originalEvent) return;
-    
+
     // Calculate new start and end times
     const newStart = new Date(day);
     newStart.setHours(hour, minutes, 0, 0);
-    
+
     const newEnd = new Date(newStart.getTime() + data.duration);
-    
+
     // Call the onEventDrop handler
     onEventDrop(originalEvent, newStart, newEnd);
   };
-  
+
   // Get color based on event type
   const getEventColor = (type: string) => {
     switch (type) {
@@ -264,7 +266,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         return 'rgba(107, 114, 128, 0.2)'; // gray
     }
   };
-  
+
   // Get border color based on event type
   const getEventBorderColor = (type: string) => {
     switch (type) {
@@ -278,16 +280,16 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         return 'border-gray-500';
     }
   };
-  
+
   // Format time for display
   const formatEventTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true 
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
     });
   };
-  
+
   // Format date for tooltip display
   const formatEventDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -299,7 +301,21 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full"
+         onMouseEnter={() => setIsMouseOverCalendar(true)}
+         onMouseLeave={() => {
+           setIsMouseOverCalendar(false);
+           setHoverSlot(null);
+
+           // Reset selection if needed
+           if (isSelecting) {
+             setIsSelecting(false);
+             setSelectionStart(null);
+             setSelectionEnd(null);
+             setCurrentSelectionDay(null);
+           }
+         }}
+    >
       {/* Custom tooltip portal */}
       {isTooltipVisible && tooltipContent && typeof window !== 'undefined' && createPortal(
         <div 
@@ -443,10 +459,6 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                       if (isSelecting && selectionStart && currentSelectionDay && day.getTime() === currentSelectionDay.getTime()) {
                         setSelectionEnd({ day: new Date(day), hour: slot.hour, minute: minutes });
                       }
-                    }}
-                    onMouseLeave={() => {
-                      setHoverSlot(null);
-                      // We don't reset selection on leave for week view to allow selecting across time slots
                     }}
                     onMouseUp={(e) => {
                       if (isSelecting && selectionStart && selectionEnd && onAddEvent && currentSelectionDay && day.getTime() === currentSelectionDay.getTime()) {
