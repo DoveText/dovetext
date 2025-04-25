@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ScheduleEvent } from './Calendar';
 import { PlusIcon } from '@heroicons/react/24/outline';
 
@@ -84,14 +84,67 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   const [hoverSlot, setHoverSlot] = useState<{hour: number, minute: number} | null>(null);
   const [isMouseOverCalendar, setIsMouseOverCalendar] = useState(false);
   
-  // Scroll to 9:00 AM when component mounts
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      // Scroll to 9:00 AM (9 hours * 60px per hour = 540px)
-      scrollContainerRef.current.scrollTop = 540;
-    }
-  }, []);
+  // Function to get time slot from mouse position
+  const getTimeSlotFromMouseEvent = (e: React.MouseEvent) => {
+    const calendarRect = scrollContainerRef.current?.getBoundingClientRect();
+    if (!calendarRect) return null;
+    
+    // Calculate the relative position within the calendar
+    const relativeY = e.clientY - calendarRect.top + (scrollContainerRef.current?.scrollTop || 0);
+    
+    // Calculate hour and minute
+    const hour = Math.floor(relativeY / 60);
+    const minutePosition = relativeY % 60;
+    
+    let minute = 0;
+    if (minutePosition < 15) minute = 0;
+    else if (minutePosition < 30) minute = 15;
+    else if (minutePosition < 45) minute = 30;
+    else minute = 45;
+    
+    return { hour, minute };
+  };
   
+  // Scroll to current time on mount
+  useEffect(() => {
+    if (scrollContainerRef.current && date.toDateString() === new Date().toDateString()) {
+      const currentHour = currentTime.getHours();
+      const scrollTop = currentHour * 60 - 100; // 60px per hour, offset by 100px to show a bit of context
+      scrollContainerRef.current.scrollTop = scrollTop > 0 ? scrollTop : 0;
+    }
+  }, [date, currentTime]);
+  
+  // Function to handle click on the calendar container (for single click event creation)
+  const handleCalendarClick = useCallback((e: React.MouseEvent) => {
+    // Only process if we have an add event handler and we're not in selection mode
+    if (!onAddEvent || isSelecting) return;
+    
+    const timeSlot = getTimeSlotFromMouseEvent(e);
+    if (!timeSlot) return;
+    
+    console.log('Calendar click', timeSlot);
+    
+    // Create the event date
+    const newDate = new Date(date);
+    newDate.setHours(timeSlot.hour, timeSlot.minute, 0, 0);
+    
+    // Create end date 15 minutes later
+    const endDate = new Date(newDate);
+    endDate.setMinutes(endDate.getMinutes() + 15);
+    
+    // Create a temporary event object
+    const tempEvent: ScheduleEvent = {
+      id: '',
+      title: '',
+      start: newDate,
+      end: endDate,
+      isAllDay: false,
+      type: 'event'
+    };
+    
+    onAddEvent(newDate, tempEvent);
+  }, [onAddEvent, isSelecting, date]);
+
   // Filter events for the current day
   const dayEvents = events.filter(event => {
     const eventDate = new Date(event.start);
@@ -245,7 +298,93 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
       )}
       
       {/* Timed events */}
-      <div className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
+      <div 
+        className="flex-1 overflow-y-auto" 
+        ref={scrollContainerRef}
+        onClick={handleCalendarClick}
+        onMouseEnter={() => setIsMouseOverCalendar(true)}
+        onMouseLeave={() => {
+          setIsMouseOverCalendar(false);
+          setHoverSlot(null);
+        }}
+        onMouseMove={(e) => {
+          // Get time slot from mouse position
+          const timeSlot = getTimeSlotFromMouseEvent(e);
+          if (!timeSlot) return;
+          
+          // Update hover slot
+          setHoverSlot(timeSlot);
+          
+          // Update selection end if selecting
+          if (isSelecting && selectionStart) {
+            console.log('Mouse move during selection', timeSlot);
+            setSelectionEnd(timeSlot);
+            e.preventDefault(); // Prevent text selection during drag
+          }
+        }}
+        onMouseDown={(e) => {
+          // Prevent default to avoid text selection
+          e.preventDefault();
+          
+          // Get time slot from mouse position
+          const timeSlot = getTimeSlotFromMouseEvent(e);
+          if (!timeSlot) return;
+          
+          console.log('Mouse down on calendar', timeSlot);
+          
+          // Start selection
+          setSelectionStart(timeSlot);
+          setSelectionEnd(timeSlot);
+          setIsSelecting(true);
+        }}
+        onMouseUp={(e) => {
+          // Only process if we're in selection mode
+          if (!isSelecting || !selectionStart || !selectionEnd || !onAddEvent) return;
+          
+          console.log('Mouse up on calendar', { isSelecting, selectionStart, selectionEnd });
+          
+          // End selection mode
+          setIsSelecting(false);
+          
+          // Calculate start and end times
+          const startDate = new Date(date);
+          startDate.setHours(selectionStart.hour, selectionStart.minute, 0, 0);
+          
+          const endDate = new Date(date);
+          endDate.setHours(selectionEnd.hour, selectionEnd.minute, 0, 0);
+          
+          // Ensure end is after start
+          if (endDate < startDate) {
+            const temp = new Date(startDate);
+            startDate.setTime(endDate.getTime());
+            endDate.setTime(temp.getTime());
+          }
+          
+          // Ensure at least 15 minutes duration
+          if (endDate.getTime() - startDate.getTime() < 15 * 60 * 1000) {
+            endDate.setTime(startDate.getTime() + 15 * 60 * 1000);
+          }
+          
+          console.log('Creating event from selection', { startDate, endDate });
+          
+          // Create a temporary event object for the selection
+          const tempEvent: ScheduleEvent = {
+            id: '',
+            title: '',
+            start: startDate,
+            end: endDate,
+            isAllDay: false,
+            type: 'event'
+          };
+          
+          // Call the onAddEvent handler with the selected time range
+          onAddEvent(startDate, tempEvent);
+          
+          // Reset selection
+          setSelectionStart(null);
+          setSelectionEnd(null);
+        }}
+      >
         <div className="relative min-h-[1440px]"> {/* 24 hours * 60px per hour */}
           {/* Time slots */}
           {timeSlots.map((slot) => (
@@ -254,92 +393,8 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                 {slot.label}
               </div>
               <div 
-                className="flex-1 relative border-l border-solid border-gray-200"
-                onClick={(e) => {
-                  if (onAddEvent) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const { hours, minutes } = getTimeFromPosition(e.clientY, rect.top);
-                    const newDate = new Date(date);
-                    newDate.setHours(slot.hour, minutes, 0, 0);
-                    
-                    // Create end date 15 minutes later
-                    const endDate = new Date(newDate);
-                    endDate.setMinutes(endDate.getMinutes() + 15);
-                    
-                    // Create a temporary event object for the selection
-                    const tempEvent: ScheduleEvent = {
-                      id: '',
-                      title: '',
-                      start: newDate,
-                      end: endDate,
-                      isAllDay: false,
-                      type: 'event'
-                    };
-                    
-                    onAddEvent(newDate, tempEvent);
-                  }
-                }}
-                onMouseMove={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const { hours, minutes } = getTimeFromPosition(e.clientY, rect.top);
-                  
-                  // Update hover slot
-                  setHoverSlot({ hour: slot.hour, minute: minutes });
-                  
-                  // Update selection end if selecting
-                  if (isSelecting && selectionStart) {
-                    setSelectionEnd({ hour: slot.hour, minute: minutes });
-                  }
-                }}
-                onMouseDown={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const { hours, minutes } = getTimeFromPosition(e.clientY, rect.top);
-                  setSelectionStart({ hour: slot.hour, minute: minutes });
-                  setSelectionEnd({ hour: slot.hour, minute: minutes });
-                  setIsSelecting(true);
-                }}
-                onMouseUp={(e) => {
-                  if (isSelecting && selectionStart && selectionEnd && onAddEvent) {
-                    setIsSelecting(false);
-                    
-                    // Calculate start and end times
-                    const startDate = new Date(date);
-                    startDate.setHours(selectionStart.hour, selectionStart.minute, 0, 0);
-                    
-                    const endDate = new Date(date);
-                    endDate.setHours(selectionEnd.hour, selectionEnd.minute, 0, 0);
-                    
-                    // Ensure end is after start
-                    if (endDate < startDate) {
-                      const temp = new Date(startDate);
-                      startDate.setTime(endDate.getTime());
-                      endDate.setTime(temp.getTime());
-                    }
-                    
-                    // Ensure at least 15 minutes duration
-                    if (endDate.getTime() - startDate.getTime() < 15 * 60 * 1000) {
-                      endDate.setTime(startDate.getTime() + 15 * 60 * 1000);
-                    }
-                    
-                    // Create a temporary event object for the selection
-                    const tempEvent: ScheduleEvent = {
-                      id: 'temp-id',
-                      title: 'New Event',
-                      start: startDate,
-                      end: endDate,
-                      isAllDay: false,
-                      type: 'event'
-                    };
-                    
-                    onAddEvent(startDate, tempEvent);
-                    
-                    // Reset selection
-                    setSelectionStart(null);
-                    setSelectionEnd(null);
-                  }
-                }}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, slot.hour)}
+                className="flex-1 relative border-l border-solid border-gray-200 time-slot cursor-pointer"
+                data-hour={slot.hour}
               >
                 {/* 15-minute interval line */}
                 <div className="absolute left-0 right-0 top-[15px] border-t border-dashed border-gray-200"></div>
@@ -348,7 +403,10 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                 {/* 45-minute interval line */}
                 <div className="absolute left-0 right-0 top-[45px] border-t border-dashed border-gray-200"></div>
                 
-                <div className="absolute left-0 top-0 h-full w-full flex items-center justify-center">
+                <div 
+                  className="absolute left-0 top-0 h-full w-full flex items-center justify-center"
+                  style={{ pointerEvents: 'none' }} // Prevent this from capturing mouse events
+                >
                   <PlusIcon className="h-5 w-5 text-blue-500 opacity-0 hover:opacity-100" />
                 </div>
               </div>
@@ -386,12 +444,17 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
           {/* Selection highlight */}
           {isSelecting && selectionStart && selectionEnd && (
             <div
-              className="absolute left-16 right-2 bg-blue-100 opacity-50 rounded-md border border-blue-300 z-0"
+              className="absolute left-16 right-2 bg-blue-100 opacity-70 rounded-md border border-blue-300 z-0"
               style={{
                 top: `${Math.min(selectionStart.hour, selectionEnd.hour) * 60 + Math.min(selectionStart.minute, selectionEnd.minute)}px`,
                 height: `${Math.abs((selectionEnd.hour * 60 + selectionEnd.minute) - (selectionStart.hour * 60 + selectionStart.minute)) || 15}px`
               }}
-            />
+            >
+              <div className="absolute right-2 top-0 text-xs text-blue-600 font-medium">
+                {formatTimeSlot(Math.min(selectionStart.hour, selectionEnd.hour), Math.min(selectionStart.minute, selectionEnd.minute))} - 
+                {formatTimeSlot(Math.max(selectionStart.hour, selectionEnd.hour), Math.max(selectionStart.minute, selectionEnd.minute))}
+              </div>
+            </div>
           )}
           
           {/* Events */}
