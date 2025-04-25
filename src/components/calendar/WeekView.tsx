@@ -237,12 +237,19 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
     const endHour = event.end.getHours();
     const endMinute = event.end.getMinutes();
 
+    // Calculate duration in minutes
+    const durationMinutes = 
+      ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
+    
     const top = (startHour + startMinute / 60) * 60;
-    const height = ((endHour + endMinute / 60) - (startHour + startMinute / 60)) * 60;
+    
+    // If event is 15 minutes or less, make it exactly 15 minutes tall
+    // Otherwise, use the actual duration
+    const height = durationMinutes <= 15 ? 15 : durationMinutes / 60 * 60;
 
     return {
       top: `${top}px`,
-      height: `${Math.max(height, 30)}px`, // Minimum height for very short events
+      height: `${height}px`,
       backgroundColor: event.color || getEventColor(event.type)
     };
   };

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ScheduleEvent } from './Calendar';
 import { PlusIcon } from '@heroicons/react/24/outline';
 
@@ -81,6 +82,12 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   const [selectionStart, setSelectionStart] = useState<{hour: number, minute: number} | null>(null);
   const [hoverSlot, setHoverSlot] = useState<{hour: number, minute: number} | null>(null);
   const [isMouseOverCalendar, setIsMouseOverCalendar] = useState(false);
+  
+  // Tooltip state
+  const [tooltipContent, setTooltipContent] = useState<React.ReactNode | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Function to get time slot from mouse position
   const getTimeSlotFromMouseEvent = (e: React.MouseEvent) => {
@@ -172,12 +179,19 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
     const endHour = event.end.getHours();
     const endMinute = event.end.getMinutes();
     
+    // Calculate duration in minutes
+    const durationMinutes = 
+      ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
+    
     const top = (startHour + startMinute / 60) * 60;
-    const height = ((endHour + endMinute / 60) - (startHour + startMinute / 60)) * 60;
+    
+    // If event is 15 minutes or less, make it exactly 15 minutes tall
+    // Otherwise, use the actual duration
+    const height = durationMinutes <= 15 ? 15 : durationMinutes / 60 * 60;
     
     return {
       top: `${top}px`,
-      height: `${Math.max(height, 30)}px`, // Minimum height for very short events
+      height: `${height}px`,
       backgroundColor: event.color || getEventColor(event.type)
     };
   };
@@ -259,6 +273,41 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
       hour12: true 
     });
   };
+  
+  // Tooltip functions
+  const showTooltip = (content: React.ReactNode, e: React.MouseEvent) => {
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current);
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipContent(content);
+    setTooltipPosition({
+      top: rect.top,
+      left: rect.left + rect.width / 2
+    });
+
+    tooltipTimeoutRef.current = setTimeout(() => {
+      setIsTooltipVisible(true);
+    }, 100);
+  };
+
+  const hideTooltip = () => {
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current);
+    }
+    setIsTooltipVisible(false);
+  };
+  
+  // Format date for tooltip display
+  const formatEventDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
 
   const getSelectionStartMinutes = useCallback(() => {
     if(!hoverSlot) {
@@ -331,8 +380,25 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
         setIsMouseOverCalendar(false);
         setHoverSlot(null);
         setSelectionStart(null);
+        hideTooltip();
       }}
     >
+      {/* Custom tooltip portal */}
+      {isTooltipVisible && tooltipContent && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="fixed z-50 max-w-xs px-3 py-2 text-xs text-white bg-gray-800 rounded shadow-lg whitespace-pre-wrap"
+          style={{
+            top: `${tooltipPosition.top}px`,
+            left: `${tooltipPosition.left}px`,
+            transform: 'translate(-50%, -100%)',
+            marginTop: '-5px'
+          }}
+        >
+          {tooltipContent}
+        </div>,
+        document.body
+      )}
+      
       {/* All-day events section */}
       {allDayEvents.length > 0 && (
         <div className="border-b p-2">
@@ -343,6 +409,16 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                 key={event.id}
                 onClick={() => onEventClick && onEventClick(event)}
                 className={`px-2 py-1 rounded text-sm cursor-pointer border-l-4 ${getEventBorderColor(event.type)} bg-gray-50 hover:bg-gray-100`}
+                onMouseEnter={(e) => showTooltip(
+                  <>
+                    <div className="font-bold">{event.title}</div>
+                    <div>{formatEventDate(event.start)}</div>
+                    {event.description && <div className="mt-1">{event.description}</div>}
+                    {event.location && <div className="mt-1">📍 {event.location}</div>}
+                  </>,
+                  e
+                )}
+                onMouseLeave={hideTooltip}
               >
                 <div className="font-medium truncate">{event.title}</div>
                 {event.location && <div className="text-xs text-gray-500 truncate">{event.location}</div>}
@@ -510,11 +586,21 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
               <div
                   key={event.id}
                   className="absolute left-16 right-2 rounded-md border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow z-10"
-              style={getEventStyle(event)}
-              onClick={() => onEventClick && onEventClick(event)}
-              draggable={true}
-              onDragStart={(e) => handleDragStart(e, event)}
-            >
+                  style={getEventStyle(event)}
+                  onClick={() => onEventClick && onEventClick(event)}
+                  draggable={true}
+                  onDragStart={(e) => handleDragStart(e, event)}
+                  onMouseEnter={(e) => showTooltip(
+                    <>
+                      <div className="font-bold">{event.title}</div>
+                      <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
+                      {event.description && <div className="mt-1">{event.description}</div>}
+                      {event.location && <div className="mt-1">📍 {event.location}</div>}
+                    </>,
+                    e
+                  )}
+                  onMouseLeave={hideTooltip}
+                >
               <div className={`h-full p-1 ${event.type === 'reminder' ? 'bg-amber-50' : 'bg-blue-50'}`}>
                 <div className="font-medium text-sm truncate">{event.title}</div>
                 <div className="text-xs text-gray-600">
