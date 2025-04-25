@@ -503,13 +503,17 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
           setHoverSlot(null);
         }}
         onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('.z-10')) {
+            // Clicked on an event, don't start selection
+            return;
+          }
+
           // Only process if we have an add event handler and we're not in selection mode
           if (!onAddEvent || selectionStart !== null) return;
           
           const timeSlot = getTimeSlotFromMouseEvent(e);
           if (!timeSlot) return;
-          
-          console.log('Calendar click', timeSlot);
           
           // Create the event date
           const newDate = new Date(timeSlot.day);

@@ -58,6 +58,7 @@ function ScheduleContent() {
 
   // Handle event click
   const handleEventClick = (event: ScheduleEvent) => {
+    console.log("handle event click", event)
     setSelectedEvent(event);
     setShowEventDetailsDialog(true);
   };

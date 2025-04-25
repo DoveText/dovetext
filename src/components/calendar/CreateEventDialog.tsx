@@ -96,7 +96,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
   // Load event data when initialEvent changes
   useEffect(() => {
     if (initialEvent && isOpen) {
-      setIsEditing(true);
+      setIsEditing(!!initialEvent?.id);
       setEventId(initialEvent.id);
       setTitle(initialEvent.title);
       setEventType(initialEvent.type);
