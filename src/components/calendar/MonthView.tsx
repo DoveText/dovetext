@@ -235,16 +235,25 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
           const maxEventsToShow = 3;
           const remainingEvents = dayEvents.length - maxEventsToShow;
           
+          // Determine if this is the last day of a week (Saturday)
+          const isLastDayOfWeek = index % 7 === 6;
+          // Determine if this is the last row
+          const isLastRow = index >= 35;
+          
           return (
             <div 
               key={index} 
-              className={`min-h-[100px] border-r border-b p-1 ${
-                isCurrentMonth(day) 
+              className={`
+                min-h-[100px] border-r p-1
+                ${isLastDayOfWeek ? 'border-r-0' : ''}
+                ${isLastRow ? '' : 'border-b-2 border-b-gray-200'}
+                ${isCurrentMonth(day) 
                   ? isToday(day) 
                     ? 'bg-blue-50' 
                     : 'bg-white' 
                   : 'bg-gray-50 text-gray-400'
-              }`}
+                }
+              `}
               onClick={() => onDateClick && onDateClick(day)}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, day)}
@@ -301,9 +310,21 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
                     }}
                   >
                     <div className="flex w-full truncate">
+                      {/* Icon based on event type */}
+                      {event.type === 'reminder' ? (
+                        <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span>
+                      ) : event.type === 'all-day' ? (
+                        <span className="mr-1 text-green-500 flex-shrink-0 text-xs">📆</span>
+                      ) : (
+                        <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
+                      )}
+                      
+                      {/* Time (for non-all-day events) */}
                       {!event.isAllDay && event.type !== 'all-day' && (
                         <span className="mr-1 flex-shrink-0">{formatEventTime(event.start)}</span>
                       )}
+                      
+                      {/* Event title */}
                       <span className="truncate">{event.title}</span>
                     </div>
                   </div>

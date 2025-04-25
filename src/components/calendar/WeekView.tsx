@@ -725,27 +725,37 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
             const dayLeft = `calc(4rem + (${dayIndex} * ${dayWidth}))`;
             
             return timedEvents.map((event) => {
-              // Use original event style calculation
-              const eventStyle = getEventStyle(event);
+              // Calculate position based on time
+              const startHour = event.start.getHours();
+              const startMinute = event.start.getMinutes();
+              const top = (startHour + startMinute / 60) * 60;
+              
+              // Calculate height for events
+              let height = 'auto';
+              if (event.type !== 'reminder') {
+                const endHour = event.end.getHours();
+                const endMinute = event.end.getMinutes();
+                const durationMinutes = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
+                height = `${Math.max(15, durationMinutes)}px`;
+              }
               
               return (
                 <div 
                   key={`${dayIndex}-${event.id}`}
-                  className="absolute rounded-md border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow z-10"
+                  className="absolute cursor-pointer hover:shadow-md transition-shadow z-10"
                   style={{
-                    ...eventStyle,
+                    top: `${top}px`,
+                    height: height,
                     left: dayLeft,
                     width: `calc(${dayWidth} - 6px)`
                   }}
                   onClick={() => onEventClick && onEventClick(event)}
                   onMouseEnter={(e) => showTooltip(
                     <>
-                      <div className="font-medium">{event.title}</div>
-                      <div className="text-gray-300">
-                        {formatEventTime(event.start)} - {formatEventTime(event.end)}
-                      </div>
+                      <div className="font-bold">{event.title}</div>
+                      <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
                       {event.description && <div className="mt-1">{event.description}</div>}
-                      <div className="mt-1 text-gray-300">{formatEventDate(event.start)}</div>
+                      {event.location && <div className="mt-1"> {event.location}</div>}
                     </>,
                     e
                   )}
@@ -753,43 +763,41 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                   draggable={true}
                   onDragStart={(e) => handleDragStart(e, event)}
                 >
-                  {/* Two-part display: Header (tag) and Body */}
-                  
-                  {/* Part 1: Header/Tag - Fixed height with title and icon */}
-                  <div className={`
-                    ${event.type === 'reminder' ? 'bg-amber-50 border-l-4 border-amber-500' : 'bg-blue-50 border-l-4 border-blue-500'}
-                    h-6 rounded-t-md px-2 py-0 flex items-center z-10 shadow-sm
-                  `}>
-                    {event.type === 'reminder' ? 
-                      <span className="mr-1 text-amber-500">⏰</span> : 
-                      <span className="mr-1 text-blue-500">📅</span>
-                    }
-                    <div className="font-medium text-xs truncate flex-1">{event.title}</div>
-                    <div className="text-xs text-gray-600 ml-1">
-                      {formatEventTime(event.start)}
+                  {/* Time indicator (full width) */}
+                  <div className="relative w-full h-full">
+                    {event.type === 'reminder' ? (
+                      <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
+                    ) : (
+                      <div className="absolute top-0 left-0 right-0 bottom-0 bg-blue-500 rounded-sm"></div>
+                    )}
+                    
+                    {/* Title/icon part positioned with margins */}
+                    <div 
+                      className={`
+                        absolute top-0.5 left-3 right-5
+                        px-2 py-0.5 flex items-center
+                        ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
+                        rounded-md shadow-sm
+                      `}
+                      style={{
+                        minHeight: '20px'
+                      }}
+                    >
+                      {/* Icon */}
+                      {event.type === 'reminder' ? 
+                        <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
+                        <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
+                      }
+                      
+                      {/* Title */}
+                      <div className="font-medium text-xs truncate">{event.title}</div>
+                      
+                      {/* Start time */}
+                      <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
+                        {formatEventTime(event.start)}
+                      </div>
                     </div>
                   </div>
-                  
-                  {/* Part 2: Body - Variable height based on duration */}
-                  {event.type === 'reminder' ? (
-                    <div className="h-0 border-l border-r border-b border-amber-200 mx-2"></div>
-                  ) : (
-                    <div className={`
-                      bg-blue-50/80 border-l-4 border-blue-500 border-r border-b border-blue-200
-                      rounded-b-md px-2 py-1 flex-1 flex flex-col
-                      ${(event.end.getHours() * 60 + event.end.getMinutes()) - (event.start.getHours() * 60 + event.start.getMinutes()) <= 15 ? 'hidden' : ''}
-                    `}>
-                      <div className="text-xs text-gray-600">
-                        {`${formatEventTime(event.start)} - ${formatEventTime(event.end)}`}
-                      </div>
-                      {event.location && (
-                        <div className="text-xs text-gray-500 truncate mt-1">{event.location}</div>
-                      )}
-                      {event.description && (event.end.getHours() * 60 + event.end.getMinutes()) - (event.start.getHours() * 60 + event.start.getMinutes()) > 30 && (
-                        <div className="text-xs text-gray-500 truncate mt-1">{event.description}</div>
-                      )}
-                    </div>
-                  )}
                 </div>
               );
             });
