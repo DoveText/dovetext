@@ -55,9 +55,14 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
       const [startHours, startMinutes] = startTime.split(':').map(Number);
       startDate.setHours(startHours, startMinutes, 0, 0);
       
-      // Parse end time
-      const [endHours, endMinutes] = endTime.split(':').map(Number);
-      endDate.setHours(endHours, endMinutes, 0, 0);
+      if (eventType === 'reminder') {
+        // For reminders, set end time to 15 minutes after start time
+        endDate.setHours(startHours, startMinutes + 15, 0, 0);
+      } else {
+        // Parse end time for regular events
+        const [endHours, endMinutes] = endTime.split(':').map(Number);
+        endDate.setHours(endHours, endMinutes, 0, 0);
+      }
     } else {
       // For all-day events, set to full day
       startDate.setHours(0, 0, 0, 0);
@@ -92,11 +97,19 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
     setIsEditing(false);
     setEventId(null);
   };
+  
+  // Handle event type change
+  useEffect(() => {
+    // When switching to reminder type, clear location
+    if (eventType === 'reminder') {
+      setLocation('');
+    }
+  }, [eventType]);
 
   // Load event data when initialEvent changes
   useEffect(() => {
     if (initialEvent && isOpen) {
-      setIsEditing(!!initialEvent?.id);
+      setIsEditing(true);
       setEventId(initialEvent.id);
       setTitle(initialEvent.title);
       setEventType(initialEvent.type);
@@ -104,10 +117,19 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
       
       if (!initialEvent.isAllDay) {
         setStartTime(formatTimeForInput(initialEvent.start));
-        setEndTime(formatTimeForInput(initialEvent.end));
+        // Only set end time for non-reminder events
+        if (initialEvent.type !== 'reminder') {
+          setEndTime(formatTimeForInput(initialEvent.end));
+        }
       }
       
-      setLocation(initialEvent.location || '');
+      // Only set location for non-reminder events
+      if (initialEvent.type !== 'reminder') {
+        setLocation(initialEvent.location || '');
+      } else {
+        setLocation('');
+      }
+      
       setDescription(initialEvent.description || '');
     } else if (!initialEvent && isOpen) {
       // Reset form when opening for a new event
@@ -121,7 +143,12 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">{isEditing ? 'Edit Event' : 'Create New Event'}</h2>
+          <h2 className="text-xl font-semibold">
+            {eventType === 'reminder' 
+              ? (isEditing ? 'Edit Reminder' : 'Create New Reminder')
+              : (isEditing ? 'Edit Event' : 'Create New Event')
+            }
+          </h2>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -166,9 +193,11 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
             </label>
           </div>
           
-          {/* Event Title */}
+          {/* Event/Reminder Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">Event Title</label>
+            <label className="block text-sm font-medium text-gray-700">
+              {eventType === 'reminder' ? 'Reminder Title' : 'Event Title'}
+            </label>
             <input 
               type="text" 
               value={title}
@@ -192,9 +221,11 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
           
           {/* Time (only for non-all-day events) */}
           {eventType !== 'all-day' && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className={eventType === 'reminder' ? '' : 'grid grid-cols-2 gap-4'}>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Start Time</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  {eventType === 'reminder' ? 'Reminder Time' : 'Start Time'}
+                </label>
                 <input 
                   type="time" 
                   value={startTime}
@@ -203,29 +234,33 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">End Time</label>
-                <input 
-                  type="time" 
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                  required
-                />
-              </div>
+              {eventType !== 'reminder' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">End Time</label>
+                  <input 
+                    type="time" 
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                    required
+                  />
+                </div>
+              )}
             </div>
           )}
           
-          {/* Location */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Location</label>
-            <input 
-              type="text" 
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-            />
-          </div>
+          {/* Location - only for events, not for reminders */}
+          {eventType !== 'reminder' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Location</label>
+              <input 
+                type="text" 
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              />
+            </div>
+          )}
           
           {/* Description */}
           <div>
@@ -251,7 +286,10 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
               type="submit"
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
             >
-              {isEditing ? 'Update Event' : 'Create Event'}
+              {eventType === 'reminder'
+                ? (isEditing ? 'Update Reminder' : 'Create Reminder')
+                : (isEditing ? 'Update Event' : 'Create Event')
+              }
             </button>
           </div>
         </form>

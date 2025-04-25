@@ -234,6 +234,23 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
   const getEventStyle = (event: ScheduleEvent) => {
     const startHour = event.start.getHours();
     const startMinute = event.start.getMinutes();
+    
+    // For reminders, we only care about the start time
+    if (event.type === 'reminder') {
+      const top = (startHour + startMinute / 60) * 60;
+      
+      return {
+        top: `${top}px`,
+        height: '30px', // Fixed height for reminders
+        backgroundColor: event.color || getEventColor('reminder'),
+        borderLeft: '4px solid #f59e0b', // Amber border to distinguish reminders
+        borderRadius: '4px',
+        display: 'flex',
+        alignItems: 'center'
+      };
+    }
+    
+    // For regular events
     const endHour = event.end.getHours();
     const endMinute = event.end.getMinutes();
 
@@ -728,7 +745,8 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                   draggable={true}
                   onDragStart={(e) => handleDragStart(e, event)}
                 >
-                  <div className={`h-full p-1 ${event.type === 'reminder' ? 'bg-amber-50' : 'bg-blue-50'}`}>
+                  <div className={`h-full p-1 ${event.type === 'reminder' ? 'bg-amber-50 flex items-center' : 'bg-blue-50'}`}>
+                    {event.type === 'reminder' && <span className="mr-1 text-amber-500">⏰</span>}
                     <div className="font-medium text-xs truncate">{event.title}</div>
                     <div className="text-xs text-gray-600 truncate">
                       {formatEventTime(event.start)}
