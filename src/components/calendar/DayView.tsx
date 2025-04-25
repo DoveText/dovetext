@@ -609,65 +609,81 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
           )}
 
           {/* Events */}
-          {timedEvents.map((event) => (
+          {timedEvents.map((event) => {
+            // Calculate position based on time
+            const startHour = event.start.getHours();
+            const startMinute = event.start.getMinutes();
+            const top = (startHour + startMinute / 60) * 60;
+            
+            // Calculate height for events
+            let height = 'auto';
+            if (event.type !== 'reminder') {
+              const endHour = event.end.getHours();
+              const endMinute = event.end.getMinutes();
+              const durationMinutes = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
+              height = `${Math.max(15, durationMinutes)}px`;
+            }
+            
+            return (
               <div
-                  key={event.id}
-                  className="absolute left-16 right-2 overflow-visible cursor-pointer hover:shadow-md transition-shadow z-10"
-                  style={getEventStyle(event)}
-                  onClick={() => onEventClick && onEventClick(event)}
-                  draggable={true}
-                  onDragStart={(e) => handleDragStart(e, event)}
-                  onMouseEnter={(e) => showTooltip(
-                    <>
-                      <div className="font-bold">{event.title}</div>
-                      <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
-                      {event.description && <div className="mt-1">{event.description}</div>}
-                      {event.location && <div className="mt-1">📍 {event.location}</div>}
-                    </>,
-                    e
-                  )}
-                  onMouseLeave={hideTooltip}
-                >
-                {/* Time indicator (full width) */}
-                {event.type === 'reminder' ? (
-                  <div className="w-full h-0.5 bg-amber-500"></div>
-                ) : (
-                  <div 
-                    className="w-full bg-blue-500 rounded-sm"
-                    style={{
-                      height: `${(event.end.getHours() * 60 + event.end.getMinutes()) - (event.start.getHours() * 60 + event.start.getMinutes())}px`
-                    }}
-                  ></div>
+                key={event.id}
+                className="absolute left-16 right-2 cursor-pointer hover:shadow-md transition-shadow z-10"
+                style={{
+                  top: `${top}px`,
+                  height: height
+                }}
+                onClick={() => onEventClick && onEventClick(event)}
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, event)}
+                onMouseEnter={(e) => showTooltip(
+                  <>
+                    <div className="font-bold">{event.title}</div>
+                    <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
+                    {event.description && <div className="mt-1">{event.description}</div>}
+                    {event.location && <div className="mt-1">📍 {event.location}</div>}
+                  </>,
+                  e
                 )}
-                
-                {/* Title/icon part positioned with margins */}
-                <div 
-                  className={`
-                    absolute top-0.5 left-3 right-5
-                    px-2 py-0.5 flex items-center
-                    ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
-                    rounded-md shadow-sm
-                  `}
-                  style={{
-                    minHeight: '20px'
-                  }}
-                >
-                  {/* Icon */}
-                  {event.type === 'reminder' ? 
-                    <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
-                    <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
-                  }
+                onMouseLeave={hideTooltip}
+              >
+                {/* Time indicator (full width) */}
+                <div className="relative w-full h-full">
+                  {event.type === 'reminder' ? (
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
+                  ) : (
+                    <div className="absolute top-0 left-0 right-0 bottom-0 bg-blue-500 rounded-sm"></div>
+                  )}
                   
-                  {/* Title */}
-                  <div className="font-medium text-xs truncate">{event.title}</div>
-                  
-                  {/* Start time */}
-                  <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
-                    {formatEventTime(event.start)}
+                  {/* Title/icon part positioned with margins */}
+                  <div 
+                    className={`
+                      absolute top-0.5 left-3 right-5
+                      px-2 py-0.5 flex items-center
+                      ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
+                      rounded-md shadow-sm
+                    `}
+                    style={{
+                      minHeight: '20px'
+                    }}
+                  >
+                    {/* Icon */}
+                    {event.type === 'reminder' ? 
+                      <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
+                      <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
+                    }
+                    
+                    {/* Title */}
+                    <div className="font-medium text-xs truncate">{event.title}</div>
+                    
+                    {/* Start time */}
+                    <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
+                      {formatEventTime(event.start)}
+                    </div>
                   </div>
                 </div>
               </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
