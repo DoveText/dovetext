@@ -11,11 +11,13 @@ export const schedulesApi = {
   },
 
   /**
-   * Get schedules for a specific date range
+   * Get schedules for a specific date range using epoch seconds
+   * @param startTime Start time in epoch seconds
+   * @param endTime End time in epoch seconds
    */
-  async getByDateRange(startDate: string, endDate: string): Promise<Schedule[]> {
+  async getByDateRange(startTime: number, endTime: number): Promise<Schedule[]> {
     const { data } = await apiClient.get<Schedule[]>(`/api/v1/schedules`, {
-      params: { startDate, endDate }
+      params: { startTime, endTime }
     });
     return data;
   },

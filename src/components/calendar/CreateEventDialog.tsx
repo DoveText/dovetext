@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { ScheduleEvent } from './Calendar';
 
 interface CreateEventDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (eventData: any) => void;
   initialDate?: Date;
+  initialEvent?: ScheduleEvent | null;
 }
 
-export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate = new Date() }: CreateEventDialogProps) {
+export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate = new Date(), initialEvent = null }: CreateEventDialogProps) {
   const [eventType, setEventType] = useState<'event' | 'reminder' | 'all-day'>('event');
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(formatDateForInput(initialDate));
@@ -18,13 +20,17 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
   const [endTime, setEndTime] = useState(formatTimeForInput(new Date(initialDate.getTime() + 60 * 60 * 1000))); // 1 hour later
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [eventId, setEventId] = useState<string | null>(null);
 
-  // Update form when initialDate changes
+  // Update form when initialDate changes (for new events)
   useEffect(() => {
-    setDate(formatDateForInput(initialDate));
-    setStartTime(formatTimeForInput(initialDate));
-    setEndTime(formatTimeForInput(new Date(initialDate.getTime() + 60 * 60 * 1000)));
-  }, [initialDate]);
+    if (!initialEvent) {
+      setDate(formatDateForInput(initialDate));
+      setStartTime(formatTimeForInput(initialDate));
+      setEndTime(formatTimeForInput(new Date(initialDate.getTime() + 60 * 60 * 1000)));
+    }
+  }, [initialDate, initialEvent]);
 
   // Helper function to format date for input
   function formatDateForInput(date: Date): string {
@@ -60,6 +66,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
     
     // Create event object
     const eventData = {
+      id: eventId, // Include the ID for editing existing events
       title,
       start: startDate,
       end: endDate,
@@ -82,7 +89,31 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
     setLocation('');
     setDescription('');
     setEventType('event');
+    setIsEditing(false);
+    setEventId(null);
   };
+
+  // Load event data when initialEvent changes
+  useEffect(() => {
+    if (initialEvent && isOpen) {
+      setIsEditing(true);
+      setEventId(initialEvent.id);
+      setTitle(initialEvent.title);
+      setEventType(initialEvent.type);
+      setDate(formatDateForInput(initialEvent.start));
+      
+      if (!initialEvent.isAllDay) {
+        setStartTime(formatTimeForInput(initialEvent.start));
+        setEndTime(formatTimeForInput(initialEvent.end));
+      }
+      
+      setLocation(initialEvent.location || '');
+      setDescription(initialEvent.description || '');
+    } else if (!initialEvent && isOpen) {
+      // Reset form when opening for a new event
+      resetForm();
+    }
+  }, [initialEvent, isOpen]);
 
   if (!isOpen) return null;
 
@@ -90,7 +121,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Create New Event</h2>
+          <h2 className="text-xl font-semibold">{isEditing ? 'Edit Event' : 'Create New Event'}</h2>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -220,7 +251,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
               type="submit"
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
             >
-              Create Event
+              {isEditing ? 'Update Event' : 'Create Event'}
             </button>
           </div>
         </form>

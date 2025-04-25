@@ -1,22 +1,22 @@
 export interface Schedule {
   id: string;
   title: string;
-  start: string; // ISO string format
-  end: string;   // ISO string format
+  start: number; // Epoch time in seconds (long)
+  end: number;   // Epoch time in seconds (long)
   isAllDay: boolean;
   type: 'event' | 'reminder' | 'all-day';
   location?: string;
   description?: string;
   color?: string;
   userId: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: number; // Epoch time in seconds (long)
+  updatedAt: number; // Epoch time in seconds (long)
 }
 
 export interface CreateScheduleRequest {
   title: string;
-  start: string; // ISO string format
-  end: string;   // ISO string format
+  start: number; // Epoch time in seconds (long)
+  end: number;   // Epoch time in seconds (long)
   isAllDay: boolean;
   type: 'event' | 'reminder' | 'all-day';
   location?: string;
@@ -26,8 +26,8 @@ export interface CreateScheduleRequest {
 
 export interface UpdateScheduleRequest {
   title?: string;
-  start?: string;
-  end?: string;
+  start?: number; // Epoch time in seconds (long)
+  end?: number;   // Epoch time in seconds (long)
   isAllDay?: boolean;
   type?: 'event' | 'reminder' | 'all-day';
   location?: string;

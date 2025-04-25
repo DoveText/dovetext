@@ -10,6 +10,7 @@ import Calendar, { ScheduleEvent, CalendarViewType } from '@/components/calendar
 import CreateEventDialog from '@/components/calendar/CreateEventDialog';
 import EventDetailsDialog from '@/components/calendar/EventDetailsDialog';
 import { schedulesApi } from '@/app/api/schedules';
+import { Schedule } from '@/types/schedule';
 
 function ScheduleContent() {
   const { user } = useAuth();
@@ -32,15 +33,15 @@ function ScheduleContent() {
         endDate.setDate(endDate.getDate() + 60); // Get events up to 60 days in the future
         
         const data = await schedulesApi.getByDateRange(
-          startDate.toISOString(),
-          endDate.toISOString()
+          Math.floor(startDate.getTime() / 1000), // Convert to epoch seconds
+          Math.floor(endDate.getTime() / 1000)    // Convert to epoch seconds
         );
         
-        // Convert ISO date strings to Date objects
+        // Convert epoch seconds to Date objects
         const formattedEvents: ScheduleEvent[] = data.map(event => ({
           ...event,
-          start: new Date(event.start),
-          end: new Date(event.end)
+          start: new Date(event.start * 1000), // Convert from seconds to milliseconds
+          end: new Date(event.end * 1000)     // Convert from seconds to milliseconds
         }));
         
         setEvents(formattedEvents);
@@ -76,28 +77,51 @@ function ScheduleContent() {
   // Handle save event
   const handleSaveEvent = async (eventData: any) => {
     try {
-      // Convert Date objects to ISO strings for API
+      // Convert Date objects to epoch seconds for API
       const apiEventData = {
         title: eventData.title,
-        start: eventData.start.toISOString(),
-        end: eventData.end.toISOString(),
+        start: Math.floor(eventData.start.getTime() / 1000), // Convert to epoch seconds
+        end: Math.floor(eventData.end.getTime() / 1000),     // Convert to epoch seconds
         isAllDay: eventData.isAllDay,
         type: eventData.type,
         location: eventData.location,
         description: eventData.description
       };
       
-      // Save to API
-      const savedEvent = await schedulesApi.create(apiEventData);
+      let savedEvent: Schedule;
+      let updatedEvents: ScheduleEvent[];
       
-      // Add to local state with Date objects
-      const newEvent: ScheduleEvent = {
-        ...savedEvent,
-        start: new Date(savedEvent.start),
-        end: new Date(savedEvent.end)
-      };
+      // Check if we're editing an existing event or creating a new one
+      if (eventData.id) {
+        // Update existing event
+        savedEvent = await schedulesApi.update(eventData.id, apiEventData);
+        
+        // Update the event in the local state
+        updatedEvents = events.map(event => {
+          if (event.id === eventData.id) {
+            return {
+              ...savedEvent,
+              start: new Date(savedEvent.start * 1000), // Convert from seconds to milliseconds
+              end: new Date(savedEvent.end * 1000)      // Convert from seconds to milliseconds
+            };
+          }
+          return event;
+        });
+      } else {
+        // Create new event
+        savedEvent = await schedulesApi.create(apiEventData);
+        
+        // Add new event to the local state
+        const newEvent: ScheduleEvent = {
+          ...savedEvent,
+          start: new Date(savedEvent.start * 1000), // Convert from seconds to milliseconds
+          end: new Date(savedEvent.end * 1000)      // Convert from seconds to milliseconds
+        };
+        
+        updatedEvents = [...events, newEvent];
+      }
       
-      setEvents([...events, newEvent]);
+      setEvents(updatedEvents);
       setShowCreateEventDialog(false);
       setSelectedEvent(null); // Clear the selected event after saving
     } catch (error) {
@@ -169,9 +193,13 @@ function ScheduleContent() {
       {/* Create Event Dialog */}
       <CreateEventDialog 
         isOpen={showCreateEventDialog}
-        onClose={() => setShowCreateEventDialog(false)}
+        onClose={() => {
+          setShowCreateEventDialog(false);
+          setSelectedEvent(null); // Clear selected event when closing
+        }}
         onSave={handleSaveEvent}
         initialDate={selectedDate}
+        initialEvent={selectedEvent}
       />
       
       {/* Event Details Dialog */}
