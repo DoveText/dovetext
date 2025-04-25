@@ -241,12 +241,15 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
       
       return {
         top: `${top}px`,
-        height: '30px', // Fixed height for reminders
+        height: '24px', // Compact height for reminders
+        width: 'calc(100% - 16px)', // Not full width to indicate it's a point event
+        marginLeft: '8px', // Centered
         backgroundColor: event.color || getEventColor('reminder'),
         borderLeft: '4px solid #f59e0b', // Amber border to distinguish reminders
-        borderRadius: '4px',
+        borderRadius: '12px', // Pill shape to indicate point-in-time
         display: 'flex',
-        alignItems: 'center'
+        alignItems: 'center',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.1)' // Subtle shadow for depth
       };
     }
     
@@ -267,7 +270,12 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
     return {
       top: `${top}px`,
       height: `${height}px`,
-      backgroundColor: event.color || getEventColor(event.type)
+      width: 'calc(100% - 16px)', // Match reminder width
+      marginLeft: '8px', // Centered like reminders
+      backgroundColor: event.color || getEventColor(event.type),
+      borderLeft: '4px solid #3b82f6', // Blue border for events (vs amber for reminders)
+      borderRadius: '6px', // Slightly less rounded than reminders
+      boxShadow: '0 1px 2px rgba(0,0,0,0.1)' // Same subtle shadow as reminders
     };
   };
 
@@ -745,8 +753,11 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                   draggable={true}
                   onDragStart={(e) => handleDragStart(e, event)}
                 >
-                  <div className={`h-full p-1 ${event.type === 'reminder' ? 'bg-amber-50 flex items-center' : 'bg-blue-50'}`}>
-                    {event.type === 'reminder' && <span className="mr-1 text-amber-500">⏰</span>}
+                  <div className={`h-full ${event.type === 'reminder' ? 'px-3 py-0 bg-amber-50 flex items-center justify-center' : 'p-2 bg-blue-50 flex flex-col justify-center'}`}>
+                    {event.type === 'reminder' ? 
+                      <span className="mr-1 text-amber-500">⏰</span> : 
+                      <span className="absolute top-1 right-1 text-blue-500 text-xs">📅</span>
+                    }
                     <div className="font-medium text-xs truncate">{event.title}</div>
                     <div className="text-xs text-gray-600 truncate">
                       {formatEventTime(event.start)}
