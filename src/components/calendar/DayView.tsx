@@ -8,7 +8,7 @@ interface DayViewProps {
   date: Date;
   events: ScheduleEvent[];
   onEventClick?: (event: ScheduleEvent) => void;
-  onAddEvent?: (date: Date) => void;
+  onAddEvent?: (date: Date, event?: ScheduleEvent) => void;
   currentTime: Date;
   onEventDrop?: (event: ScheduleEvent, newStart: Date, newEnd: Date) => void;
 }
@@ -29,14 +29,59 @@ const generateTimeSlots = () => {
 const getTimeFromPosition = (y: number, containerTop: number) => {
   const relativeY = y - containerTop;
   const hourHeight = 60;
-  const hours = Math.floor(relativeY / hourHeight);
-  const minutes = Math.floor((relativeY % hourHeight) / (hourHeight / 60)) * 15;
+  
+  // Calculate the hour part (0 for positions within the first hour slot)
+  const hours = 0;
+  
+  // Calculate minutes based on position within the hour slot (0, 15, 30, 45)
+  const minutePosition = relativeY % hourHeight;
+  let minutes = 0;
+  
+  if (minutePosition < 15) {
+    minutes = 0;
+  } else if (minutePosition < 30) {
+    minutes = 15;
+  } else if (minutePosition < 45) {
+    minutes = 30;
+  } else {
+    minutes = 45;
+  }
+  
   return { hours, minutes };
+};
+
+// Format time for display
+const formatTimeSlot = (hour: number, minute: number) => {
+  const hourDisplay = hour % 12 === 0 ? 12 : hour % 12;
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const minuteDisplay = minute.toString().padStart(2, '0');
+  return `${hourDisplay}:${minuteDisplay} ${ampm}`;
+};
+
+// Get time slot range string
+const getTimeSlotRange = (hour: number, minute: number) => {
+  const startTime = formatTimeSlot(hour, minute);
+  
+  // Calculate end time (15 minutes later)
+  let endHour = hour;
+  let endMinute = minute + 15;
+  
+  if (endMinute >= 60) {
+    endHour += 1;
+    endMinute = 0;
+  }
+  
+  const endTime = formatTimeSlot(endHour, endMinute);
+  return `${startTime} - ${endTime}`;
 };
 
 export default function DayView({ date, events, onEventClick, onAddEvent, currentTime, onEventDrop }: DayViewProps) {
   const timeSlots = generateTimeSlots();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [selectionStart, setSelectionStart] = useState<{hour: number, minute: number} | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{hour: number, minute: number} | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [hoverSlot, setHoverSlot] = useState<{hour: number, minute: number} | null>(null);
   
   // Scroll to 9:00 AM when component mounts
   useEffect(() => {
@@ -118,7 +163,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
     
     // Calculate new start and end times
     const newStart = new Date(date);
-    newStart.setHours(hour + hours, minutes, 0, 0);
+    newStart.setHours(hour, minutes, 0, 0);
     
     const newEnd = new Date(newStart.getTime() + data.duration);
     
@@ -194,23 +239,109 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                 {slot.label}
               </div>
               <div 
-                className="flex-1 relative border-l border-gray-200 group"
-                onClick={() => {
+                className="flex-1 relative border-l border-solid border-gray-200 group"
+                onClick={(e) => {
                   if (onAddEvent) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const { hours, minutes } = getTimeFromPosition(e.clientY, rect.top);
                     const newDate = new Date(date);
-                    newDate.setHours(slot.hour, 0, 0, 0);
-                    onAddEvent(newDate);
+                    newDate.setHours(slot.hour, minutes, 0, 0);
+                    
+                    // Create end date 15 minutes later
+                    const endDate = new Date(newDate);
+                    endDate.setMinutes(endDate.getMinutes() + 15);
+                    
+                    // Create a temporary event object for the selection
+                    const tempEvent: ScheduleEvent = {
+                      id: '',
+                      title: '',
+                      start: newDate,
+                      end: endDate,
+                      isAllDay: false,
+                      type: 'event'
+                    };
+                    
+                    onAddEvent(newDate, tempEvent);
+                  }
+                }}
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const { hours, minutes } = getTimeFromPosition(e.clientY, rect.top);
+                  
+                  // Update hover slot
+                  setHoverSlot({ hour: slot.hour, minute: minutes });
+                  
+                  // Update selection end if selecting
+                  if (isSelecting && selectionStart) {
+                    setSelectionEnd({ hour: slot.hour, minute: minutes });
+                  }
+                }}
+                onMouseLeave={() => {
+                  setHoverSlot(null);
+                  
+                  // Reset selection if needed
+                  if (isSelecting) {
+                    setIsSelecting(false);
+                    setSelectionStart(null);
+                    setSelectionEnd(null);
+                  }
+                }}
+                onMouseDown={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const { hours, minutes } = getTimeFromPosition(e.clientY, rect.top);
+                  setSelectionStart({ hour: slot.hour, minute: minutes });
+                  setSelectionEnd({ hour: slot.hour, minute: minutes });
+                  setIsSelecting(true);
+                }}
+                onMouseUp={(e) => {
+                  if (isSelecting && selectionStart && selectionEnd && onAddEvent) {
+                    setIsSelecting(false);
+                    
+                    // Calculate start and end times
+                    const startDate = new Date(date);
+                    startDate.setHours(selectionStart.hour, selectionStart.minute, 0, 0);
+                    
+                    const endDate = new Date(date);
+                    endDate.setHours(selectionEnd.hour, selectionEnd.minute, 0, 0);
+                    
+                    // Ensure end is after start
+                    if (endDate < startDate) {
+                      const temp = new Date(startDate);
+                      startDate.setTime(endDate.getTime());
+                      endDate.setTime(temp.getTime());
+                    }
+                    
+                    // Ensure at least 15 minutes duration
+                    if (endDate.getTime() - startDate.getTime() < 15 * 60 * 1000) {
+                      endDate.setTime(startDate.getTime() + 15 * 60 * 1000);
+                    }
+                    
+                    // Create a temporary event object for the selection
+                    const tempEvent: ScheduleEvent = {
+                      id: 'temp-id',
+                      title: 'New Event',
+                      start: startDate,
+                      end: endDate,
+                      isAllDay: false,
+                      type: 'event'
+                    };
+                    
+                    onAddEvent(startDate, tempEvent);
+                    
+                    // Reset selection
+                    setSelectionStart(null);
+                    setSelectionEnd(null);
                   }
                 }}
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, slot.hour)}
               >
                 {/* 15-minute interval line */}
-                <div className="absolute left-0 right-0 top-[15px] border-t border-dotted border-gray-200"></div>
-                {/* 30-minute interval line */}
-                <div className="absolute left-0 right-0 top-[30px] border-t border-dashed border-gray-300"></div>
+                <div className="absolute left-0 right-0 top-[15px] border-t border-dashed border-gray-200"></div>
+                {/* 30-minute interval line - solid */}
+                <div className="absolute left-0 right-0 top-[30px] border-t border-solid border-gray-200"></div>
                 {/* 45-minute interval line */}
-                <div className="absolute left-0 right-0 top-[45px] border-t border-dotted border-gray-200"></div>
+                <div className="absolute left-0 right-0 top-[45px] border-t border-dashed border-gray-200"></div>
                 
                 <button className="absolute left-0 top-0 h-full w-full flex items-center justify-center opacity-0 group-hover:opacity-100 bg-blue-50 bg-opacity-30">
                   <PlusIcon className="h-5 w-5 text-blue-500" />
@@ -232,11 +363,37 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
             </div>
           )}
           
+          {/* Hover highlight */}
+          {hoverSlot && !isSelecting && (
+            <div
+              className="absolute left-16 right-2 bg-blue-50 opacity-50 rounded-md border border-blue-200 z-0"
+              style={{
+                top: `${hoverSlot.hour * 60 + hoverSlot.minute}px`,
+                height: '15px'
+              }}
+            >
+              <div className="absolute right-2 top-0 text-xs text-blue-600 font-medium">
+                {getTimeSlotRange(hoverSlot.hour, hoverSlot.minute)}
+              </div>
+            </div>
+          )}
+          
+          {/* Selection highlight */}
+          {isSelecting && selectionStart && selectionEnd && (
+            <div
+              className="absolute left-16 right-2 bg-blue-100 opacity-50 rounded-md border border-blue-300 z-0"
+              style={{
+                top: `${Math.min(selectionStart.hour, selectionEnd.hour) * 60 + Math.min(selectionStart.minute, selectionEnd.minute)}px`,
+                height: `${Math.abs((selectionEnd.hour * 60 + selectionEnd.minute) - (selectionStart.hour * 60 + selectionStart.minute)) || 15}px`
+              }}
+            />
+          )}
+          
           {/* Events */}
           {timedEvents.map((event) => (
             <div 
               key={event.id}
-              className="absolute left-16 right-2 rounded-md border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+              className="absolute left-16 right-2 rounded-md border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow z-10"
               style={getEventStyle(event)}
               onClick={() => onEventClick && onEventClick(event)}
               draggable={true}

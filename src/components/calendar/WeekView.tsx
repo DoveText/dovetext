@@ -11,7 +11,7 @@ interface WeekViewProps {
   events: ScheduleEvent[];
   onEventClick?: (event: ScheduleEvent) => void;
   onDateClick?: (date: Date) => void;
-  onAddEvent?: (date: Date) => void;
+  onAddEvent?: (date: Date, event?: ScheduleEvent) => void;
   currentTime: Date;
   onEventDrop?: (event: ScheduleEvent, newStart: Date, newEnd: Date) => void;
 }
@@ -46,9 +46,50 @@ const generateTimeSlots = () => {
 const getTimeFromPosition = (y: number, containerTop: number) => {
   const relativeY = y - containerTop;
   const hourHeight = 60;
-  const hours = Math.floor(relativeY / hourHeight);
-  const minutes = Math.floor((relativeY % hourHeight) / (hourHeight / 60)) * 15;
+  
+  // Calculate the hour part (0 for positions within the first hour slot)
+  const hours = 0;
+  
+  // Calculate minutes based on position within the hour slot (0, 15, 30, 45)
+  const minutePosition = relativeY % hourHeight;
+  let minutes = 0;
+  
+  if (minutePosition < 15) {
+    minutes = 0;
+  } else if (minutePosition < 30) {
+    minutes = 15;
+  } else if (minutePosition < 45) {
+    minutes = 30;
+  } else {
+    minutes = 45;
+  }
+  
   return { hours, minutes };
+};
+
+// Format time for display
+const formatTimeSlot = (hour: number, minute: number) => {
+  const hourDisplay = hour % 12 === 0 ? 12 : hour % 12;
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const minuteDisplay = minute.toString().padStart(2, '0');
+  return `${hourDisplay}:${minuteDisplay} ${ampm}`;
+};
+
+// Get time slot range string
+const getTimeSlotRange = (hour: number, minute: number) => {
+  const startTime = formatTimeSlot(hour, minute);
+  
+  // Calculate end time (15 minutes later)
+  let endHour = hour;
+  let endMinute = minute + 15;
+  
+  if (endMinute >= 60) {
+    endHour += 1;
+    endMinute = 0;
+  }
+  
+  const endTime = formatTimeSlot(endHour, endMinute);
+  return `${startTime} - ${endTime}`;
 };
 
 export default function WeekView({ date, events, onEventClick, onDateClick, onAddEvent, currentTime, onEventDrop }: WeekViewProps) {
@@ -60,6 +101,12 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  const [selectionStart, setSelectionStart] = useState<{day: Date, hour: number, minute: number} | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{day: Date, hour: number, minute: number} | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [currentSelectionDay, setCurrentSelectionDay] = useState<Date | null>(null);
+  const [hoverSlot, setHoverSlot] = useState<{day: Date, hour: number, minute: number} | null>(null);
   
   // Clean up any timeouts when component unmounts
   useEffect(() => {
@@ -196,7 +243,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
     
     // Calculate new start and end times
     const newStart = new Date(day);
-    newStart.setHours(hour + hours, minutes, 0, 0);
+    newStart.setHours(hour, minutes, 0, 0);
     
     const newEnd = new Date(newStart.getTime() + data.duration);
     
@@ -352,23 +399,108 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                 {daysOfWeek.map((day, dayIndex) => (
                   <div 
                     key={dayIndex} 
-                    className={`flex-1 relative ${dayIndex < 6 ? 'border-r' : ''} group ${isToday(day) ? 'bg-blue-50' : ''}`}
-                    onClick={() => {
+                    className={`flex-1 relative ${dayIndex < 6 ? 'border-r border-solid' : ''} group ${isToday(day) ? 'bg-blue-50' : ''}`}
+                    onClick={(e) => {
                       if (onAddEvent) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const { hours, minutes } = getTimeFromPosition(e.clientY, rect.top);
                         const newDate = new Date(day);
-                        newDate.setHours(slot.hour, 0, 0, 0);
-                        onAddEvent(newDate);
+                        newDate.setHours(slot.hour, minutes, 0, 0);
+                        
+                        // Create end date 15 minutes later
+                        const endDate = new Date(newDate);
+                        endDate.setMinutes(endDate.getMinutes() + 15);
+                        
+                        // Create a temporary event object for the selection
+                        const tempEvent: ScheduleEvent = {
+                          id: '',
+                          title: '',
+                          start: newDate,
+                          end: endDate,
+                          isAllDay: false,
+                          type: 'event'
+                        };
+                        
+                        onAddEvent(newDate, tempEvent);
                       }
+                    }}
+                    onMouseDown={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const { hours, minutes } = getTimeFromPosition(e.clientY, rect.top);
+                      setSelectionStart({ day: new Date(day), hour: slot.hour, minute: minutes });
+                      setSelectionEnd({ day: new Date(day), hour: slot.hour, minute: minutes });
+                      setIsSelecting(true);
+                      setCurrentSelectionDay(new Date(day));
+                    }}
+                    onMouseMove={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const { hours, minutes } = getTimeFromPosition(e.clientY, rect.top);
+                      
+                      // Update hover slot
+                      setHoverSlot({ day: new Date(day), hour: slot.hour, minute: minutes });
+                      
+                      // Update selection end if selecting
+                      if (isSelecting && selectionStart && currentSelectionDay && day.getTime() === currentSelectionDay.getTime()) {
+                        setSelectionEnd({ day: new Date(day), hour: slot.hour, minute: minutes });
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      setHoverSlot(null);
+                    }}
+                    onMouseUp={(e) => {
+                      if (isSelecting && selectionStart && selectionEnd && onAddEvent && currentSelectionDay && day.getTime() === currentSelectionDay.getTime()) {
+                        setIsSelecting(false);
+                        
+                        // Calculate start and end times
+                        const startDate = new Date(selectionStart.day);
+                        startDate.setHours(selectionStart.hour, selectionStart.minute, 0, 0);
+                        
+                        const endDate = new Date(selectionEnd.day);
+                        endDate.setHours(selectionEnd.hour, selectionEnd.minute, 0, 0);
+                        
+                        // Ensure end is after start
+                        if (endDate < startDate) {
+                          const temp = new Date(startDate);
+                          startDate.setTime(endDate.getTime());
+                          endDate.setTime(temp.getTime());
+                        }
+                        
+                        // Ensure at least 15 minutes duration
+                        if (endDate.getTime() - startDate.getTime() < 15 * 60 * 1000) {
+                          endDate.setTime(startDate.getTime() + 15 * 60 * 1000);
+                        }
+                        
+                        // Create a temporary event object for the selection
+                        const tempEvent: ScheduleEvent = {
+                          id: 'temp-id',
+                          title: 'New Event',
+                          start: startDate,
+                          end: endDate,
+                          isAllDay: false,
+                          type: 'event'
+                        };
+                        
+                        onAddEvent(startDate, tempEvent);
+                        
+                        // Reset selection
+                        setSelectionStart(null);
+                        setSelectionEnd(null);
+                        setCurrentSelectionDay(null);
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      setHoverSlot(null);
+                      // We don't reset selection on leave for week view to allow selecting across time slots
                     }}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, day, slot.hour)}
                   >
                     {/* 15-minute interval line */}
-                    <div className="absolute left-0 right-0 top-[15px] border-t border-dotted border-gray-200"></div>
-                    {/* 30-minute interval line */}
-                    <div className="absolute left-0 right-0 top-[30px] border-t border-dashed border-gray-300"></div>
+                    <div className="absolute left-0 right-0 top-[15px] border-t border-dashed border-gray-200"></div>
+                    {/* 30-minute interval line - solid */}
+                    <div className="absolute left-0 right-0 top-[30px] border-t border-solid border-gray-200"></div>
                     {/* 45-minute interval line */}
-                    <div className="absolute left-0 right-0 top-[45px] border-t border-dotted border-gray-200"></div>
+                    <div className="absolute left-0 right-0 top-[45px] border-t border-dashed border-gray-200"></div>
                     
                     <button className="absolute left-0 top-0 h-full w-full flex items-center justify-center opacity-0 group-hover:opacity-100 bg-blue-50 bg-opacity-30">
                       <PlusIcon className="h-4 w-4 text-blue-500" />
@@ -392,6 +524,36 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
             </div>
           )}
           
+          {/* Hover highlight */}
+          {hoverSlot && !isSelecting && (
+            <div
+              className="absolute bg-blue-50 opacity-50 rounded-md border border-blue-200 z-0"
+              style={{
+                top: `${hoverSlot.hour * 60 + hoverSlot.minute}px`,
+                height: '15px',
+                left: `calc(4rem + (${daysOfWeek.findIndex(d => d.getTime() === hoverSlot.day.getTime())} * calc((100% - 4rem) / 7)))`,
+                width: `calc((100% - 4rem) / 7 - 6px)`
+              }}
+            >
+              <div className="absolute right-2 top-0 text-xs text-blue-600 font-medium">
+                {getTimeSlotRange(hoverSlot.hour, hoverSlot.minute)}
+              </div>
+            </div>
+          )}
+          
+          {/* Selection highlight */}
+          {isSelecting && selectionStart && selectionEnd && currentSelectionDay && (
+            <div
+              className="absolute bg-blue-100 opacity-50 rounded-md border border-blue-300 z-0"
+              style={{
+                top: `${Math.min(selectionStart.hour, selectionEnd.hour) * 60 + Math.min(selectionStart.minute, selectionEnd.minute)}px`,
+                height: `${Math.abs((selectionEnd.hour * 60 + selectionEnd.minute) - (selectionStart.hour * 60 + selectionStart.minute)) || 15}px`,
+                left: `calc(4rem + (${daysOfWeek.findIndex(d => d.getTime() === currentSelectionDay.getTime())} * calc((100% - 4rem) / 7)))`,
+                width: `calc((100% - 4rem) / 7 - 6px)`
+              }}
+            />
+          )}
+          
           {/* Events for each day */}
           {daysOfWeek.map((day, dayIndex) => {
             const timedEvents = getTimedEventsForDay(day);
@@ -407,7 +569,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
               return (
                 <div 
                   key={`${dayIndex}-${event.id}`}
-                  className="absolute rounded-md border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  className="absolute rounded-md border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow z-10"
                   style={{
                     ...eventStyle,
                     left: dayLeft,

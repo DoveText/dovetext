@@ -70,8 +70,26 @@ function ScheduleContent() {
   };
   
   // Handle add event
-  const handleAddEvent = (date: Date) => {
+  const handleAddEvent = (date: Date, presetEvent?: ScheduleEvent) => {
     setSelectedDate(date);
+    if (presetEvent) {
+      setSelectedEvent(presetEvent);
+    } else {
+      // Create default event with 1-hour duration
+      const endDate = new Date(date);
+      endDate.setHours(endDate.getHours() + 1);
+      
+      const defaultEvent: ScheduleEvent = {
+        id: '',
+        title: '',
+        start: date,
+        end: endDate,
+        isAllDay: false,
+        type: 'event'
+      };
+      
+      setSelectedEvent(defaultEvent);
+    }
     setShowCreateEventDialog(true);
   };
 
