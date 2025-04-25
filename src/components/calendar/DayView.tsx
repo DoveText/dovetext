@@ -79,8 +79,6 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   const timeSlots = generateTimeSlots();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectionStart, setSelectionStart] = useState<{hour: number, minute: number} | null>(null);
-  const [selectionEnd, setSelectionEnd] = useState<{hour: number, minute: number} | null>(null);
-  const [isSelecting, setIsSelecting] = useState(false);
   const [hoverSlot, setHoverSlot] = useState<{hour: number, minute: number} | null>(null);
   const [isMouseOverCalendar, setIsMouseOverCalendar] = useState(false);
   
@@ -117,7 +115,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   // Function to handle click on the calendar container (for single click event creation)
   const handleCalendarClick = useCallback((e: React.MouseEvent) => {
     // Only process if we have an add event handler and we're not in selection mode
-    if (!onAddEvent || isSelecting) return;
+    if (!onAddEvent || selectionStart != null) return;
     
     const timeSlot = getTimeSlotFromMouseEvent(e);
     if (!timeSlot) return;
@@ -143,7 +141,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
     };
     
     onAddEvent(newDate, tempEvent);
-  }, [onAddEvent, isSelecting, date]);
+  }, [onAddEvent, selectionStart, date]);
 
   // Filter events for the current day
   const dayEvents = events.filter(event => {
@@ -262,6 +260,69 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
     });
   };
 
+  const getSelectionStartMinutes = useCallback(() => {
+    if(!hoverSlot) {
+      return 0;
+    }
+
+    if(!selectionStart) {
+      return hoverSlot.hour * 60 + hoverSlot.minute;
+    }
+
+    if(selectionStart.hour < hoverSlot.hour || selectionStart.hour === hoverSlot.hour && selectionStart.minute < hoverSlot.minute) {
+      return selectionStart.hour * 60 + selectionStart.minute;
+    }
+    else {
+      return hoverSlot.hour * 60 + hoverSlot.minute;
+    }
+  }, [hoverSlot, selectionStart])
+
+  const getSelectionMinutes = useCallback(() => {
+    if(!hoverSlot || !selectionStart) {
+      return 0;
+    }
+
+    if(!selectionStart) {
+      return 15;
+    }
+
+    return Math.abs((hoverSlot.hour * 60 + hoverSlot.minute) - (selectionStart.hour * 60 + selectionStart.minute)) + 15;
+  }, [hoverSlot, selectionStart])
+
+  const getSelectionTimeSlotRange = useCallback(() => {
+    if(!selectionStart || !hoverSlot) {
+      return '';
+    }
+
+    let startTime = ''
+    let endHour = 0;
+    let endMinute = 0;
+
+    if(selectionStart.hour < hoverSlot.hour || selectionStart.hour === hoverSlot.hour && selectionStart.minute < hoverSlot.minute) {
+      startTime = formatTimeSlot(selectionStart?.hour, selectionStart.minute);
+
+      // Calculate end time (15 minutes later)
+      endHour = hoverSlot.hour;
+      endMinute = hoverSlot.minute + 15;
+    }
+    else {
+      startTime = formatTimeSlot(hoverSlot?.hour, hoverSlot.minute);
+
+      // Calculate end time (15 minutes later)
+      let endHour = selectionStart.hour;
+      let endMinute = selectionStart.minute + 15;
+    }
+
+    if (endMinute >= 60) {
+      endHour += 1;
+      endMinute = 0;
+    }
+
+    const endTime = formatTimeSlot(endHour, endMinute);
+
+    return `${startTime} - ${endTime}`;
+  }, [hoverSlot, selectionStart])
+
   return (
     <div 
       className="flex flex-col h-full overflow-hidden"
@@ -269,13 +330,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
       onMouseLeave={() => {
         setIsMouseOverCalendar(false);
         setHoverSlot(null);
-        
-        // Reset selection if needed
-        if (isSelecting) {
-          setIsSelecting(false);
-          setSelectionStart(null);
-          setSelectionEnd(null);
-        }
+        setSelectionStart(null);
       }}
     >
       {/* All-day events section */}
@@ -314,13 +369,6 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
           
           // Update hover slot
           setHoverSlot(timeSlot);
-          
-          // Update selection end if selecting
-          if (isSelecting && selectionStart) {
-            console.log('Mouse move during selection', timeSlot);
-            setSelectionEnd(timeSlot);
-            e.preventDefault(); // Prevent text selection during drag
-          }
         }}
         onMouseDown={(e) => {
           // Prevent default to avoid text selection
@@ -334,37 +382,31 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
           
           // Start selection
           setSelectionStart(timeSlot);
-          setSelectionEnd(timeSlot);
-          setIsSelecting(true);
         }}
         onMouseUp={(e) => {
           // Only process if we're in selection mode
-          if (!isSelecting || !selectionStart || !selectionEnd || !onAddEvent) return;
+          if (!selectionStart || !hoverSlot || !onAddEvent) return;
           
-          console.log('Mouse up on calendar', { isSelecting, selectionStart, selectionEnd });
-          
-          // End selection mode
-          setIsSelecting(false);
+          console.log('Mouse up on calendar', selectionStart, hoverSlot);
           
           // Calculate start and end times
           const startDate = new Date(date);
-          startDate.setHours(selectionStart.hour, selectionStart.minute, 0, 0);
-          
           const endDate = new Date(date);
-          endDate.setHours(selectionEnd.hour, selectionEnd.minute, 0, 0);
-          
-          // Ensure end is after start
-          if (endDate < startDate) {
-            const temp = new Date(startDate);
-            startDate.setTime(endDate.getTime());
-            endDate.setTime(temp.getTime());
+
+          /**
+           * Decide which one is start, which one is end
+           */
+          if(hoverSlot.hour > selectionStart.hour || (hoverSlot.hour === selectionStart.hour && hoverSlot.minute > selectionStart.minute)){
+            startDate.setHours(selectionStart.hour, selectionStart.minute, 0, 0);
+            endDate.setHours(hoverSlot.hour, hoverSlot.minute, 0, 0);
           }
-          
-          // Ensure at least 15 minutes duration
-          if (endDate.getTime() - startDate.getTime() < 15 * 60 * 1000) {
-            endDate.setTime(startDate.getTime() + 15 * 60 * 1000);
+          else{
+            startDate.setHours(hoverSlot.hour, hoverSlot.minute, 0, 0);
+            endDate.setHours(selectionStart.hour, selectionStart.minute, 0, 0);
           }
-          
+
+          endDate.setMinutes(endDate.getMinutes() + 15);
+
           console.log('Creating event from selection', { startDate, endDate });
           
           // Create a temporary event object for the selection
@@ -382,7 +424,6 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
           
           // Reset selection
           setSelectionStart(null);
-          setSelectionEnd(null);
         }}
       >
         <div className="relative min-h-[1440px]"> {/* 24 hours * 60px per hour */}
@@ -427,7 +468,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
           )}
           
           {/* Hover highlight */}
-          {hoverSlot && !isSelecting && isMouseOverCalendar && (
+          {hoverSlot && !selectionStart && isMouseOverCalendar && (
             <div
               className="absolute left-16 right-2 bg-blue-50 opacity-50 rounded-md border border-blue-200 z-0"
               style={{
@@ -442,26 +483,25 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
           )}
           
           {/* Selection highlight */}
-          {isSelecting && selectionStart && selectionEnd && (
+          {selectionStart && hoverSlot && (
             <div
               className="absolute left-16 right-2 bg-blue-100 opacity-70 rounded-md border border-blue-300 z-0"
               style={{
-                top: `${Math.min(selectionStart.hour, selectionEnd.hour) * 60 + Math.min(selectionStart.minute, selectionEnd.minute)}px`,
-                height: `${Math.abs((selectionEnd.hour * 60 + selectionEnd.minute) - (selectionStart.hour * 60 + selectionStart.minute)) || 15}px`
+                top: `${getSelectionStartMinutes()}px`,
+                height: `${getSelectionMinutes()}px`
               }}
             >
               <div className="absolute right-2 top-0 text-xs text-blue-600 font-medium">
-                {formatTimeSlot(Math.min(selectionStart.hour, selectionEnd.hour), Math.min(selectionStart.minute, selectionEnd.minute))} - 
-                {formatTimeSlot(Math.max(selectionStart.hour, selectionEnd.hour), Math.max(selectionStart.minute, selectionEnd.minute))}
+                {getSelectionTimeSlotRange()}
               </div>
             </div>
           )}
-          
+
           {/* Events */}
           {timedEvents.map((event) => (
-            <div 
-              key={event.id}
-              className="absolute left-16 right-2 rounded-md border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow z-10"
+              <div
+                  key={event.id}
+                  className="absolute left-16 right-2 rounded-md border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow z-10"
               style={getEventStyle(event)}
               onClick={() => onEventClick && onEventClick(event)}
               draggable={true}
