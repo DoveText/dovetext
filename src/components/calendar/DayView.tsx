@@ -628,49 +628,42 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                   )}
                   onMouseLeave={hideTooltip}
                 >
-                <div className="flex">
-                  {/* Left part: Fixed width showing time duration */}
-                  <div className="w-16 flex-shrink-0 flex items-start justify-center">
-                    {event.type === 'reminder' ? (
-                      <div className="w-16 h-0.5 bg-amber-500"></div>
-                    ) : (
-                      <div 
-                        className="w-16 bg-blue-500 rounded-sm"
-                        style={{
-                          height: `${(event.end.getHours() * 60 + event.end.getMinutes()) - (event.start.getHours() * 60 + event.start.getMinutes())}px`
-                        }}
-                      ></div>
-                    )}
-                  </div>
-                  
-                  {/* Right part: Fixed height with icon, title, and start time - Always visible regardless of event duration */}
+                {/* Time indicator (full width) */}
+                {event.type === 'reminder' ? (
+                  <div className="w-full h-0.5 bg-amber-500"></div>
+                ) : (
                   <div 
-                    className={`
-                      flex-grow px-2 py-0.5 flex items-center
-                      ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
-                      rounded-md shadow-sm
-                    `}
+                    className="w-full bg-blue-500 rounded-sm"
                     style={{
-                      minHeight: '24px', // Reduced from 32px
-                      position: 'absolute',
-                      left: '64px', // Updated to match the new width of the left part (16px)
-                      right: 0,
-                      zIndex: 20
+                      height: `${(event.end.getHours() * 60 + event.end.getMinutes()) - (event.start.getHours() * 60 + event.start.getMinutes())}px`
                     }}
-                  >
-                    {/* Icon */}
-                    {event.type === 'reminder' ? 
-                      <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
-                      <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
-                    }
-                    
-                    {/* Title */}
-                    <div className="font-medium text-xs truncate">{event.title}</div>
-                    
-                    {/* Start time */}
-                    <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
-                      {formatEventTime(event.start)}
-                    </div>
+                  ></div>
+                )}
+                
+                {/* Title/icon part positioned with margins */}
+                <div 
+                  className={`
+                    absolute top-0.5 left-3 right-5
+                    px-2 py-0.5 flex items-center
+                    ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
+                    rounded-md shadow-sm
+                  `}
+                  style={{
+                    minHeight: '20px'
+                  }}
+                >
+                  {/* Icon */}
+                  {event.type === 'reminder' ? 
+                    <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
+                    <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
+                  }
+                  
+                  {/* Title */}
+                  <div className="font-medium text-xs truncate">{event.title}</div>
+                  
+                  {/* Start time */}
+                  <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
+                    {formatEventTime(event.start)}
                   </div>
                 </div>
               </div>
