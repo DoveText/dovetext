@@ -541,6 +541,14 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
           // Prevent default to avoid text selection
           e.preventDefault();
           
+          // Check if we clicked on an event by checking the target's class list
+          // If the target or any parent has z-10 class, it's an event (events have z-10)
+          const target = e.target as HTMLElement;
+          if (target.closest('.z-10')) {
+            // Clicked on an event, don't start selection
+            return;
+          }
+          
           // Get time slot from mouse position
           const timeSlot = getTimeSlotFromMouseEvent(e);
           if (!timeSlot) return;
