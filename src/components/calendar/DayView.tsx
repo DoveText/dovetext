@@ -299,7 +299,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
       
       {/* Timed events */}
       <div 
-        className="flex-1 overflow-y-auto" 
+        className="flex-1 overflow-y-auto cursor-pointer"
         ref={scrollContainerRef}
         onClick={handleCalendarClick}
         onMouseEnter={() => setIsMouseOverCalendar(true)}
