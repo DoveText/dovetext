@@ -399,7 +399,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                 {daysOfWeek.map((day, dayIndex) => (
                   <div 
                     key={dayIndex} 
-                    className={`flex-1 relative ${dayIndex < 6 ? 'border-r border-solid' : ''} group ${isToday(day) ? 'bg-blue-50' : ''}`}
+                    className={`flex-1 relative ${dayIndex < 6 ? 'border-r border-solid' : ''} ${isToday(day) ? 'bg-blue-50' : ''}`}
                     onClick={(e) => {
                       if (onAddEvent) {
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -446,6 +446,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                     }}
                     onMouseLeave={() => {
                       setHoverSlot(null);
+                      // We don't reset selection on leave for week view to allow selecting across time slots
                     }}
                     onMouseUp={(e) => {
                       if (isSelecting && selectionStart && selectionEnd && onAddEvent && currentSelectionDay && day.getTime() === currentSelectionDay.getTime()) {
@@ -488,10 +489,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                         setCurrentSelectionDay(null);
                       }
                     }}
-                    onMouseLeave={() => {
-                      setHoverSlot(null);
-                      // We don't reset selection on leave for week view to allow selecting across time slots
-                    }}
+
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, day, slot.hour)}
                   >
@@ -502,9 +500,9 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                     {/* 45-minute interval line */}
                     <div className="absolute left-0 right-0 top-[45px] border-t border-dashed border-gray-200"></div>
                     
-                    <button className="absolute left-0 top-0 h-full w-full flex items-center justify-center opacity-0 group-hover:opacity-100 bg-blue-50 bg-opacity-30">
-                      <PlusIcon className="h-4 w-4 text-blue-500" />
-                    </button>
+                    <div className="absolute left-0 top-0 h-full w-full flex items-center justify-center">
+                      <PlusIcon className="h-5 w-5 text-blue-500 opacity-0 hover:opacity-100" />
+                    </div>
                   </div>
                 ))}
               </div>

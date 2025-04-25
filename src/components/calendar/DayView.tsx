@@ -239,7 +239,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                 {slot.label}
               </div>
               <div 
-                className="flex-1 relative border-l border-solid border-gray-200 group"
+                className="flex-1 relative border-l border-solid border-gray-200"
                 onClick={(e) => {
                   if (onAddEvent) {
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -343,9 +343,9 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                 {/* 45-minute interval line */}
                 <div className="absolute left-0 right-0 top-[45px] border-t border-dashed border-gray-200"></div>
                 
-                <button className="absolute left-0 top-0 h-full w-full flex items-center justify-center opacity-0 group-hover:opacity-100 bg-blue-50 bg-opacity-30">
-                  <PlusIcon className="h-5 w-5 text-blue-500" />
-                </button>
+                <div className="absolute left-0 top-0 h-full w-full flex items-center justify-center">
+                  <PlusIcon className="h-5 w-5 text-blue-500 opacity-0 hover:opacity-100" />
+                </div>
               </div>
             </div>
           ))}
