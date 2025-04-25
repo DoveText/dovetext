@@ -21,6 +21,7 @@ function ScheduleContent() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedView, setSelectedView] = useState<CalendarViewType>('week');
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   
   // Load events from API on component mount
   useEffect(() => {
@@ -147,6 +148,20 @@ function ScheduleContent() {
       // Could add error handling UI here
     }
   };
+  
+  // Handle event drop
+  const handleEventDrop = (event: ScheduleEvent, newStart: Date, newEnd: Date) => {
+    // Create a copy of the event with updated times
+    const updatedEvent: ScheduleEvent = {
+      ...event,
+      start: newStart,
+      end: newEnd
+    };
+    
+    // Set the selected event and open the edit dialog
+    setSelectedEvent(updatedEvent);
+    setShowCreateEventDialog(true);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -186,6 +201,7 @@ function ScheduleContent() {
               onEventClick={handleEventClick}
               onDateClick={handleDateClick}
               onAddEvent={handleAddEvent}
+              onEventDrop={handleEventDrop}
             />
           </div>
         </div>

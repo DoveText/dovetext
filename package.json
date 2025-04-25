@@ -41,6 +41,8 @@
     "pg-promise": "^11.5.4",
     "postcss": "8.4.33",
     "react": "^18",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^18",
     "react-firebase-hooks": "^5.1.1",
     "react-markdown": "^10.1.0",

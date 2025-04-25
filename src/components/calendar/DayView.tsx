@@ -10,6 +10,7 @@ interface DayViewProps {
   onEventClick?: (event: ScheduleEvent) => void;
   onAddEvent?: (date: Date) => void;
   currentTime: Date;
+  onEventDrop?: (event: ScheduleEvent, newStart: Date, newEnd: Date) => void;
 }
 
 // Generate time slots for the day
@@ -24,7 +25,16 @@ const generateTimeSlots = () => {
   return slots;
 };
 
-export default function DayView({ date, events, onEventClick, onAddEvent, currentTime }: DayViewProps) {
+// Calculate time from y-position
+const getTimeFromPosition = (y: number, containerTop: number) => {
+  const relativeY = y - containerTop;
+  const hourHeight = 60;
+  const hours = Math.floor(relativeY / hourHeight);
+  const minutes = Math.floor((relativeY % hourHeight) / (hourHeight / 60)) * 15;
+  return { hours, minutes };
+};
+
+export default function DayView({ date, events, onEventClick, onAddEvent, currentTime, onEventDrop }: DayViewProps) {
   const timeSlots = generateTimeSlots();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
@@ -73,6 +83,47 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
       height: `${Math.max(height, 30)}px`, // Minimum height for very short events
       backgroundColor: event.color || getEventColor(event.type)
     };
+  };
+  
+  // Handle drag start
+  const handleDragStart = (event: React.DragEvent, scheduleEvent: ScheduleEvent) => {
+    event.dataTransfer.setData('text/plain', JSON.stringify({
+      id: scheduleEvent.id,
+      eventType: scheduleEvent.type,
+      duration: scheduleEvent.end.getTime() - scheduleEvent.start.getTime()
+    }));
+    event.dataTransfer.effectAllowed = 'move';
+  };
+  
+  // Handle drag over
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  };
+  
+  // Handle drop
+  const handleDrop = (event: React.DragEvent, hour: number) => {
+    event.preventDefault();
+    const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+    
+    if (!data.id || !onEventDrop) return;
+    
+    const timeSlotElement = event.currentTarget as HTMLElement;
+    const rect = timeSlotElement.getBoundingClientRect();
+    const { hours, minutes } = getTimeFromPosition(event.clientY, rect.top);
+    
+    // Find the original event
+    const originalEvent = events.find(e => e.id === data.id);
+    if (!originalEvent) return;
+    
+    // Calculate new start and end times
+    const newStart = new Date(date);
+    newStart.setHours(hour + hours, minutes, 0, 0);
+    
+    const newEnd = new Date(newStart.getTime() + data.duration);
+    
+    // Call the onEventDrop handler
+    onEventDrop(originalEvent, newStart, newEnd);
   };
   
   // Get color based on event type
@@ -151,7 +202,16 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                     onAddEvent(newDate);
                   }
                 }}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, slot.hour)}
               >
+                {/* 15-minute interval line */}
+                <div className="absolute left-0 right-0 top-[15px] border-t border-dotted border-gray-200"></div>
+                {/* 30-minute interval line */}
+                <div className="absolute left-0 right-0 top-[30px] border-t border-dashed border-gray-300"></div>
+                {/* 45-minute interval line */}
+                <div className="absolute left-0 right-0 top-[45px] border-t border-dotted border-gray-200"></div>
+                
                 <button className="absolute left-0 top-0 h-full w-full flex items-center justify-center opacity-0 group-hover:opacity-100 bg-blue-50 bg-opacity-30">
                   <PlusIcon className="h-5 w-5 text-blue-500" />
                 </button>
@@ -179,6 +239,8 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
               className="absolute left-16 right-2 rounded-md border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
               style={getEventStyle(event)}
               onClick={() => onEventClick && onEventClick(event)}
+              draggable={true}
+              onDragStart={(e) => handleDragStart(e, event)}
             >
               <div className={`h-full p-1 ${event.type === 'reminder' ? 'bg-amber-50' : 'bg-blue-50'}`}>
                 <div className="font-medium text-sm truncate">{event.title}</div>

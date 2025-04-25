@@ -25,9 +25,10 @@ interface CalendarProps {
   onEventClick?: (event: ScheduleEvent) => void;
   onDateClick?: (date: Date) => void;
   onAddEvent?: (date: Date) => void;
+  onEventDrop?: (event: ScheduleEvent, newStart: Date, newEnd: Date) => void;
 }
 
-export default function Calendar({ events, onEventClick, onDateClick, onAddEvent }: CalendarProps) {
+export default function Calendar({ events, onEventClick, onDateClick, onAddEvent, onEventDrop }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>('week');
   const today = new Date();
@@ -157,6 +158,7 @@ export default function Calendar({ events, onEventClick, onDateClick, onAddEvent
             onEventClick={onEventClick}
             onAddEvent={onAddEvent}
             currentTime={today}
+            onEventDrop={onEventDrop}
           />
         )}
         {view === 'week' && (
@@ -167,6 +169,7 @@ export default function Calendar({ events, onEventClick, onDateClick, onAddEvent
             onDateClick={onDateClick}
             onAddEvent={onAddEvent}
             currentTime={today}
+            onEventDrop={onEventDrop}
           />
         )}
         {view === 'month' && (
@@ -177,6 +180,7 @@ export default function Calendar({ events, onEventClick, onDateClick, onAddEvent
             onDateClick={onDateClick}
             onAddEvent={onAddEvent}
             currentTime={today}
+            onEventDrop={onEventDrop}
           />
         )}
       </div>

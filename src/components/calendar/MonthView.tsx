@@ -13,6 +13,7 @@ interface MonthViewProps {
   onDateClick?: (date: Date) => void;
   onAddEvent?: (date: Date) => void;
   currentTime: Date;
+  onEventDrop?: (event: ScheduleEvent, newStart: Date, newEnd: Date) => void;
 }
 
 // Get days for the month view (includes days from prev/next months to fill the grid)
@@ -62,7 +63,7 @@ const getDaysInMonthView = (date: Date) => {
   return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays];
 };
 
-export default function MonthView({ date, events, onEventClick, onDateClick, onAddEvent, currentTime }: MonthViewProps) {
+export default function MonthView({ date, events, onEventClick, onDateClick, onAddEvent, currentTime, onEventDrop }: MonthViewProps) {
   const [tooltipContent, setTooltipContent] = useState<React.ReactNode | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
@@ -156,6 +157,50 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
       year: 'numeric'
     });
   };
+  
+  // Handle drag start
+  const handleDragStart = (event: React.DragEvent, scheduleEvent: ScheduleEvent) => {
+    event.dataTransfer.setData('text/plain', JSON.stringify({
+      id: scheduleEvent.id,
+      eventType: scheduleEvent.type,
+      duration: scheduleEvent.end.getTime() - scheduleEvent.start.getTime(),
+      isAllDay: scheduleEvent.isAllDay
+    }));
+    event.dataTransfer.effectAllowed = 'move';
+  };
+  
+  // Handle drag over
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  };
+  
+  // Handle drop
+  const handleDrop = (event: React.DragEvent, day: Date) => {
+    event.preventDefault();
+    const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+    
+    if (!data.id || !onEventDrop) return;
+    
+    // Find the original event
+    const originalEvent = events.find(e => e.id === data.id);
+    if (!originalEvent) return;
+    
+    // Calculate new start and end times
+    const newStart = new Date(day);
+    // Keep the same time for the event
+    newStart.setHours(
+      originalEvent.start.getHours(),
+      originalEvent.start.getMinutes(),
+      0,
+      0
+    );
+    
+    const newEnd = new Date(newStart.getTime() + data.duration);
+    
+    // Call the onEventDrop handler
+    onEventDrop(originalEvent, newStart, newEnd);
+  };
 
   return (
     <div className="h-full overflow-y-auto">
@@ -201,6 +246,8 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
                   : 'bg-gray-50 text-gray-400'
               }`}
               onClick={() => onDateClick && onDateClick(day)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, day)}
             >
               <div className="flex justify-between items-center mb-1">
                 <span className={`text-sm font-medium ${isToday(day) ? 'bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center' : ''}`}>
@@ -240,16 +287,18 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
                         <div className="mt-1 text-gray-300">
                           {event.isAllDay || event.type === 'all-day' 
                             ? `All day: ${formatEventDate(event.start)}` 
-                            : <>
-                                {formatEventDate(event.start)}<br/>
-                                {formatEventTime(event.start)} - {formatEventTime(event.end)}
-                              </>
+                            : `${formatEventTime(event.start)} - ${formatEventTime(event.end)}, ${formatEventDate(event.start)}`
                           }
                         </div>
                       </>, 
                       e
                     )}
                     onMouseLeave={hideTooltip}
+                    draggable={true}
+                    onDragStart={(e) => {
+                      e.stopPropagation();
+                      handleDragStart(e, event);
+                    }}
                   >
                     <div className="flex w-full truncate">
                       {!event.isAllDay && event.type !== 'all-day' && (
