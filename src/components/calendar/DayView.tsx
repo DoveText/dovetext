@@ -185,17 +185,17 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
     if (event.type === 'reminder') {
       const top = (startHour + startMinute / 60) * 60;
       
+      // For reminders, we'll return positioning only
+      // The actual styling will be handled in the JSX with two parts
       return {
         top: `${top}px`,
-        height: '24px', // Compact height for reminders
-        width: 'calc(100% - 16px)', // Not full width to indicate it's a point event
+        height: 'auto', // Will be determined by content
+        width: 'calc(100% - 16px)', // Not full width
         marginLeft: '8px', // Centered
-        backgroundColor: event.color || getEventColor('reminder'),
-        borderLeft: '4px solid #f59e0b', // Amber border to distinguish reminders
-        borderRadius: '12px', // Pill shape to indicate point-in-time
         display: 'flex',
-        alignItems: 'center',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.1)' // Subtle shadow for depth
+        flexDirection: 'column' as const,
+        backgroundColor: 'transparent', // No background at container level
+        boxShadow: 'none' // No shadow at container level
       };
     }
     
@@ -213,15 +213,17 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
     // Otherwise, use the actual duration
     const height = durationMinutes <= 15 ? 15 : durationMinutes / 60 * 60;
     
+    // For events, we'll return positioning only
+    // The actual styling will be handled in the JSX with two parts
     return {
       top: `${top}px`,
       height: `${height}px`,
-      width: 'calc(100% - 16px)', // Match reminder width
-      marginLeft: '8px', // Centered like reminders
-      backgroundColor: event.color || getEventColor(event.type),
-      borderLeft: '4px solid #3b82f6', // Blue border for events (vs amber for reminders)
-      borderRadius: '6px', // Slightly less rounded than reminders
-      boxShadow: '0 1px 2px rgba(0,0,0,0.1)' // Same subtle shadow as reminders
+      width: 'calc(100% - 16px)', // Not full width
+      marginLeft: '8px', // Centered
+      display: 'flex',
+      flexDirection: 'column' as const,
+      backgroundColor: 'transparent', // No background at container level
+      boxShadow: 'none' // No shadow at container level
     };
   };
   
@@ -614,7 +616,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
           {timedEvents.map((event) => (
               <div
                   key={event.id}
-                  className="absolute left-16 right-2 rounded-md border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow z-10"
+                  className="absolute left-16 right-2 overflow-hidden cursor-pointer hover:shadow-md transition-shadow z-10"
                   style={getEventStyle(event)}
                   onClick={() => onEventClick && onEventClick(event)}
                   draggable={true}
@@ -630,23 +632,43 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                   )}
                   onMouseLeave={hideTooltip}
                 >
-              <div className={`h-full ${event.type === 'reminder' ? 'px-3 py-0 bg-amber-50 flex items-center justify-center' : 'p-2 bg-blue-50 flex flex-col justify-center'}`}>
-                {event.type === 'reminder' ? 
-                  <span className="mr-1 text-amber-500">⏰</span> : 
-                  <span className="absolute top-1 right-1 text-blue-500 text-xs">📅</span>
-                }
-                <div className="font-medium text-sm truncate">{event.title}</div>
-                <div className="text-xs text-gray-600">
-                  {event.type === 'reminder' 
-                    ? formatEventTime(event.start)
-                    : `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`
-                  }
+                <div className="flex">
+                  {/* Left part: Fixed width showing time duration */}
+                  <div className="w-8 flex-shrink-0 flex items-center justify-center">
+                    {event.type === 'reminder' ? (
+                      <div className="w-8 h-0.5 bg-amber-500 self-start"></div>
+                    ) : (
+                      <div 
+                        className="w-8 bg-blue-500 rounded-sm self-start"
+                        style={{
+                          height: `${(event.end.getHours() * 60 + event.end.getMinutes()) - (event.start.getHours() * 60 + event.start.getMinutes())}px`
+                        }}
+                      ></div>
+                    )}
+                  </div>
+                  
+                  {/* Right part: Fixed height with icon, title, and start time */}
+                  <div className={`
+                    flex-grow h-8 px-2 py-1 flex items-center
+                    ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
+                    rounded-md shadow-sm
+                  `}>
+                    {/* Icon */}
+                    {event.type === 'reminder' ? 
+                      <span className="mr-1 text-amber-500 flex-shrink-0">⏰</span> : 
+                      <span className="mr-1 text-blue-500 flex-shrink-0">📅</span>
+                    }
+                    
+                    {/* Title */}
+                    <div className="font-medium text-sm truncate flex-grow">{event.title}</div>
+                    
+                    {/* Start time */}
+                    <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
+                      {formatEventTime(event.start)}
+                    </div>
+                  </div>
                 </div>
-                {event.location && (
-                  <div className="text-xs text-gray-500 truncate">{event.location}</div>
-                )}
               </div>
-            </div>
           ))}
         </div>
       </div>

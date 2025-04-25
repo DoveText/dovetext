@@ -753,16 +753,43 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                   draggable={true}
                   onDragStart={(e) => handleDragStart(e, event)}
                 >
-                  <div className={`h-full ${event.type === 'reminder' ? 'px-3 py-0 bg-amber-50 flex items-center justify-center' : 'p-2 bg-blue-50 flex flex-col justify-center'}`}>
+                  {/* Two-part display: Header (tag) and Body */}
+                  
+                  {/* Part 1: Header/Tag - Fixed height with title and icon */}
+                  <div className={`
+                    ${event.type === 'reminder' ? 'bg-amber-50 border-l-4 border-amber-500' : 'bg-blue-50 border-l-4 border-blue-500'}
+                    h-6 rounded-t-md px-2 py-0 flex items-center z-10 shadow-sm
+                  `}>
                     {event.type === 'reminder' ? 
                       <span className="mr-1 text-amber-500">⏰</span> : 
-                      <span className="absolute top-1 right-1 text-blue-500 text-xs">📅</span>
+                      <span className="mr-1 text-blue-500">📅</span>
                     }
-                    <div className="font-medium text-xs truncate">{event.title}</div>
-                    <div className="text-xs text-gray-600 truncate">
+                    <div className="font-medium text-xs truncate flex-1">{event.title}</div>
+                    <div className="text-xs text-gray-600 ml-1">
                       {formatEventTime(event.start)}
                     </div>
                   </div>
+                  
+                  {/* Part 2: Body - Variable height based on duration */}
+                  {event.type === 'reminder' ? (
+                    <div className="h-0 border-l border-r border-b border-amber-200 mx-2"></div>
+                  ) : (
+                    <div className={`
+                      bg-blue-50/80 border-l-4 border-blue-500 border-r border-b border-blue-200
+                      rounded-b-md px-2 py-1 flex-1 flex flex-col
+                      ${(event.end.getHours() * 60 + event.end.getMinutes()) - (event.start.getHours() * 60 + event.start.getMinutes()) <= 15 ? 'hidden' : ''}
+                    `}>
+                      <div className="text-xs text-gray-600">
+                        {`${formatEventTime(event.start)} - ${formatEventTime(event.end)}`}
+                      </div>
+                      {event.location && (
+                        <div className="text-xs text-gray-500 truncate mt-1">{event.location}</div>
+                      )}
+                      {event.description && (event.end.getHours() * 60 + event.end.getMinutes()) - (event.start.getHours() * 60 + event.start.getMinutes()) > 30 && (
+                        <div className="text-xs text-gray-500 truncate mt-1">{event.description}</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             });
