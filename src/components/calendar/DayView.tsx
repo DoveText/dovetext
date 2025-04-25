@@ -362,10 +362,6 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
       return 0;
     }
 
-    if(!selectionStart) {
-      return 15;
-    }
-
     return Math.abs((hoverSlot.hour * 60 + hoverSlot.minute) - (selectionStart.hour * 60 + selectionStart.minute)) + 15;
   }, [hoverSlot, selectionStart])
 
@@ -616,7 +612,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
           {timedEvents.map((event) => (
               <div
                   key={event.id}
-                  className="absolute left-16 right-2 overflow-hidden cursor-pointer hover:shadow-md transition-shadow z-10"
+                  className="absolute left-16 right-2 overflow-visible cursor-pointer hover:shadow-md transition-shadow z-10"
                   style={getEventStyle(event)}
                   onClick={() => onEventClick && onEventClick(event)}
                   draggable={true}
@@ -634,12 +630,12 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                 >
                 <div className="flex">
                   {/* Left part: Fixed width showing time duration */}
-                  <div className="w-8 flex-shrink-0 flex items-center justify-center">
+                  <div className="w-16 flex-shrink-0 flex items-start justify-center">
                     {event.type === 'reminder' ? (
-                      <div className="w-8 h-0.5 bg-amber-500 self-start"></div>
+                      <div className="w-16 h-0.5 bg-amber-500"></div>
                     ) : (
                       <div 
-                        className="w-8 bg-blue-500 rounded-sm self-start"
+                        className="w-16 bg-blue-500 rounded-sm"
                         style={{
                           height: `${(event.end.getHours() * 60 + event.end.getMinutes()) - (event.start.getHours() * 60 + event.start.getMinutes())}px`
                         }}
@@ -647,20 +643,29 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                     )}
                   </div>
                   
-                  {/* Right part: Fixed height with icon, title, and start time */}
-                  <div className={`
-                    flex-grow h-8 px-2 py-1 flex items-center
-                    ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
-                    rounded-md shadow-sm
-                  `}>
+                  {/* Right part: Fixed height with icon, title, and start time - Always visible regardless of event duration */}
+                  <div 
+                    className={`
+                      flex-grow px-2 py-0.5 flex items-center
+                      ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
+                      rounded-md shadow-sm
+                    `}
+                    style={{
+                      minHeight: '24px', // Reduced from 32px
+                      position: 'absolute',
+                      left: '64px', // Updated to match the new width of the left part (16px)
+                      right: 0,
+                      zIndex: 20
+                    }}
+                  >
                     {/* Icon */}
                     {event.type === 'reminder' ? 
-                      <span className="mr-1 text-amber-500 flex-shrink-0">⏰</span> : 
-                      <span className="mr-1 text-blue-500 flex-shrink-0">📅</span>
+                      <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
+                      <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
                     }
                     
                     {/* Title */}
-                    <div className="font-medium text-sm truncate flex-grow">{event.title}</div>
+                    <div className="font-medium text-xs truncate">{event.title}</div>
                     
                     {/* Start time */}
                     <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
