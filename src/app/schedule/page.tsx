@@ -214,7 +214,7 @@ function ScheduleContent() {
 
         {/* Calendar Component */}
         <div className="bg-white shadow rounded-lg p-4 sm:p-6">
-          <div className="h-[calc(100vh-240px)]">
+          <div className="h-full">
             <Calendar 
               events={events}
               onEventClick={handleEventClick}

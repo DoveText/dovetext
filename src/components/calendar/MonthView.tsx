@@ -246,7 +246,7 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
             <div 
               key={index} 
               className={`
-                min-h-[100px] border-r p-1
+                min-h-[140px] border-r p-1
                 ${isLastDayOfWeek ? 'border-r-0' : ''}
                 ${isLastRow ? '' : 'border-b-2 border-b-gray-200'}
                 ${isCurrentMonth(day) 
@@ -260,7 +260,7 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, day)}
             >
-              <div className="flex justify-between items-center mb-1">
+              <div className="flex justify-between items-center mb-1 min-h-[24px]">
                 <span className={`text-sm font-medium ${isToday(day) ? 'bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center' : ''}`}>
                   {day.getDate()}
                 </span>
