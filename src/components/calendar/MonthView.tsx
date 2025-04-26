@@ -126,14 +126,16 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
   };
   
   // Get event background color based on type
-  const getEventColor = (type: string) => {
+  const getEventColor = (type: string, isAllDay: boolean = false) => {
+    if (isAllDay) {
+      return 'bg-green-100 text-green-800 border-green-200';
+    }
+    
     switch (type) {
       case 'event':
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'reminder':
         return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'all-day':
-        return 'bg-green-100 text-green-800 border-green-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -288,13 +290,13 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
                       e.stopPropagation();
                       onEventClick && onEventClick(event);
                     }}
-                    className={`px-1 py-0.5 text-xs rounded cursor-pointer truncate border ${getEventColor(event.type)} w-full`}
+                    className={`px-1 py-0.5 text-xs rounded cursor-pointer truncate border ${getEventColor(event.type, event.isAllDay)} w-full`}
                     onMouseEnter={(e) => showTooltip(
                       <>
                         <div className="font-medium">{event.title}</div>
                         {event.description && <div className="mt-1">{event.description}</div>}
                         <div className="mt-1 text-gray-300">
-                          {event.isAllDay || event.type === 'all-day' 
+                          {event.isAllDay 
                             ? `All day: ${formatEventDate(event.start)}` 
                             : `${formatEventTime(event.start)} - ${formatEventTime(event.end)}, ${formatEventDate(event.start)}`
                           }
@@ -313,14 +315,14 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
                       {/* Icon based on event type */}
                       {event.type === 'reminder' ? (
                         <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span>
-                      ) : event.type === 'all-day' ? (
+                      ) : event.isAllDay ? (
                         <span className="mr-1 text-green-500 flex-shrink-0 text-xs">📆</span>
                       ) : (
                         <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
                       )}
                       
                       {/* Time (for non-all-day events) */}
-                      {!event.isAllDay && event.type !== 'all-day' && (
+                      {!event.isAllDay && (
                         <span className="mr-1 flex-shrink-0">{formatEventTime(event.start)}</span>
                       )}
                       

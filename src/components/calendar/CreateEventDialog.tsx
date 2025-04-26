@@ -13,7 +13,8 @@ interface CreateEventDialogProps {
 }
 
 export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate = new Date(), initialEvent = null }: CreateEventDialogProps) {
-  const [eventType, setEventType] = useState<'event' | 'reminder' | 'all-day'>('event');
+  const [eventType, setEventType] = useState<'event' | 'reminder'>('event');
+  const [isAllDay, setIsAllDay] = useState(false);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(formatDateForInput(initialDate));
   const [startTime, setStartTime] = useState(formatTimeForInput(initialDate));
@@ -50,7 +51,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
     const startDate = new Date(date);
     const endDate = new Date(date);
     
-    if (eventType !== 'all-day') {
+    if (!isAllDay) {
       // Parse start time
       const [startHours, startMinutes] = startTime.split(':').map(Number);
       startDate.setHours(startHours, startMinutes, 0, 0);
@@ -75,7 +76,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
       title,
       start: startDate,
       end: endDate,
-      isAllDay: eventType === 'all-day',
+      isAllDay,
       type: eventType,
       location,
       description
@@ -94,6 +95,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
     setLocation('');
     setDescription('');
     setEventType('event');
+    setIsAllDay(false);
     setIsEditing(false);
     setEventId(null);
   };
@@ -122,6 +124,8 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
           setEndTime(formatTimeForInput(initialEvent.end));
         }
       }
+      
+      setIsAllDay(initialEvent.isAllDay);
       
       // Only set location for ordinary events
       if (initialEvent.type !== 'event') {
@@ -159,38 +163,41 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Event Type Selection */}
-          <div className="flex space-x-4">
-            <label className="flex items-center">
+          {/* Event Type Selection and All Day checkbox */}
+          <div className="flex justify-between items-center">
+            <div className="flex space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="eventType"
+                  checked={eventType === 'event'}
+                  onChange={() => setEventType('event')}
+                  className="mr-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Event</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="eventType"
+                  checked={eventType === 'reminder'}
+                  onChange={() => setEventType('reminder')}
+                  className="mr-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Reminder</span>
+              </label>
+            </div>
+            
+            <div className="flex items-center">
               <input
-                type="radio"
-                name="eventType"
-                checked={eventType === 'event'}
-                onChange={() => setEventType('event')}
+                type="checkbox"
+                id="all-day-checkbox"
+                checked={isAllDay}
+                onChange={() => setIsAllDay(!isAllDay)}
                 className="mr-2"
               />
-              <span className="text-sm font-medium text-gray-700">Event</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="eventType"
-                checked={eventType === 'reminder'}
-                onChange={() => setEventType('reminder')}
-                className="mr-2"
-              />
-              <span className="text-sm font-medium text-gray-700">Reminder</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="eventType"
-                checked={eventType === 'all-day'}
-                onChange={() => setEventType('all-day')}
-                className="mr-2"
-              />
-              <span className="text-sm font-medium text-gray-700">All Day</span>
-            </label>
+              <label htmlFor="all-day-checkbox" className="text-sm font-medium text-gray-700">All Day</label>
+            </div>
           </div>
           
           {/* Event/Reminder Title */}
@@ -220,7 +227,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
           </div>
           
           {/* Time (only for non-all-day events) */}
-          {eventType !== 'all-day' && (
+          {!isAllDay && (
             <div className={eventType === 'reminder' ? '' : 'grid grid-cols-2 gap-4'}>
               <div>
                 <label className="block text-sm font-medium text-gray-700">
@@ -249,7 +256,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
             </div>
           )}
           
-          {/* Location - only for events, not for reminders or all-day events */}
+          {/* Location - only for events, not for reminders */}
           {eventType === 'event' && (
             <div>
               <label className="block text-sm font-medium text-gray-700">Location</label>

@@ -163,8 +163,8 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   });
   
   // Separate all-day events
-  const allDayEvents = dayEvents.filter(event => event.isAllDay || event.type === 'all-day');
-  const timedEvents = dayEvents.filter(event => !event.isAllDay && event.type !== 'all-day');
+  const allDayEvents = dayEvents.filter(event => event.isAllDay);
+  const timedEvents = dayEvents.filter(event => !event.isAllDay);
   
   // Check if the date is today
   const isToday = currentTime.getDate() === date.getDate() &&
@@ -272,25 +272,25 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   const getEventColor = (type: string) => {
     switch (type) {
       case 'event':
-        return 'rgba(59, 130, 246, 0.2)'; // blue
+        return 'bg-blue-100';
       case 'reminder':
-        return 'rgba(245, 158, 11, 0.2)'; // amber
-      case 'all-day':
-        return 'rgba(16, 185, 129, 0.2)'; // green
+        return 'bg-amber-100';
       default:
-        return 'rgba(107, 114, 128, 0.2)'; // gray
+        return 'bg-gray-100';
     }
   };
   
   // Get border color based on event type
-  const getEventBorderColor = (type: string) => {
+  const getEventBorderColor = (type: string, isAllDay: boolean = false) => {
+    if (isAllDay) {
+      return 'border-green-500';
+    }
+    
     switch (type) {
       case 'event':
         return 'border-blue-500';
       case 'reminder':
         return 'border-amber-500';
-      case 'all-day':
-        return 'border-green-500';
       default:
         return 'border-gray-500';
     }
@@ -435,7 +435,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
               <div 
                 key={event.id}
                 onClick={() => onEventClick && onEventClick(event)}
-                className={`px-2 py-1 rounded text-sm cursor-pointer border-l-4 ${getEventBorderColor(event.type)} bg-gray-50 hover:bg-gray-100`}
+                className={`px-2 py-1 rounded text-sm cursor-pointer border-l-4 ${getEventBorderColor(event.type, event.isAllDay)} bg-gray-50 hover:bg-gray-100`}
                 onMouseEnter={(e) => showTooltip(
                   <>
                     <div className="font-bold">{event.title}</div>
@@ -662,7 +662,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                     className={`
                       absolute top-0.5 left-3 right-5
                       px-2 py-0.5 flex items-center
-                      ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
+                      ${getEventColor(event.type)} ${getEventBorderColor(event.type, event.isAllDay)}
                       rounded-md shadow-sm
                     `}
                     style={{

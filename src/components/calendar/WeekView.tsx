@@ -221,13 +221,13 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
   // Get all-day events for each day
   const getAllDayEventsForDay = (day: Date) => {
     const dayEvents = getEventsForDay(day);
-    return dayEvents.filter(event => event.isAllDay || event.type === 'all-day');
+    return dayEvents.filter(event => event.isAllDay);
   };
 
   // Get timed events for each day
   const getTimedEventsForDay = (day: Date) => {
     const dayEvents = getEventsForDay(day);
-    return dayEvents.filter(event => !event.isAllDay && event.type !== 'all-day');
+    return dayEvents.filter(event => !event.isAllDay);
   };
 
   // Helper function to position events on the timeline
@@ -244,7 +244,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         height: '24px', // Compact height for reminders
         width: 'calc(100% - 16px)', // Not full width to indicate it's a point event
         marginLeft: '8px', // Centered
-        backgroundColor: event.color || getEventColor('reminder'),
+        backgroundColor: event.color || getEventColor(event.type),
         borderLeft: '4px solid #f59e0b', // Amber border to distinguish reminders
         borderRadius: '12px', // Pill shape to indicate point-in-time
         display: 'flex',
@@ -324,25 +324,25 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
   const getEventColor = (type: string) => {
     switch (type) {
       case 'event':
-        return 'rgba(59, 130, 246, 0.2)'; // blue
+        return 'bg-blue-100';
       case 'reminder':
-        return 'rgba(245, 158, 11, 0.2)'; // amber
-      case 'all-day':
-        return 'rgba(16, 185, 129, 0.2)'; // green
+        return 'bg-amber-100';
       default:
-        return 'rgba(107, 114, 128, 0.2)'; // gray
+        return 'bg-gray-100';
     }
   };
-
+  
   // Get border color based on event type
-  const getEventBorderColor = (type: string) => {
+  const getEventBorderColor = (type: string, isAllDay: boolean = false) => {
+    if (isAllDay) {
+      return 'border-green-500';
+    }
+    
     switch (type) {
       case 'event':
         return 'border-blue-500';
       case 'reminder':
         return 'border-amber-500';
-      case 'all-day':
-        return 'border-green-500';
       default:
         return 'border-gray-500';
     }
@@ -483,7 +483,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                       <div 
                         key={event.id}
                         onClick={() => onEventClick && onEventClick(event)}
-                        className={`px-1 py-1 rounded text-xs cursor-pointer border-l-2 ${getEventBorderColor(event.type)} bg-white hover:bg-gray-100 truncate w-full`}
+                        className={`px-1 py-1 rounded text-xs cursor-pointer border-l-2 ${getEventBorderColor(event.type, event.isAllDay)} bg-white hover:bg-gray-100 truncate w-full`}
                         onMouseEnter={(e) => showTooltip(
                           <>
                             <div className="font-medium">{event.title}</div>

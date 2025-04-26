@@ -14,7 +14,7 @@ export interface ScheduleEvent {
   start: Date;
   end: Date;
   isAllDay: boolean;
-  type: 'event' | 'reminder' | 'all-day';
+  type: 'event' | 'reminder';
   location?: string;
   description?: string;
   color?: string;

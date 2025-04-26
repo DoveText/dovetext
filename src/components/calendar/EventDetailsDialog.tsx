@@ -41,14 +41,16 @@ export default function EventDetailsDialog({
   };
 
   // Get event type badge color
-  const getEventTypeBadgeColor = (type: string) => {
+  const getEventTypeBadgeColor = (type: string, isAllDay: boolean = false) => {
+    if (isAllDay) {
+      return 'bg-green-100 text-green-800';
+    }
+    
     switch (type) {
       case 'event':
         return 'bg-blue-100 text-blue-800';
       case 'reminder':
         return 'bg-amber-100 text-amber-800';
-      case 'all-day':
-        return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -60,7 +62,7 @@ export default function EventDetailsDialog({
         <div className="flex justify-between items-start">
           <div>
             <h2 className="text-xl font-semibold">{event.title}</h2>
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded mt-1 inline-block ${getEventTypeBadgeColor(event.type)}`}>
+            <span className={`text-xs font-medium px-2.5 py-0.5 rounded mt-1 inline-block ${getEventTypeBadgeColor(event.type, event.isAllDay)}`}>
               {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
             </span>
           </div>
