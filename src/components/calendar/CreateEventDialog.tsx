@@ -35,12 +35,19 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
 
   // Helper function to format date for input
   function formatDateForInput(date: Date): string {
-    return date.toISOString().split('T')[0];
+    // Use local date instead of UTC to avoid timezone issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   // Helper function to format time for input
   function formatTimeForInput(date: Date): string {
-    return date.toTimeString().slice(0, 5);
+    // Use local time instead of UTC
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
   }
 
   // Handle form submission
