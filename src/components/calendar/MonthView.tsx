@@ -229,7 +229,7 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
       </div>
       
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 grid-rows-6 h-full border-b">
+      <div className="grid grid-cols-7 auto-rows-fr border-b" style={{ minHeight: '600px' }}>
         {daysInMonth.map((day, index) => {
           const dayEvents = getEventsForDay(day);
           const maxEventsToShow = 3;

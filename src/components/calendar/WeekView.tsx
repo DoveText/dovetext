@@ -494,7 +494,10 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                         )}
                         onMouseLeave={hideTooltip}
                       >
-                        {event.title}
+                        <div className="flex items-center">
+                          <span className="mr-1 text-green-500 flex-shrink-0 text-xs">📆</span>
+                          <span className="truncate">{event.title}</span>
+                        </div>
                       </div>
                     ))}
                   </div>

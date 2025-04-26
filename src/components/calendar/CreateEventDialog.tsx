@@ -101,7 +101,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
   // Handle event type change
   useEffect(() => {
     // When switching to reminder type, clear location
-    if (eventType === 'reminder') {
+    if (eventType !== 'event') {
       setLocation('');
     }
   }, [eventType]);
@@ -123,8 +123,8 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
         }
       }
       
-      // Only set location for non-reminder events
-      if (initialEvent.type !== 'reminder') {
+      // Only set location for ordinary events
+      if (initialEvent.type !== 'event') {
         setLocation(initialEvent.location || '');
       } else {
         setLocation('');
@@ -249,8 +249,8 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
             </div>
           )}
           
-          {/* Location - only for events, not for reminders */}
-          {eventType !== 'reminder' && (
+          {/* Location - only for events, not for reminders or all-day events */}
+          {eventType === 'event' && (
             <div>
               <label className="block text-sm font-medium text-gray-700">Location</label>
               <input 

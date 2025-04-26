@@ -447,7 +447,10 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                 )}
                 onMouseLeave={hideTooltip}
               >
-                <div className="font-medium truncate">{event.title}</div>
+                <div className="font-medium truncate flex items-center">
+                  <span className="mr-1 text-green-500 flex-shrink-0 text-sm">📆</span>
+                  {event.title}
+                </div>
                 {event.location && <div className="text-xs text-gray-500 truncate">{event.location}</div>}
               </div>
             ))}
