@@ -11,9 +11,10 @@ interface MonthViewProps {
   events: ScheduleEvent[];
   onEventClick?: (event: ScheduleEvent) => void;
   onDateClick?: (date: Date) => void;
-  onAddEvent?: (date: Date) => void;
+  onAddEvent?: (date: Date, presetEvent?: ScheduleEvent) => void;
   currentTime: Date;
   onEventDrop?: (event: ScheduleEvent, newStart: Date, newEnd: Date) => void;
+  onViewChange?: (view: 'day' | 'week' | 'month', date: Date) => void;
 }
 
 // Get days for the month view (includes days from prev/next months to fill the grid)
@@ -63,7 +64,16 @@ const getDaysInMonthView = (date: Date) => {
   return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays];
 };
 
-export default function MonthView({ date, events, onEventClick, onDateClick, onAddEvent, currentTime, onEventDrop }: MonthViewProps) {
+export default function MonthView({ 
+  date, 
+  events, 
+  onEventClick, 
+  onDateClick, 
+  onAddEvent, 
+  currentTime, 
+  onEventDrop,
+  onViewChange 
+}: MonthViewProps) {
   const [tooltipContent, setTooltipContent] = useState<React.ReactNode | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
@@ -341,6 +351,15 @@ export default function MonthView({ date, events, onEventClick, onDateClick, onA
                       e
                     )}
                     onMouseLeave={hideTooltip}
+                    onClick={() => {
+                      // Switch to day view for this date when clicking on "+x more"
+                      if (onViewChange) {
+                        onViewChange('day', day);
+                      } else if (onDateClick) {
+                        // Fallback to onDateClick if onViewChange is not provided
+                        onDateClick(day);
+                      }
+                    }}
                   >
                     +{remainingEvents} more
                   </div>

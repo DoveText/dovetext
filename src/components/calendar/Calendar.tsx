@@ -97,6 +97,12 @@ export default function Calendar({ events, onEventClick, onDateClick, onAddEvent
     setCurrentDate(new Date());
   };
 
+  // Handle view change with specific date
+  const handleViewChange = (newView: CalendarViewType, newDate: Date) => {
+    setView(newView);
+    setCurrentDate(newDate);
+  };
+
   return (
     <div className="flex flex-col h-full bg-white rounded-lg shadow overflow-hidden">
       {/* Calendar Header */}
@@ -181,6 +187,7 @@ export default function Calendar({ events, onEventClick, onDateClick, onAddEvent
             onAddEvent={onAddEvent}
             currentTime={today}
             onEventDrop={onEventDrop}
+            onViewChange={handleViewChange}
           />
         )}
       </div>
