@@ -300,7 +300,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
     
     // Process events for each starting slot
     const processedEvents: (ScheduleEvent & { column: number, maxColumns: number, inFirstQuarter: boolean })[] = [];
-    const moreIndicators: { [key: string]: { count: number, eventIds: string[] } } = {};
+    const moreIndicators: { [key: string]: { count: number, events: ScheduleEvent[] } } = {};
     
     Object.entries(startingSlots).forEach(([slotKey, eventsInSlot]) => {
       const eventCount = eventsInSlot.length;
@@ -309,8 +309,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         // No events in this slot, nothing to do
         return;
       } else if (eventCount === 1) {
-        // One event, it takes full width
-        // Check if event starts in the first 15 minutes of the 30-minute slot
+        // One event, it takes full width minus the reserved space for the more indicator
         const event = eventsInSlot[0];
         const inFirstQuarter = event.start.getMinutes() % 30 < 15;
         
@@ -321,9 +320,8 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
           inFirstQuarter
         });
       } else if (eventCount === 2) {
-        // Two events, each takes 50% width
+        // Two events, each takes 50% of the available width (minus the reserved space)
         eventsInSlot.forEach((event, index) => {
-          // Check if event starts in the first 15 minutes of the 30-minute slot
           const inFirstQuarter = event.start.getMinutes() % 30 < 15;
           
           processedEvents.push({
@@ -333,38 +331,25 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
             inFirstQuarter
           });
         });
-      } else if (eventCount === 3) {
-        // Three events, each takes 33% width
-        eventsInSlot.forEach((event, index) => {
-          // Check if event starts in the first 15 minutes of the 30-minute slot
-          const inFirstQuarter = event.start.getMinutes() % 30 < 15;
-          
-          processedEvents.push({
-            ...event,
-            column: index,
-            maxColumns: 3,
-            inFirstQuarter
-          });
-        });
       } else {
-        // More than three events, first two are shown, rest go into "+N More"
+        // More than two events, show only the first two and a "more" indicator
         const firstEvent = eventsInSlot[0];
         const secondEvent = eventsInSlot[1];
         
-        // Check if events start in the first 15 minutes of the 30-minute slot
         const firstInFirstQuarter = firstEvent.start.getMinutes() % 30 < 15;
         const secondInFirstQuarter = secondEvent.start.getMinutes() % 30 < 15;
         
         processedEvents.push({
           ...firstEvent,
           column: 0,
-          maxColumns: 3,
+          maxColumns: 2,
           inFirstQuarter: firstInFirstQuarter
         });
+        
         processedEvents.push({
           ...secondEvent,
           column: 1,
-          maxColumns: 3,
+          maxColumns: 2,
           inFirstQuarter: secondInFirstQuarter
         });
         
@@ -372,7 +357,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         const moreEvents = eventsInSlot.slice(2);
         moreIndicators[slotKey] = {
           count: moreEvents.length,
-          eventIds: moreEvents.map(e => e.id)
+          events: moreEvents
         };
       }
     });
@@ -651,7 +636,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
       </div>
       
       {/* All-day events */}
-      <div className="flex border-b pr-[10px]">
+      <div className="flex border-b">
         <div className="w-16 shrink-0 p-2 text-xs font-medium text-gray-500 border-r">ALL DAY</div>
         <div className="flex flex-1">
           {daysOfWeek.map((day, dayIndex) => {
@@ -837,7 +822,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         <div className="relative" style={{ height: "1440px" }}> {/* 24 hours * 60px per hour */}
           {/* Time slots - show all hours */}
           {timeSlots.map((slot) => (
-            <div key={slot.hour} className="flex h-[60px] border-b border-gray-100">
+            <div key={slot.hour} className="flex h-[60px] border-b border-gray-200">
               <div className="w-16 pr-2 pt-[12px] text-right text-xs text-gray-500 -mt-2 border-r">
                 {slot.label}
               </div>
@@ -850,11 +835,11 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                     data-day-index={dayIndex}
                   >
                     {/* 15-minute interval line */}
-                    <div className="absolute left-0 right-0 top-[15px] border-t border-dashed border-gray-200"></div>
+                    <div className="absolute left-0 right-0 top-[15px] border-t border-dashed border-gray-50"></div>
                     {/* 30-minute interval line - solid */}
-                    <div className="absolute left-0 right-0 top-[30px] border-t border-solid border-gray-200"></div>
+                    <div className="absolute left-0 right-0 top-[30px] border-t border-solid border-gray-150"></div>
                     {/* 45-minute interval line */}
-                    <div className="absolute left-0 right-0 top-[45px] border-t border-dashed border-gray-200"></div>
+                    <div className="absolute left-0 right-0 top-[45px] border-t border-dashed border-gray-50"></div>
                     
                     <div className="absolute left-0 top-0 h-full w-full flex items-center justify-center">
                       <PlusIcon className="h-5 w-5 text-blue-500 opacity-0 hover:opacity-100" />
@@ -884,7 +869,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
               className="absolute bg-blue-50 opacity-50 rounded-md border border-blue-200 z-0"
               style={{
                 top: `${hoverSlot.hour * 60 + hoverSlot.minute}px`,
-                height: '30px',
+                height: '15px',
                 left: `calc(4rem + (${daysOfWeek.findIndex(d => d.getTime() === hoverSlot.day.getTime())} * calc((100% - 4rem) / 7)))`,
                 width: `calc((100% - 4rem) / 7 - 6px)`
               }}
@@ -935,15 +920,19 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                     const endHour = event.end.getHours();
                     const endMinute = event.end.getMinutes();
                     const durationMinutes = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
-                    height = `${Math.max(30, durationMinutes)}px`;
+                    height = `${durationMinutes}px`;
                   }
                   
+                  // Fixed width for the dots indicator
+                  const dotsWidth = 20; // 16px + 4px margin
+                  
                   // Calculate width based on column and maxColumns
-                  // Add spacing between columns by making each column slightly narrower
-                  const columnWidth = `calc(((${dayWidth} - 6px) / ${event.maxColumns}) - ${event.maxColumns > 1 ? '2px' : '0px'})`;
+                  // Add spacing between columns and reserve space for the dots indicator
+                  const availableWidth = `calc(${dayWidth} - ${dotsWidth}px - 6px)`;
+                  const columnWidth = `calc((${availableWidth} / ${event.maxColumns}) - ${event.maxColumns > 1 ? '2px' : '0px'})`;
                   const columnLeft = event.maxColumns > 1 
-                    ? `calc((${event.column} * ((${dayWidth} - 6px) / ${event.maxColumns})) + ${event.column * 2}px)`
-                    : '0px'; // If only one column, take full width
+                    ? `calc((${event.column} * (${availableWidth} / ${event.maxColumns})) + ${event.column * 2}px)`
+                    : '0px'; // If only one column, take full width (minus dots area)
                   
                   return (
                     <div 
@@ -1015,7 +1004,9 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                         {/* Title/icon part positioned with margins */}
                         <div 
                           className={`
-                            absolute ${getEventDurationMinutes(event) >= 30 ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')} left-1
+                            absolute ${(event.type === 'reminder' || getEventDurationMinutes(event) < 30) ? 
+                              (event.inFirstQuarter ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')) : 
+                              'top-0.5'} left-1
                             px-1 py-0.5 flex items-center
                             ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
                             rounded-md shadow-sm
@@ -1076,34 +1067,36 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                 })}
                 
                 {/* "+More" indicators */}
-                {Object.entries(moreIndicators).map(([slotKey, { count, eventIds }]) => {
+                {Object.entries(moreIndicators).map(([slotKey, { count, events }]) => {
                   const [hourStr, minuteStr] = slotKey.split(':');
                   const hour = parseInt(hourStr);
                   const minute = parseInt(minuteStr);
                   const top = (hour + minute / 60) * 60;
                   
-                  // Find the max columns for this slot
-                  const slotKeyMaxColumns = 3;
+                  // Calculate width and position for the "more" indicator
+                  // Fixed width for the more indicator (16px)
+                  const moreWidth = '16px';
+                  const dayLeft = `calc(4rem + (${dayIndex} * ${dayWidth}))`;
+                  const moreLeft = `calc(${dayLeft} + ${dayWidth} - ${moreWidth} - 4px)`;
                   
-                  // Calculate width and position for the "+more" indicator (column 2)
-                  const columnWidth = `calc(((${dayWidth} - 6px) / ${slotKeyMaxColumns}) - 2px)`;
-                  const columnLeft = `calc((2 * ((${dayWidth} - 6px) / ${slotKeyMaxColumns})) + 4px)`;
+                  // Format time range for tooltip
+                  const timeRange = `${hour}:${minute === 0 ? '00' : minute} - ${minute === 0 ? hour : hour + 1}:${minute === 0 ? '30' : '00'}`;
                   
                   return (
                     <div 
                       key={`more-${dayIndex}-${slotKey}`}
-                      className="absolute cursor-pointer z-20 bg-gray-100 hover:bg-gray-200 text-xs text-blue-600 font-medium rounded-sm border border-gray-300 flex items-center justify-center"
+                      className="absolute cursor-pointer z-20 bg-gray-100 hover:bg-gray-200 rounded-full flex flex-col items-center justify-center"
                       style={{
-                        top: `${top}px`,
-                        height: '20px',
-                        left: `calc(${dayLeft} + ${columnLeft})`,
-                        width: columnWidth
+                        top: `${top + 2}px`,
+                        height: '26px',
+                        left: moreLeft,
+                        width: moreWidth
                       }}
                       onClick={(e) => {
                         // Prevent event bubbling to avoid triggering other handlers
                         e.stopPropagation();
                         
-                        // Switch to day view for this date when clicking on "+x more"
+                        // Switch to day view for this date when clicking on the more indicator
                         if (onViewChange) {
                           onViewChange('day', day);
                         } else if (onDateClick) {
@@ -1111,12 +1104,33 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                           onDateClick(day);
                         }
                       }}
+                      onMouseEnter={(e) => {
+                        showTooltip(
+                          <>
+                            <div className="font-bold">{count} more events</div>
+                            <div className="text-xs text-gray-500 mb-1">Time slot: {timeRange}</div>
+                            {events.map((event, i) => (
+                              <div key={i} className="mt-1 border-t pt-1 border-gray-200 first:border-t-0 first:pt-0">
+                                <div className="font-medium">{event.title}</div>
+                                <div className="text-xs">{formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
+                              </div>
+                            ))}
+                          </>,
+                          e
+                        );
+                      }}
+                      onMouseLeave={hideTooltip}
                       onMouseDown={(e) => {
                         // Prevent default to avoid any drag behavior
                         e.preventDefault();
                       }}
                     >
-                      +{count}
+                      {/* Vertical dots */}
+                      <div className="flex flex-col items-center justify-center h-full">
+                        <div className="w-0.5 h-0.5 bg-blue-600 rounded-full mb-1"></div>
+                        <div className="w-0.5 h-0.5 bg-blue-600 rounded-full mb-1"></div>
+                        <div className="w-0.5 h-0.5 bg-blue-600 rounded-full"></div>
+                      </div>
                     </div>
                   );
                 })}

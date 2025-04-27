@@ -731,7 +731,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
         <div className="relative min-h-[1440px]"> {/* 24 hours * 60px per hour */}
           {/* Time slots */}
           {timeSlots.map((slot) => (
-            <div key={slot.hour} className="flex h-[60px] border-b border-gray-100">
+            <div key={slot.hour} className="flex h-[60px] border-b border-gray-200">
               <div className="w-16 pr-2 pt-[12px] text-right text-xs text-gray-500 -mt-2">
                 {slot.label}
               </div>
@@ -740,11 +740,11 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                 data-hour={slot.hour}
               >
                 {/* 15-minute interval line */}
-                <div className="absolute left-0 right-0 top-[15px] border-t border-dashed border-gray-200"></div>
+                <div className="absolute left-0 right-0 top-[15px] border-t border-dashed border-gray-50"></div>
                 {/* 30-minute interval line - solid */}
-                <div className="absolute left-0 right-0 top-[30px] border-t border-solid border-gray-200"></div>
+                <div className="absolute left-0 right-0 top-[30px] border-t border-solid border-gray-150"></div>
                 {/* 45-minute interval line */}
-                <div className="absolute left-0 right-0 top-[45px] border-t border-dashed border-gray-200"></div>
+                <div className="absolute left-0 right-0 top-[45px] border-t border-dashed border-gray-100"></div>
                 
                 <div 
                   className="absolute left-0 top-0 h-full w-full flex items-center justify-center"
