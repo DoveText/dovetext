@@ -102,6 +102,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const activeEventRef = useRef<HTMLElement | null>(null);
   
   const [selectionStart, setSelectionStart] = useState<{day: Date, hour: number, minute: number} | null>(null);
   const [currentSelectionDay, setCurrentSelectionDay] = useState<Date | null>(null);
@@ -168,6 +169,20 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
       clearTimeout(tooltipTimeoutRef.current);
     }
 
+    // Find the event container element (the parent with the 'event-container' class)
+    let eventContainer = e.currentTarget as HTMLElement;
+    while (eventContainer && !eventContainer.classList.contains('event-container')) {
+      eventContainer = eventContainer.parentElement as HTMLElement;
+    }
+    
+    // Store the event container for reference
+    if (eventContainer) {
+      activeEventRef.current = eventContainer;
+    } else {
+      // Fallback to the current target if we can't find the container
+      activeEventRef.current = e.currentTarget as HTMLElement;
+    }
+    
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltipContent(content);
     setTooltipPosition({
@@ -180,11 +195,26 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
     }, 100);
   };
 
-  const hideTooltip = () => {
+  const hideTooltip = (e?: React.MouseEvent) => {
+    // If we have an event and an active event reference
+    if (e && activeEventRef.current) {
+      // Check if the mouse is still within the event container or its children
+      const eventElement = activeEventRef.current;
+      const relatedTarget = e.relatedTarget as Node;
+      
+      // If the related target (where the mouse went to) is within the event container,
+      // don't hide the tooltip
+      if (eventElement.contains(relatedTarget) || eventElement === relatedTarget) {
+        return;
+      }
+    }
+    
+    // Otherwise, hide the tooltip
     if (tooltipTimeoutRef.current) {
       clearTimeout(tooltipTimeoutRef.current);
     }
     setIsTooltipVisible(false);
+    activeEventRef.current = null;
   };
 
   // Check if a day is today
@@ -629,15 +659,23 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                         key={event.id}
                         onClick={() => onEventClick && onEventClick(event)}
                         className={`px-1 py-1 rounded text-xs cursor-pointer border-l-2 ${getEventBorderColor(event.type, event.isAllDay)} bg-white hover:bg-gray-100 truncate w-full`}
-                        onMouseEnter={(e) => showTooltip(
-                          <>
-                            <div className="font-medium">{event.title}</div>
-                            {event.description && <div className="mt-1">{event.description}</div>}
-                            <div className="mt-1 text-gray-300">All day: {formatEventDate(event.start)}</div>
-                          </>,
-                          e
-                        )}
-                        onMouseLeave={hideTooltip}
+                        onMouseEnter={(e) => {
+                          activeEventRef.current = e.currentTarget;
+                          showTooltip(
+                            <>
+                              <div className="font-medium">{event.title}</div>
+                              {event.description && <div className="mt-1">{event.description}</div>}
+                              <div className="mt-1 text-gray-300">All day: {formatEventDate(event.start)}</div>
+                            </>,
+                            e
+                          );
+                        }}
+                        onMouseLeave={(e) => {
+                          if (activeEventRef.current === e.currentTarget) {
+                            hideTooltip(e);
+                            activeEventRef.current = null;
+                          }
+                        }}
                       >
                         <div className="flex items-center">
                           <span className="mr-1 text-green-500 flex-shrink-0 text-xs">📆</span>
@@ -901,7 +939,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                   return (
                     <div 
                       key={`${dayIndex}-${event.id}`}
-                      className="absolute cursor-pointer hover:shadow-md transition-shadow z-10 hover:z-30"
+                      className="absolute cursor-pointer hover:shadow-md transition-shadow z-10 hover:z-30 event-container"
                       style={{
                         top: `${top}px`,
                         height: height,
@@ -910,6 +948,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                       }}
                       onClick={() => onEventClick && onEventClick(event)}
                       onMouseEnter={(e) => {
+                        activeEventRef.current = e.currentTarget;
                         // Show tooltip when hovering over the time indicator
                         showTooltip(
                           <>
@@ -921,7 +960,12 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                           e
                         );
                       }}
-                      onMouseLeave={hideTooltip}
+                      onMouseLeave={(e) => {
+                        if (activeEventRef.current === e.currentTarget) {
+                          hideTooltip(e);
+                          activeEventRef.current = null;
+                        }
+                      }}
                       draggable={true}
                       onDragStart={(e) => handleDragStart(e, event)}
                     >
@@ -929,6 +973,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                       <div 
                         className="relative w-full h-full"
                         onMouseEnter={(e) => {
+                          activeEventRef.current = e.currentTarget;
                           // Show tooltip when hovering over the time indicator
                           showTooltip(
                             <>
@@ -940,7 +985,12 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                             e
                           );
                         }}
-                        onMouseLeave={hideTooltip}
+                        onMouseLeave={(e) => {
+                          if (activeEventRef.current === e.currentTarget) {
+                            hideTooltip(e);
+                            activeEventRef.current = null;
+                          }
+                        }}
                       >
                         {event.type === 'reminder' ? (
                           <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
@@ -973,6 +1023,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                             pointerEvents: 'auto' // Allow the title area to capture mouse events
                           }}
                           onMouseEnter={(e) => {
+                            activeEventRef.current = e.currentTarget;
                             // Show tooltip when hovering over the title/icon part
                             e.stopPropagation(); // Prevent event bubbling
                             showTooltip(
@@ -986,8 +1037,10 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                             );
                           }}
                           onMouseLeave={(e) => {
-                            e.stopPropagation(); // Prevent event bubbling
-                            hideTooltip();
+                            if (activeEventRef.current === e.currentTarget) {
+                              hideTooltip(e);
+                              activeEventRef.current = null;
+                            }
                           }}
                         >
                           {/* Icon */}

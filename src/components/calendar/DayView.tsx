@@ -91,6 +91,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const activeEventRef = useRef<HTMLElement | null>(null);
   
   // Function to get time slot from mouse position
   const getTimeSlotFromMouseEvent = (e: React.MouseEvent) => {
@@ -460,6 +461,20 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
     if (tooltipTimeoutRef.current) {
       clearTimeout(tooltipTimeoutRef.current);
     }
+    
+    // Find the event container element (the parent with the 'absolute' class)
+    let eventContainer = e.currentTarget as HTMLElement;
+    while (eventContainer && !eventContainer.classList.contains('event-container')) {
+      eventContainer = eventContainer.parentElement as HTMLElement;
+    }
+    
+    // Store the event container for reference
+    if (eventContainer) {
+      activeEventRef.current = eventContainer;
+    } else {
+      // Fallback to the current target if we can't find the container
+      activeEventRef.current = e.currentTarget as HTMLElement;
+    }
 
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltipContent(content);
@@ -473,11 +488,26 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
     }, 100);
   };
 
-  const hideTooltip = () => {
+  const hideTooltip = (e?: React.MouseEvent) => {
+    // If we have an event and an active event reference
+    if (e && activeEventRef.current) {
+      // Check if the mouse is still within the event container or its children
+      const eventElement = activeEventRef.current;
+      const relatedTarget = e.relatedTarget as Node;
+      
+      // If the related target (where the mouse went to) is within the event container,
+      // don't hide the tooltip
+      if (eventElement.contains(relatedTarget) || eventElement === relatedTarget) {
+        return;
+      }
+    }
+    
+    // Otherwise, hide the tooltip
     if (tooltipTimeoutRef.current) {
       clearTimeout(tooltipTimeoutRef.current);
     }
     setIsTooltipVisible(false);
+    activeEventRef.current = null;
   };
   
   // Format date for tooltip display
@@ -848,7 +878,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                   return (
                     <div
                       key={event.id}
-                      className="absolute cursor-pointer hover:shadow-md transition-shadow z-10 hover:z-30"
+                      className="absolute cursor-pointer hover:shadow-md transition-shadow z-10 hover:z-30 event-container"
                       style={{
                         top: `${top}px`,
                         height: height,
@@ -875,7 +905,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                       onMouseLeave={(e) => {
                         // Don't stop propagation on mouse leave to allow parent's handlers to work
                         // This ensures the tooltip hides correctly when mouse leaves the event
-                        hideTooltip();
+                        hideTooltip(e);
                       }}
                     >
                       {/* Time indicator (full width) */}
@@ -893,7 +923,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                             e
                           );
                         }}
-                        onMouseLeave={hideTooltip}
+                        onMouseLeave={(e) => hideTooltip(e)}
                       >
                         {event.type === 'reminder' ? (
                           <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
@@ -940,7 +970,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                           }}
                           onMouseLeave={(e) => {
                             e.stopPropagation(); // Prevent event bubbling
-                            hideTooltip();
+                            hideTooltip(e);
                           }}
                         >
                           {/* Icon */}
