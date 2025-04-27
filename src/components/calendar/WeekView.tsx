@@ -238,11 +238,17 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
       const durationDiff = bDuration - aDuration;
       if (durationDiff !== 0) return durationDiff;
       
-      // Then by start time
-      return a.start.getTime() - b.start.getTime();
+      // Then by start time (rounded to 15-minute slots)
+      const aStartSlot = new Date(a.start);
+      aStartSlot.setMinutes(Math.floor(a.start.getMinutes() / 15) * 15, 0, 0);
+      
+      const bStartSlot = new Date(b.start);
+      bStartSlot.setMinutes(Math.floor(b.start.getMinutes() / 15) * 15, 0, 0);
+      
+      return aStartSlot.getTime() - bStartSlot.getTime();
     });
 
-    // Group events by their starting slot
+    // Group events by their starting slot (rounded to 15-minute intervals)
     const startingSlots: { [key: string]: ScheduleEvent[] } = {};
     
     // Initialize all slots
@@ -253,7 +259,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
       }
     }
     
-    // Assign events to their starting slots
+    // Assign events to their starting slots (rounded to 15-minute intervals)
     sortedEvents.forEach((event: ScheduleEvent) => {
       const startHour = event.start.getHours();
       const startMinute = Math.floor(event.start.getMinutes() / 15) * 15;
