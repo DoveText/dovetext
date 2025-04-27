@@ -14,7 +14,7 @@ export interface ScheduleEvent {
   start: Date;
   end: Date;
   isAllDay: boolean;
-  type: 'event' | 'reminder';
+  type: 'event' | 'reminder' | 'all-day';
   location?: string;
   description?: string;
   color?: string;
@@ -176,6 +176,7 @@ export default function Calendar({ events, onEventClick, onDateClick, onAddEvent
             onAddEvent={onAddEvent}
             currentTime={today}
             onEventDrop={onEventDrop}
+            onViewChange={handleViewChange}
           />
         )}
         {view === 'month' && (

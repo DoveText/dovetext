@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ScheduleEvent } from './Calendar';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { createPortal } from 'react-dom';
@@ -14,6 +14,7 @@ interface WeekViewProps {
   onAddEvent?: (date: Date, event?: ScheduleEvent) => void;
   currentTime: Date;
   onEventDrop?: (event: ScheduleEvent, newStart: Date, newEnd: Date) => void;
+  onViewChange?: (view: 'day' | 'week' | 'month', date: Date) => void;
 }
 
 // Generate days of the week
@@ -92,7 +93,7 @@ const getTimeSlotRange = (hour: number, minute: number) => {
   return `${startTime} - ${endTime}`;
 };
 
-export default function WeekView({ date, events, onEventClick, onDateClick, onAddEvent, currentTime, onEventDrop }: WeekViewProps) {
+export default function WeekView({ date, events, onEventClick, onDateClick, onAddEvent, currentTime, onEventDrop, onViewChange }: WeekViewProps) {
   const daysOfWeek = getDaysOfWeek(date);
   const timeSlots = generateTimeSlots();
   
@@ -207,6 +208,133 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
   const currentHour = currentTime.getHours();
   const currentMinute = currentTime.getMinutes();
   const currentTimePosition = `${(currentHour + currentMinute / 60) * 60}px`;
+
+  /**
+   * Process events to handle overlaps using a simplified slot-based approach
+   * We sort events by
+   * 1. how long the last, the longer the event, the earlier it should be shown
+   * 2. when it starts, if an event starts earlier, it should be shown earlier (unless above condition is met)
+   *    The start time shall be rounded to 15 min start (so a meeting start on 17 min is the same as a meeting
+   *    start on 15min).
+   * 3. Now we adopt column strategy to display events
+   *    a. for a 15min slot, if there is just one event to show, that event take full day space
+   *    b. if two events, each take 50% of the space
+   *    c. if three events, each take 33% of the space
+   *    d. otherwise, a +N more indicator is shown and user shall jump to day view to see details
+   * 4. following events are displayed and rendered so if there are overlapping with previous events, they shall
+   *    have different start time, thus we can safely show them as it is without fully covering previous events
+   * @param day
+   */
+  const getProcessedEventsForDay = (day: Date) => {
+    const timedEvents = getTimedEventsForDay(day);
+    
+    // Sort events by duration (longer events first), then by start time
+    const sortedEvents = [...timedEvents].sort((a: ScheduleEvent, b: ScheduleEvent) => {
+      // Calculate durations
+      const aDuration = a.type === 'reminder' ? 0 : a.end.getTime() - a.start.getTime();
+      const bDuration = b.type === 'reminder' ? 0 : b.end.getTime() - b.start.getTime();
+      
+      // First by duration (longer first)
+      const durationDiff = bDuration - aDuration;
+      if (durationDiff !== 0) return durationDiff;
+      
+      // Then by start time
+      return a.start.getTime() - b.start.getTime();
+    });
+
+    // Group events by their starting slot
+    const startingSlots: { [key: string]: ScheduleEvent[] } = {};
+    
+    // Initialize all slots
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const slotKey = `${hour}:${minute}`;
+        startingSlots[slotKey] = [];
+      }
+    }
+    
+    // Assign events to their starting slots
+    sortedEvents.forEach((event: ScheduleEvent) => {
+      const startHour = event.start.getHours();
+      const startMinute = Math.floor(event.start.getMinutes() / 15) * 15;
+      const slotKey = `${startHour}:${startMinute}`;
+      
+      startingSlots[slotKey].push(event);
+    });
+    
+    // Process events for each starting slot
+    const processedEvents: (ScheduleEvent & { column: number, maxColumns: number })[] = [];
+    const moreIndicators: { [key: string]: { count: number, eventIds: string[] } } = {};
+    
+    Object.entries(startingSlots).forEach(([slotKey, eventsInSlot]) => {
+      const eventCount = eventsInSlot.length;
+      
+      if (eventCount === 0) {
+        // No events in this slot, nothing to do
+        return;
+      } else if (eventCount === 1) {
+        // One event, it takes full width
+        processedEvents.push({
+          ...eventsInSlot[0],
+          column: 0,
+          maxColumns: 1
+        });
+      } else if (eventCount === 2) {
+        // Two events, each takes 50% width
+        processedEvents.push({
+          ...eventsInSlot[0],
+          column: 0,
+          maxColumns: 2
+        });
+        processedEvents.push({
+          ...eventsInSlot[1],
+          column: 1,
+          maxColumns: 2
+        });
+      } else if (eventCount === 3) {
+        // Three events, each takes 33% width
+        processedEvents.push({
+          ...eventsInSlot[0],
+          column: 0,
+          maxColumns: 3
+        });
+        processedEvents.push({
+          ...eventsInSlot[1],
+          column: 1,
+          maxColumns: 3
+        });
+        processedEvents.push({
+          ...eventsInSlot[2],
+          column: 2,
+          maxColumns: 3
+        });
+      } else {
+        // More than three events, first two are shown, rest go into "+N More"
+        processedEvents.push({
+          ...eventsInSlot[0],
+          column: 0,
+          maxColumns: 3
+        });
+        processedEvents.push({
+          ...eventsInSlot[1],
+          column: 1,
+          maxColumns: 3
+        });
+        
+        // Create a "more" indicator for the rest
+        const moreEvents = eventsInSlot.slice(2);
+        moreIndicators[slotKey] = {
+          count: moreEvents.length,
+          eventIds: moreEvents.map(e => e.id)
+        };
+      }
+    });
+    
+    return {
+      events: processedEvents,
+      moreIndicators
+    };
+  };
 
   // Filter events for each day
   const getEventsForDay = (day: Date) => {
@@ -506,6 +634,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                     className="h-6 w-full flex items-center justify-center opacity-0 hover:opacity-100 cursor-pointer"
                     onClick={() => {
                       if (onAddEvent) {
+                        console.log('Add new event ' + day)
                         const newDate = new Date(day);
                         newDate.setHours(9, 0, 0, 0); // Default to 9 AM
                         onAddEvent(newDate);
@@ -532,7 +661,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         }}
         onClick={(e) => {
           const target = e.target as HTMLElement;
-          if (target.closest('.z-10')) {
+          if (target.closest('.z-10') || target.closest('.z-20')) {
             // Clicked on an event, don't start selection
             return;
           }
@@ -583,7 +712,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
           // Check if we clicked on an event by checking the target's class list
           // If the target or any parent has z-10 class, it's an event (events have z-10)
           const target = e.target as HTMLElement;
-          if (target.closest('.z-10')) {
+          if (target.closest('.z-10') || target.closest('.z-20')) {
             // Clicked on an event, don't start selection
             return;
           }
@@ -721,89 +850,151 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
           
           {/* Events for each day */}
           {daysOfWeek.map((day, dayIndex) => {
-            const timedEvents = getTimedEventsForDay(day);
+            const { events: processedEvents, moreIndicators } = getProcessedEventsForDay(day);
             // Calculate width and position based on the container width
             // Each day takes 1/7 of the available width (minus the time column)
             const dayWidth = `calc((100% - 4rem) / 7)`;
             const dayLeft = `calc(4rem + (${dayIndex} * ${dayWidth}))`;
             
-            return timedEvents.map((event) => {
-              // Calculate position based on time
-              const startHour = event.start.getHours();
-              const startMinute = event.start.getMinutes();
-              const top = (startHour + startMinute / 60) * 60;
-              
-              // Calculate height for events
-              let height = 'auto';
-              if (event.type !== 'reminder') {
-                const endHour = event.end.getHours();
-                const endMinute = event.end.getMinutes();
-                const durationMinutes = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
-                height = `${Math.max(15, durationMinutes)}px`;
-              }
-              
-              return (
-                <div 
-                  key={`${dayIndex}-${event.id}`}
-                  className="absolute cursor-pointer hover:shadow-md transition-shadow z-10"
-                  style={{
-                    top: `${top}px`,
-                    height: height,
-                    left: dayLeft,
-                    width: `calc(${dayWidth} - 6px)`
-                  }}
-                  onClick={() => onEventClick && onEventClick(event)}
-                  onMouseEnter={(e) => showTooltip(
-                    <>
-                      <div className="font-bold">{event.title}</div>
-                      <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
-                      {event.description && <div className="mt-1">{event.description}</div>}
-                      {event.location && <div className="mt-1"> {event.location}</div>}
-                    </>,
-                    e
-                  )}
-                  onMouseLeave={hideTooltip}
-                  draggable={true}
-                  onDragStart={(e) => handleDragStart(e, event)}
-                >
-                  {/* Time indicator (full width) */}
-                  <div className="relative w-full h-full">
-                    {event.type === 'reminder' ? (
-                      <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
-                    ) : (
-                      <div className="absolute top-0 left-0 right-0 bottom-0 bg-blue-500 rounded-sm"></div>
-                    )}
-                    
-                    {/* Title/icon part positioned with margins */}
+            return (
+              <React.Fragment key={`day-${dayIndex}`}>
+                {/* Visible events - render in order so events are stacked according to their sorting */}
+                {processedEvents.map((event) => {
+                  // Calculate position based on time
+                  const startHour = event.start.getHours();
+                  const startMinute = event.start.getMinutes();
+                  const top = (startHour + startMinute / 60) * 60;
+                  
+                  // Calculate height for events
+                  let height = 'auto';
+                  if (event.type !== 'reminder') {
+                    const endHour = event.end.getHours();
+                    const endMinute = event.end.getMinutes();
+                    const durationMinutes = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
+                    height = `${Math.max(15, durationMinutes)}px`;
+                  }
+                  
+                  // Calculate width based on column and maxColumns
+                  // Add spacing between columns by making each column slightly narrower
+                  const columnWidth = `calc(((${dayWidth} - 6px) / ${event.maxColumns}) - ${event.maxColumns > 1 ? '2px' : '0px'})`;
+                  const columnLeft = event.maxColumns > 1 
+                    ? `calc((${event.column} * ((${dayWidth} - 6px) / ${event.maxColumns})) + ${event.column * 2}px)`
+                    : '0px'; // If only one column, take full width
+                  
+                  return (
                     <div 
-                      className={`
-                        absolute top-0.5 left-3 right-5
-                        px-2 py-0.5 flex items-center
-                        ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
-                        rounded-md shadow-sm
-                      `}
+                      key={`${dayIndex}-${event.id}`}
+                      className="absolute cursor-pointer hover:shadow-md transition-shadow z-10"
                       style={{
-                        minHeight: '20px'
+                        top: `${top}px`,
+                        height: height,
+                        left: `calc(${dayLeft} + ${columnLeft})`,
+                        width: columnWidth
                       }}
+                      onClick={() => onEventClick && onEventClick(event)}
+                      onMouseEnter={(e) => showTooltip(
+                        <>
+                          <div className="font-bold">{event.title}</div>
+                          <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
+                          {event.description && <div className="mt-1">{event.description}</div>}
+                          {event.location && <div className="mt-1"> {event.location}</div>}
+                        </>,
+                        e
+                      )}
+                      onMouseLeave={hideTooltip}
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, event)}
                     >
-                      {/* Icon */}
-                      {event.type === 'reminder' ? 
-                        <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
-                        <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
-                      }
-                      
-                      {/* Title */}
-                      <div className="font-medium text-xs truncate">{event.title}</div>
-                      
-                      {/* Start time */}
-                      <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
-                        {formatEventTime(event.start)}
+                      {/* Time indicator (full width) */}
+                      <div className="relative w-full h-full">
+                        {event.type === 'reminder' ? (
+                          <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
+                        ) : (
+                          <div className="absolute top-0 left-0 right-0 bottom-0 bg-blue-500 rounded-sm"></div>
+                        )}
+                        
+                        {/* Title/icon part positioned with margins */}
+                        <div 
+                          className={`
+                            absolute top-0.5 left-0.5 right-0.5
+                            px-1 py-0.5 flex items-center
+                            ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
+                            rounded-md shadow-sm
+                          `}
+                          style={{
+                            minHeight: '20px'
+                          }}
+                        >
+                          {/* Icon */}
+                          {event.type === 'reminder' ? 
+                            <span className="text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
+                            event.isAllDay ?
+                            <span className="text-green-500 flex-shrink-0 text-xs">📆</span> :
+                            <span className="text-blue-500 flex-shrink-0 text-xs">📅</span>
+                          }
+                          
+                          {/* Title with ellipsis */}
+                          <div className="font-medium text-xs truncate ml-1">{event.title}</div>
+                          
+                          {/* Show time if there's only one event in this slot */}
+                          {event.maxColumns === 1 && (
+                            <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
+                              {formatEventTime(event.start)}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              );
-            });
+                  );
+                })}
+                
+                {/* "+More" indicators */}
+                {Object.entries(moreIndicators).map(([slotKey, { count, eventIds }]) => {
+                  const [hourStr, minuteStr] = slotKey.split(':');
+                  const hour = parseInt(hourStr);
+                  const minute = parseInt(minuteStr);
+                  const top = (hour + minute / 60) * 60;
+                  
+                  // Find the max columns for this slot
+                  const slotKeyMaxColumns = 3;
+                  
+                  // Calculate width and position for the "+more" indicator (column 2)
+                  const columnWidth = `calc(((${dayWidth} - 6px) / ${slotKeyMaxColumns}) - 2px)`;
+                  const columnLeft = `calc((2 * ((${dayWidth} - 6px) / ${slotKeyMaxColumns})) + 4px)`;
+                  
+                  return (
+                    <div 
+                      key={`more-${dayIndex}-${slotKey}`}
+                      className="absolute cursor-pointer z-20 bg-gray-100 hover:bg-gray-200 text-xs text-blue-600 font-medium rounded-sm border border-gray-300 flex items-center justify-center"
+                      style={{
+                        top: `${top}px`,
+                        height: '20px',
+                        left: `calc(${dayLeft} + ${columnLeft})`,
+                        width: columnWidth
+                      }}
+                      onClick={(e) => {
+                        // Prevent event bubbling to avoid triggering other handlers
+                        e.stopPropagation();
+                        
+                        // Switch to day view for this date when clicking on "+x more"
+                        if (onViewChange) {
+                          onViewChange('day', day);
+                        } else if (onDateClick) {
+                          // Fallback to onDateClick if onViewChange is not provided
+                          onDateClick(day);
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        // Prevent default to avoid any drag behavior
+                        e.preventDefault();
+                      }}
+                    >
+                      +{count}
+                    </div>
+                  );
+                })}
+              </React.Fragment>
+            );
           })}
         </div>
       </div>
