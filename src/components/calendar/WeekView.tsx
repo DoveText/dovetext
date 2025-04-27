@@ -710,7 +710,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         }}
         onClick={(e) => {
           const target = e.target as HTMLElement;
-          if (target.closest('.z-10') || target.closest('.z-20')) {
+          if (target.closest('.z-10') || target.closest('.z-20') || target.closest('.z-30')) {
             // Clicked on an event, don't start selection
             return;
           }
@@ -742,6 +742,12 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
           onAddEvent(newDate, tempEvent);
         }}
         onMouseMove={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('.z-10') || target.closest('.z-20') || target.closest('.z-30')) {
+            setHoverSlot(null);
+            return;
+          }
+
           // Get time slot from mouse position
           const timeSlot = getTimeSlotFromMouseEvent(e);
           if (!timeSlot) return;
@@ -761,7 +767,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
           // Check if we clicked on an event by checking the target's class list
           // If the target or any parent has z-10 class, it's an event (events have z-10)
           const target = e.target as HTMLElement;
-          if (target.closest('.z-10') || target.closest('.z-20')) {
+          if (target.closest('.z-10') || target.closest('.z-20') || target.closest('.z-30')) {
             // Clicked on an event, don't start selection
             return;
           }
