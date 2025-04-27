@@ -859,19 +859,42 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                       onClick={() => onEventClick && onEventClick(event)}
                       draggable={true}
                       onDragStart={(e) => handleDragStart(e, event)}
-                      onMouseEnter={(e) => showTooltip(
-                        <>
-                          <div className="font-bold">{event.title}</div>
-                          <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
-                          {event.description && <div className="mt-1">{event.description}</div>}
-                          {event.location && <div className="mt-1">📍 {event.location}</div>}
-                        </>,
-                        e
-                      )}
-                      onMouseLeave={hideTooltip}
+                      onMouseEnter={(e) => {
+                        // Don't stop propagation on mouse enter to allow parent's handlers to work
+                        // This ensures the tooltip appears correctly
+                        showTooltip(
+                          <>
+                            <div className="font-bold">{event.title}</div>
+                            <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
+                            {event.description && <div className="mt-1">{event.description}</div>}
+                            {event.location && <div className="mt-1">📍 {event.location}</div>}
+                          </>,
+                          e
+                        );
+                      }}
+                      onMouseLeave={(e) => {
+                        // Don't stop propagation on mouse leave to allow parent's handlers to work
+                        // This ensures the tooltip hides correctly when mouse leaves the event
+                        hideTooltip();
+                      }}
                     >
                       {/* Time indicator (full width) */}
-                      <div className="relative w-full h-full">
+                      <div 
+                        className="relative w-full h-full"
+                        onMouseEnter={(e) => {
+                          // Show tooltip when hovering over the time indicator
+                          showTooltip(
+                            <>
+                              <div className="font-bold">{event.title}</div>
+                              <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
+                              {event.description && <div className="mt-1">{event.description}</div>}
+                              {event.location && <div className="mt-1">📍 {event.location}</div>}
+                            </>,
+                            e
+                          );
+                        }}
+                        onMouseLeave={hideTooltip}
+                      >
                         {event.type === 'reminder' ? (
                           <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
                         ) : (
@@ -886,18 +909,38 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                         {/* Title/icon part positioned with margins */}
                         <div 
                           className={`
-                            absolute ${event.inFirstQuarter ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')} left-1.5 right-0.5
+                            absolute ${event.inFirstQuarter ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')} left-1.5
                             px-2 py-0.5 flex items-center
                             ${getEventColor(event.type)} 
                             rounded-md shadow-sm
                           `}
                           style={{
                             minHeight: '20px',
+                            maxWidth: 'calc(100% - 10px)', // Ensure it doesn't extend beyond the time indicator
+                            width: 'fit-content', // Allow it to shrink based on content
                             border: event.type === 'reminder' ? 
                               '1px solid rgba(245, 158, 11, 0.8)' : // amber color for reminders
                               event.isAllDay ?
                               '1px solid rgba(34, 197, 94, 0.8)' : // green color for all-day events
-                              '1px solid rgba(59, 130, 246, 0.8)' // blue color for regular events
+                              '1px solid rgba(59, 130, 246, 0.8)', // blue color for regular events
+                            pointerEvents: 'auto' // Allow the title area to capture mouse events
+                          }}
+                          onMouseEnter={(e) => {
+                            // Show tooltip when hovering over the title/icon part
+                            e.stopPropagation(); // Prevent event bubbling
+                            showTooltip(
+                              <>
+                                <div className="font-bold">{event.title}</div>
+                                <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
+                                {event.description && <div className="mt-1">{event.description}</div>}
+                                {event.location && <div className="mt-1">📍 {event.location}</div>}
+                              </>,
+                              e
+                            );
+                          }}
+                          onMouseLeave={(e) => {
+                            e.stopPropagation(); // Prevent event bubbling
+                            hideTooltip();
                           }}
                         >
                           {/* Icon */}
