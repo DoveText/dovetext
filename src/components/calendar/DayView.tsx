@@ -579,6 +579,14 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
     return `${startTime} - ${endTime}`;
   }, [hoverSlot, selectionStart])
 
+  const getEventDurationMinutes = (event: ScheduleEvent) => {
+    const startHour = event.start.getHours();
+    const startMinute = event.start.getMinutes();
+    const endHour = event.end.getHours();
+    const endMinute = event.end.getMinutes();
+    return ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
+  }
+
   return (
     <div 
       className="flex flex-col h-full overflow-hidden"
@@ -939,7 +947,9 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                         {/* Title/icon part positioned with margins */}
                         <div 
                           className={`
-                            absolute ${event.inFirstQuarter ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')} left-1.5
+                            absolute ${(event.type === 'reminder' || getEventDurationMinutes(event) < 30) ? 
+                              (event.inFirstQuarter ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')) : 
+                              'top-0.5'} left-1.5
                             px-2 py-0.5 flex items-center
                             ${getEventColor(event.type)} 
                             rounded-md shadow-sm

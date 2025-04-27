@@ -454,6 +454,15 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
     };
   };
 
+  // Helper function to calculate event duration in minutes
+  const getEventDurationMinutes = (event: ScheduleEvent) => {
+    const startHour = event.start.getHours();
+    const startMinute = event.start.getMinutes();
+    const endHour = event.end.getHours();
+    const endMinute = event.end.getMinutes();
+    return ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
+  }
+
   // Handle drag start
   const handleDragStart = (event: React.DragEvent, scheduleEvent: ScheduleEvent) => {
     event.dataTransfer.setData('text/plain', JSON.stringify({
@@ -1006,7 +1015,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                         {/* Title/icon part positioned with margins */}
                         <div 
                           className={`
-                            absolute ${event.inFirstQuarter ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')} left-1
+                            absolute ${getEventDurationMinutes(event) >= 30 ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')} left-1
                             px-1 py-0.5 flex items-center
                             ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
                             rounded-md shadow-sm
