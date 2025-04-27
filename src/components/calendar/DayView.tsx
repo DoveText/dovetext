@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ScheduleEvent } from './Calendar';
-import { PlusIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface DayViewProps {
   date: Date;
@@ -82,6 +82,9 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   const [selectionStart, setSelectionStart] = useState<{hour: number, minute: number} | null>(null);
   const [hoverSlot, setHoverSlot] = useState<{hour: number, minute: number} | null>(null);
   const [isMouseOverCalendar, setIsMouseOverCalendar] = useState(false);
+  
+  // State for pagination of events in time slots
+  const [slotPagination, setSlotPagination] = useState<{ [key: string]: number }>({});
   
   // Tooltip state
   const [tooltipContent, setTooltipContent] = useState<React.ReactNode | null>(null);
@@ -164,7 +167,168 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   
   // Separate all-day events
   const allDayEvents = dayEvents.filter(event => event.isAllDay);
-  const timedEvents = dayEvents.filter(event => !event.isAllDay);
+  
+  // Process timed events with the same algorithm as WeekView
+  const processTimedEvents = () => {
+    const timedEvents = dayEvents.filter(event => !event.isAllDay);
+    
+    // Sort events by duration (longer events first), then by start time
+    const sortedEvents = [...timedEvents].sort((a: ScheduleEvent, b: ScheduleEvent) => {
+      // Calculate durations
+      const aDuration = a.type === 'reminder' ? 0 : a.end.getTime() - a.start.getTime();
+      const bDuration = b.type === 'reminder' ? 0 : b.end.getTime() - b.start.getTime();
+      
+      // First by duration (longer first)
+      const durationDiff = bDuration - aDuration;
+      if (durationDiff !== 0) return durationDiff;
+      
+      // Then by start time (rounded to 15-minute slots)
+      const aStartSlot = new Date(a.start);
+      aStartSlot.setMinutes(Math.floor(a.start.getMinutes() / 15) * 15, 0, 0);
+      
+      const bStartSlot = new Date(b.start);
+      bStartSlot.setMinutes(Math.floor(b.start.getMinutes() / 15) * 15, 0, 0);
+      
+      return aStartSlot.getTime() - bStartSlot.getTime();
+    });
+    
+    // Group events by their starting slot (rounded to 15-minute intervals)
+    const startingSlots: { [key: string]: ScheduleEvent[] } = {};
+    
+    // Initialize all slots
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const slotKey = `${hour}:${minute}`;
+        startingSlots[slotKey] = [];
+      }
+    }
+    
+    // Assign events to their starting slots (rounded to 15-minute intervals)
+    sortedEvents.forEach((event: ScheduleEvent) => {
+      const startHour = event.start.getHours();
+      const startMinute = Math.floor(event.start.getMinutes() / 15) * 15;
+      const slotKey = `${startHour}:${startMinute}`;
+      
+      startingSlots[slotKey].push(event);
+    });
+    
+    // Process events for each starting slot to assign columns
+    const processedEvents: { [key: string]: (ScheduleEvent & { column: number, maxColumns: number })[] } = {};
+    
+    Object.entries(startingSlots).forEach(([slotKey, eventsInSlot]) => {
+      const eventCount = eventsInSlot.length;
+      processedEvents[slotKey] = [];
+      
+      if (eventCount === 0) {
+        // No events in this slot, nothing to do
+        return;
+      } else if (eventCount === 1) {
+        // One event, it takes full width
+        processedEvents[slotKey].push({
+          ...eventsInSlot[0],
+          column: 0,
+          maxColumns: 1
+        });
+      } else if (eventCount === 2) {
+        // Two events, each takes 50% width
+        processedEvents[slotKey].push({
+          ...eventsInSlot[0],
+          column: 0,
+          maxColumns: 2
+        });
+        processedEvents[slotKey].push({
+          ...eventsInSlot[1],
+          column: 1,
+          maxColumns: 2
+        });
+      } else if (eventCount === 3) {
+        // Three events, each takes 33% width
+        processedEvents[slotKey].push({
+          ...eventsInSlot[0],
+          column: 0,
+          maxColumns: 3
+        });
+        processedEvents[slotKey].push({
+          ...eventsInSlot[1],
+          column: 1,
+          maxColumns: 3
+        });
+        processedEvents[slotKey].push({
+          ...eventsInSlot[2],
+          column: 2,
+          maxColumns: 3
+        });
+      } else if (eventCount === 4) {
+        // Four events, each takes 25% width
+        processedEvents[slotKey].push({
+          ...eventsInSlot[0],
+          column: 0,
+          maxColumns: 4
+        });
+        processedEvents[slotKey].push({
+          ...eventsInSlot[1],
+          column: 1,
+          maxColumns: 4
+        });
+        processedEvents[slotKey].push({
+          ...eventsInSlot[2],
+          column: 2,
+          maxColumns: 4
+        });
+        processedEvents[slotKey].push({
+          ...eventsInSlot[3],
+          column: 3,
+          maxColumns: 4
+        });
+      } else if (eventCount === 5) {
+        // Five events, each takes 20% width
+        processedEvents[slotKey].push({
+          ...eventsInSlot[0],
+          column: 0,
+          maxColumns: 5
+        });
+        processedEvents[slotKey].push({
+          ...eventsInSlot[1],
+          column: 1,
+          maxColumns: 5
+        });
+        processedEvents[slotKey].push({
+          ...eventsInSlot[2],
+          column: 2,
+          maxColumns: 5
+        });
+        processedEvents[slotKey].push({
+          ...eventsInSlot[3],
+          column: 3,
+          maxColumns: 5
+        });
+        processedEvents[slotKey].push({
+          ...eventsInSlot[4],
+          column: 4,
+          maxColumns: 5
+        });
+      } else {
+        // More than five events, we'll use pagination
+        // For the current page, assign columns to the visible events
+        const currentPage = slotPagination[slotKey] || 0;
+        const startIdx = currentPage * 5;
+        const visibleEvents = eventsInSlot.slice(startIdx, startIdx + 5);
+        
+        visibleEvents.forEach((event, index) => {
+          processedEvents[slotKey].push({
+            ...event,
+            column: index,
+            maxColumns: 5
+          });
+        });
+      }
+    });
+    
+    return processedEvents;
+  };
+  
+  // Get timed events organized by slot with column information
+  const processedEventsBySlot = processTimedEvents();
   
   // Check if the date is today
   const isToday = currentTime.getDate() === date.getDate() &&
@@ -612,79 +776,162 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
           )}
 
           {/* Events */}
-          {timedEvents.map((event) => {
-            // Calculate position based on time
-            const startHour = event.start.getHours();
-            const startMinute = event.start.getMinutes();
-            const top = (startHour + startMinute / 60) * 60;
+          {Object.entries(processedEventsBySlot).map(([slotKey, eventsInSlot]) => {
+            if (eventsInSlot.length === 0) return null;
             
-            // Calculate height for events
-            let height = 'auto';
-            if (event.type !== 'reminder') {
-              const endHour = event.end.getHours();
-              const endMinute = event.end.getMinutes();
-              const durationMinutes = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
-              height = `${Math.max(15, durationMinutes)}px`;
-            }
+            const [hourStr, minuteStr] = slotKey.split(':');
+            const hour = parseInt(hourStr);
+            const minute = parseInt(minuteStr);
+            
+            // Get current page for this slot
+            const allEventsInSlot = dayEvents.filter(event => {
+              const startHour = event.start.getHours();
+              const startMinute = Math.floor(event.start.getMinutes() / 15) * 15;
+              return `${startHour}:${startMinute}` === slotKey;
+            });
+            const currentPage = slotPagination[slotKey] || 0;
+            const totalPages = Math.ceil(allEventsInSlot.length / 5);
+            const needsPagination = allEventsInSlot.length > 5;
             
             return (
-              <div
-                key={event.id}
-                className="absolute left-16 right-2 cursor-pointer hover:shadow-md transition-shadow z-10"
-                style={{
-                  top: `${top}px`,
-                  height: height
-                }}
-                onClick={() => onEventClick && onEventClick(event)}
-                draggable={true}
-                onDragStart={(e) => handleDragStart(e, event)}
-                onMouseEnter={(e) => showTooltip(
-                  <>
-                    <div className="font-bold">{event.title}</div>
-                    <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
-                    {event.description && <div className="mt-1">{event.description}</div>}
-                    {event.location && <div className="mt-1">📍 {event.location}</div>}
-                  </>,
-                  e
-                )}
-                onMouseLeave={hideTooltip}
-              >
-                {/* Time indicator (full width) */}
-                <div className="relative w-full h-full">
-                  {event.type === 'reminder' ? (
-                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
-                  ) : (
-                    <div className="absolute top-0 left-0 right-0 bottom-0 bg-blue-500 rounded-sm"></div>
-                  )}
-                  
-                  {/* Title/icon part positioned with margins */}
+              <React.Fragment key={slotKey}>
+                {/* Pagination controls - only show if needed */}
+                {needsPagination && (
                   <div 
-                    className={`
-                      absolute top-0.5 left-3 right-5
-                      px-2 py-0.5 flex items-center
-                      ${getEventColor(event.type)} ${getEventBorderColor(event.type, event.isAllDay)}
-                      rounded-md shadow-sm
-                    `}
+                    className="absolute flex justify-between items-center z-20"
                     style={{
-                      minHeight: '20px'
+                      top: `${(hour * 60) + (minute / 60 * 60) - 5}px`,
+                      height: '15px',
+                      left: '70px',
+                      width: 'calc(100% - 74px)' // Match the available width for events
                     }}
                   >
-                    {/* Icon */}
-                    {event.type === 'reminder' ? 
-                      <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
-                      <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
-                    }
-                    
-                    {/* Title */}
-                    <div className="font-medium text-xs truncate">{event.title}</div>
-                    
-                    {/* Start time */}
-                    <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
-                      {formatEventTime(event.start)}
-                    </div>
+                    <button
+                      className={`text-xs px-1 rounded ${currentPage > 0 ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                      disabled={currentPage === 0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        if (currentPage > 0) {
+                          setSlotPagination(prev => ({
+                            ...prev,
+                            [slotKey]: currentPage - 1
+                          }));
+                        }
+                      }}
+                    >
+                      « Prev
+                    </button>
+                    <span className="text-xs text-gray-500">{currentPage + 1}/{totalPages}</span>
+                    <button
+                      className={`text-xs px-1 rounded ${currentPage < totalPages - 1 ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                      disabled={currentPage >= totalPages - 1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        if (currentPage < totalPages - 1) {
+                          setSlotPagination(prev => ({
+                            ...prev,
+                            [slotKey]: currentPage + 1
+                          }));
+                        }
+                      }}
+                    >
+                      Next »
+                    </button>
                   </div>
-                </div>
-              </div>
+                )}
+                
+                {/* Render visible events for this slot */}
+                {eventsInSlot.map((event) => {
+                  // Calculate position based on time
+                  const startHour = event.start.getHours();
+                  const startMinute = event.start.getMinutes();
+                  const top = (startHour + startMinute / 60) * 60;
+                  
+                  // Calculate height for events
+                  let height = 'auto';
+                  if (event.type !== 'reminder') {
+                    const endHour = event.end.getHours();
+                    const endMinute = event.end.getMinutes();
+                    const durationMinutes = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
+                    height = `${Math.max(15, durationMinutes)}px`;
+                  }
+                  
+                  // Calculate width and left position based on column
+                  // Adjust the calculation to ensure the total width doesn't exceed the container
+                  const totalAvailableWidth = 'calc(100% - 70px - 4px)'; // Total width minus left padding and right margin
+                  const columnWidth = `calc((${totalAvailableWidth} / ${event.maxColumns}) - 4px)`;
+                  const columnLeft = `calc((${event.column} * (${totalAvailableWidth} / ${event.maxColumns})))`;  
+                  
+                  return (
+                    <div
+                      key={event.id}
+                      className="absolute cursor-pointer hover:shadow-md transition-shadow z-10"
+                      style={{
+                        top: `${top}px`,
+                        height: height,
+                        left: `calc(70px + ${columnLeft})`,
+                        width: columnWidth,
+                        marginRight: '2px'
+                      }}
+                      onClick={() => onEventClick && onEventClick(event)}
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, event)}
+                      onMouseEnter={(e) => showTooltip(
+                        <>
+                          <div className="font-bold">{event.title}</div>
+                          <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
+                          {event.description && <div className="mt-1">{event.description}</div>}
+                          {event.location && <div className="mt-1">📍 {event.location}</div>}
+                        </>,
+                        e
+                      )}
+                      onMouseLeave={hideTooltip}
+                    >
+                      {/* Time indicator (full width) */}
+                      <div className="relative w-full h-full">
+                        {event.type === 'reminder' ? (
+                          <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
+                        ) : (
+                          <div className="absolute top-0 left-0 right-0 bottom-0 bg-blue-500 rounded-sm"></div>
+                        )}
+                        
+                        {/* Title/icon part positioned with margins */}
+                        <div 
+                          className={`
+                            absolute top-0.5 left-0.5 right-0.5
+                            px-2 py-0.5 flex items-center
+                            ${getEventColor(event.type)} ${getEventBorderColor(event.type, event.isAllDay)}
+                            rounded-md shadow-sm
+                          `}
+                          style={{
+                            minHeight: '20px'
+                          }}
+                        >
+                          {/* Icon */}
+                          {event.type === 'reminder' ? 
+                            <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
+                            event.isAllDay ?
+                            <span className="mr-1 text-green-500 flex-shrink-0 text-xs">📆</span> :
+                            <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
+                          }
+                          
+                          {/* Title */}
+                          <div className="font-medium text-xs truncate">{event.title}</div>
+                          
+                          {/* Start time - only show if there's enough space */}
+                          {event.maxColumns <= 3 && (
+                            <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
+                              {formatEventTime(event.start)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </React.Fragment>
             );
           })}
         </div>
