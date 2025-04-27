@@ -848,7 +848,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                   return (
                     <div
                       key={event.id}
-                      className="absolute cursor-pointer hover:shadow-md transition-shadow z-10"
+                      className="absolute cursor-pointer hover:shadow-md transition-shadow z-10 hover:z-30"
                       style={{
                         top: `${top}px`,
                         height: height,

@@ -901,7 +901,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                   return (
                     <div 
                       key={`${dayIndex}-${event.id}`}
-                      className="absolute cursor-pointer hover:shadow-md transition-shadow z-10"
+                      className="absolute cursor-pointer hover:shadow-md transition-shadow z-10 hover:z-30"
                       style={{
                         top: `${top}px`,
                         height: height,
