@@ -214,10 +214,10 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
    * We sort events by
    * 1. how long the last, the longer the event, the earlier it should be shown
    * 2. when it starts, if an event starts earlier, it should be shown earlier (unless above condition is met)
-   *    The start time shall be rounded to 15 min start (so a meeting start on 17 min is the same as a meeting
+   *    The start time shall be rounded to 30 min start (so a meeting start on 17 min is the same as a meeting
    *    start on 15min).
    * 3. Now we adopt column strategy to display events
-   *    a. for a 15min slot, if there is just one event to show, that event take full day space
+   *    a. for a 30min slot, if there is just one event to show, that event take full day space
    *    b. if two events, each take 50% of the space
    *    c. if three events, each take 33% of the space
    *    d. otherwise, a +N more indicator is shown and user shall jump to day view to see details
@@ -238,38 +238,38 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
       const durationDiff = bDuration - aDuration;
       if (durationDiff !== 0) return durationDiff;
       
-      // Then by start time (rounded to 15-minute slots)
+      // Then by start time (rounded to 30-minute slots)
       const aStartSlot = new Date(a.start);
-      aStartSlot.setMinutes(Math.floor(a.start.getMinutes() / 15) * 15, 0, 0);
+      aStartSlot.setMinutes(Math.floor(a.start.getMinutes() / 30) * 30, 0, 0);
       
       const bStartSlot = new Date(b.start);
-      bStartSlot.setMinutes(Math.floor(b.start.getMinutes() / 15) * 15, 0, 0);
+      bStartSlot.setMinutes(Math.floor(b.start.getMinutes() / 30) * 30, 0, 0);
       
       return aStartSlot.getTime() - bStartSlot.getTime();
     });
 
-    // Group events by their starting slot (rounded to 15-minute intervals)
+    // Group events by their starting slot (rounded to 30-minute intervals)
     const startingSlots: { [key: string]: ScheduleEvent[] } = {};
     
     // Initialize all slots
     for (let hour = 0; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
+      for (let minute = 0; minute < 60; minute += 30) {
         const slotKey = `${hour}:${minute}`;
         startingSlots[slotKey] = [];
       }
     }
     
-    // Assign events to their starting slots (rounded to 15-minute intervals)
+    // Assign events to their starting slots (rounded to 30-minute intervals)
     sortedEvents.forEach((event: ScheduleEvent) => {
       const startHour = event.start.getHours();
-      const startMinute = Math.floor(event.start.getMinutes() / 15) * 15;
+      const startMinute = Math.floor(event.start.getMinutes() / 30) * 30;
       const slotKey = `${startHour}:${startMinute}`;
       
       startingSlots[slotKey].push(event);
     });
     
     // Process events for each starting slot
-    const processedEvents: (ScheduleEvent & { column: number, maxColumns: number })[] = [];
+    const processedEvents: (ScheduleEvent & { column: number, maxColumns: number, inFirstQuarter: boolean })[] = [];
     const moreIndicators: { [key: string]: { count: number, eventIds: string[] } } = {};
     
     Object.entries(startingSlots).forEach(([slotKey, eventsInSlot]) => {
@@ -280,51 +280,62 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         return;
       } else if (eventCount === 1) {
         // One event, it takes full width
+        // Check if event starts in the first 15 minutes of the 30-minute slot
+        const event = eventsInSlot[0];
+        const inFirstQuarter = event.start.getMinutes() % 30 < 15;
+        
         processedEvents.push({
-          ...eventsInSlot[0],
+          ...event,
           column: 0,
-          maxColumns: 1
+          maxColumns: 1,
+          inFirstQuarter
         });
       } else if (eventCount === 2) {
         // Two events, each takes 50% width
-        processedEvents.push({
-          ...eventsInSlot[0],
-          column: 0,
-          maxColumns: 2
-        });
-        processedEvents.push({
-          ...eventsInSlot[1],
-          column: 1,
-          maxColumns: 2
+        eventsInSlot.forEach((event, index) => {
+          // Check if event starts in the first 15 minutes of the 30-minute slot
+          const inFirstQuarter = event.start.getMinutes() % 30 < 15;
+          
+          processedEvents.push({
+            ...event,
+            column: index,
+            maxColumns: 2,
+            inFirstQuarter
+          });
         });
       } else if (eventCount === 3) {
         // Three events, each takes 33% width
-        processedEvents.push({
-          ...eventsInSlot[0],
-          column: 0,
-          maxColumns: 3
-        });
-        processedEvents.push({
-          ...eventsInSlot[1],
-          column: 1,
-          maxColumns: 3
-        });
-        processedEvents.push({
-          ...eventsInSlot[2],
-          column: 2,
-          maxColumns: 3
+        eventsInSlot.forEach((event, index) => {
+          // Check if event starts in the first 15 minutes of the 30-minute slot
+          const inFirstQuarter = event.start.getMinutes() % 30 < 15;
+          
+          processedEvents.push({
+            ...event,
+            column: index,
+            maxColumns: 3,
+            inFirstQuarter
+          });
         });
       } else {
         // More than three events, first two are shown, rest go into "+N More"
+        const firstEvent = eventsInSlot[0];
+        const secondEvent = eventsInSlot[1];
+        
+        // Check if events start in the first 15 minutes of the 30-minute slot
+        const firstInFirstQuarter = firstEvent.start.getMinutes() % 30 < 15;
+        const secondInFirstQuarter = secondEvent.start.getMinutes() % 30 < 15;
+        
         processedEvents.push({
-          ...eventsInSlot[0],
+          ...firstEvent,
           column: 0,
-          maxColumns: 3
+          maxColumns: 3,
+          inFirstQuarter: firstInFirstQuarter
         });
         processedEvents.push({
-          ...eventsInSlot[1],
+          ...secondEvent,
           column: 1,
-          maxColumns: 3
+          maxColumns: 3,
+          inFirstQuarter: secondInFirstQuarter
         });
         
         // Create a "more" indicator for the rest
@@ -826,7 +837,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
               className="absolute bg-blue-50 opacity-50 rounded-md border border-blue-200 z-0"
               style={{
                 top: `${hoverSlot.hour * 60 + hoverSlot.minute}px`,
-                height: '15px',
+                height: '30px',
                 left: `calc(4rem + (${daysOfWeek.findIndex(d => d.getTime() === hoverSlot.day.getTime())} * calc((100% - 4rem) / 7)))`,
                 width: `calc((100% - 4rem) / 7 - 6px)`
               }}
@@ -877,7 +888,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                     const endHour = event.end.getHours();
                     const endMinute = event.end.getMinutes();
                     const durationMinutes = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute));
-                    height = `${Math.max(15, durationMinutes)}px`;
+                    height = `${Math.max(30, durationMinutes)}px`;
                   }
                   
                   // Calculate width based on column and maxColumns
@@ -916,19 +927,29 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                         {event.type === 'reminder' ? (
                           <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
                         ) : (
-                          <div className="absolute top-0 left-0 right-0 bottom-0 bg-blue-500 rounded-sm"></div>
+                          <div
+                              className="absolute top-0 left-0 right-0 bottom-0 bg-blue-500 rounded-sm"
+                              style={{
+                                border: '1px solid rgba(255, 255, 255, 0.8)'
+                              }}
+                          ></div>
                         )}
                         
                         {/* Title/icon part positioned with margins */}
                         <div 
                           className={`
-                            absolute top-0.5 left-0.5 right-0.5
+                            absolute ${event.inFirstQuarter ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')} left-1 right-0.5
                             px-1 py-0.5 flex items-center
                             ${event.type === 'reminder' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}
                             rounded-md shadow-sm
                           `}
                           style={{
-                            minHeight: '20px'
+                            minHeight: '20px',
+                            border: event.type === 'reminder' ? 
+                              '1px solid rgba(245, 158, 11, 0.8)' : // amber color for reminders
+                              event.isAllDay ?
+                              '1px solid rgba(34, 197, 94, 0.8)' : // green color for all-day events
+                              '1px solid rgba(59, 130, 246, 0.8)' // blue color for regular events
                           }}
                         >
                           {/* Icon */}

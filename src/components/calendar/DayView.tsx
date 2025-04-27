@@ -168,7 +168,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
   // Separate all-day events
   const allDayEvents = dayEvents.filter(event => event.isAllDay);
   
-  // Process timed events with the same algorithm as WeekView
+  // Process timed events with a 30-minute granularity approach
   const processTimedEvents = () => {
     const timedEvents = dayEvents.filter(event => !event.isAllDay);
     
@@ -182,40 +182,40 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
       const durationDiff = bDuration - aDuration;
       if (durationDiff !== 0) return durationDiff;
       
-      // Then by start time (rounded to 15-minute slots)
+      // Then by start time (rounded to 30-minute slots)
       const aStartSlot = new Date(a.start);
-      aStartSlot.setMinutes(Math.floor(a.start.getMinutes() / 15) * 15, 0, 0);
+      aStartSlot.setMinutes(Math.floor(a.start.getMinutes() / 30) * 30, 0, 0);
       
       const bStartSlot = new Date(b.start);
-      bStartSlot.setMinutes(Math.floor(b.start.getMinutes() / 15) * 15, 0, 0);
+      bStartSlot.setMinutes(Math.floor(b.start.getMinutes() / 30) * 30, 0, 0);
       
       return aStartSlot.getTime() - bStartSlot.getTime();
     });
     
-    // Group events by their starting slot (rounded to 15-minute intervals)
-    const startingSlots: { [key: string]: ScheduleEvent[] } = {};
+    // Group events by their starting 30-minute slot
+    const halfHourSlots: { [key: string]: ScheduleEvent[] } = {};
     
-    // Initialize all slots
+    // Initialize all 30-minute slots
     for (let hour = 0; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
+      for (let minute = 0; minute < 60; minute += 30) {
         const slotKey = `${hour}:${minute}`;
-        startingSlots[slotKey] = [];
+        halfHourSlots[slotKey] = [];
       }
     }
     
-    // Assign events to their starting slots (rounded to 15-minute intervals)
+    // Assign events to their starting 30-minute slot
     sortedEvents.forEach((event: ScheduleEvent) => {
       const startHour = event.start.getHours();
-      const startMinute = Math.floor(event.start.getMinutes() / 15) * 15;
+      const startMinute = Math.floor(event.start.getMinutes() / 30) * 30;
       const slotKey = `${startHour}:${startMinute}`;
       
-      startingSlots[slotKey].push(event);
+      halfHourSlots[slotKey].push(event);
     });
     
-    // Process events for each starting slot to assign columns
-    const processedEvents: { [key: string]: (ScheduleEvent & { column: number, maxColumns: number })[] } = {};
+    // Process events for each 30-minute slot to assign columns
+    const processedEvents: { [key: string]: (ScheduleEvent & { column: number, maxColumns: number, inFirstQuarter: boolean })[] } = {};
     
-    Object.entries(startingSlots).forEach(([slotKey, eventsInSlot]) => {
+    Object.entries(halfHourSlots).forEach(([slotKey, eventsInSlot]) => {
       const eventCount = eventsInSlot.length;
       processedEvents[slotKey] = [];
       
@@ -224,88 +224,67 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
         return;
       } else if (eventCount === 1) {
         // One event, it takes full width
+        const event = eventsInSlot[0];
+        // Check if event starts in the first 15 minutes of the 30-minute slot
+        const inFirstQuarter = event.start.getMinutes() % 30 < 15;
+        
         processedEvents[slotKey].push({
-          ...eventsInSlot[0],
+          ...event,
           column: 0,
-          maxColumns: 1
+          maxColumns: 1,
+          inFirstQuarter
         });
       } else if (eventCount === 2) {
         // Two events, each takes 50% width
-        processedEvents[slotKey].push({
-          ...eventsInSlot[0],
-          column: 0,
-          maxColumns: 2
-        });
-        processedEvents[slotKey].push({
-          ...eventsInSlot[1],
-          column: 1,
-          maxColumns: 2
+        eventsInSlot.forEach((event, index) => {
+          // Check if event starts in the first 15 minutes of the 30-minute slot
+          const inFirstQuarter = event.start.getMinutes() % 30 < 15;
+          
+          processedEvents[slotKey].push({
+            ...event,
+            column: index,
+            maxColumns: 2,
+            inFirstQuarter
+          });
         });
       } else if (eventCount === 3) {
         // Three events, each takes 33% width
-        processedEvents[slotKey].push({
-          ...eventsInSlot[0],
-          column: 0,
-          maxColumns: 3
-        });
-        processedEvents[slotKey].push({
-          ...eventsInSlot[1],
-          column: 1,
-          maxColumns: 3
-        });
-        processedEvents[slotKey].push({
-          ...eventsInSlot[2],
-          column: 2,
-          maxColumns: 3
+        eventsInSlot.forEach((event, index) => {
+          // Check if event starts in the first 15 minutes of the 30-minute slot
+          const inFirstQuarter = event.start.getMinutes() % 30 < 15;
+          
+          processedEvents[slotKey].push({
+            ...event,
+            column: index,
+            maxColumns: 3,
+            inFirstQuarter
+          });
         });
       } else if (eventCount === 4) {
         // Four events, each takes 25% width
-        processedEvents[slotKey].push({
-          ...eventsInSlot[0],
-          column: 0,
-          maxColumns: 4
-        });
-        processedEvents[slotKey].push({
-          ...eventsInSlot[1],
-          column: 1,
-          maxColumns: 4
-        });
-        processedEvents[slotKey].push({
-          ...eventsInSlot[2],
-          column: 2,
-          maxColumns: 4
-        });
-        processedEvents[slotKey].push({
-          ...eventsInSlot[3],
-          column: 3,
-          maxColumns: 4
+        eventsInSlot.forEach((event, index) => {
+          // Check if event starts in the first 15 minutes of the 30-minute slot
+          const inFirstQuarter = event.start.getMinutes() % 30 < 15;
+          
+          processedEvents[slotKey].push({
+            ...event,
+            column: index,
+            maxColumns: 4,
+            inFirstQuarter
+          });
         });
       } else if (eventCount === 5) {
         // Five events, each takes 20% width
-        processedEvents[slotKey].push({
-          ...eventsInSlot[0],
-          column: 0,
-          maxColumns: 5
-        });
-        processedEvents[slotKey].push({
-          ...eventsInSlot[1],
-          column: 1,
-          maxColumns: 5
-        });
-        processedEvents[slotKey].push({
-          ...eventsInSlot[2],
-          column: 2,
-          maxColumns: 5
-        });
-        processedEvents[slotKey].push({
-          ...eventsInSlot[3],
-          column: 3,
-          maxColumns: 5
-        });
-        processedEvents[slotKey].push({
-          ...eventsInSlot[4],
-          column: 4,
-          maxColumns: 5
+        eventsInSlot.forEach((event, index) => {
+          // Check if event starts in the first 15 minutes of the 30-minute slot
+          const inFirstQuarter = event.start.getMinutes() % 30 < 15;
+          
+          processedEvents[slotKey].push({
+            ...event,
+            column: index,
+            maxColumns: 5,
+            inFirstQuarter
+          });
         });
       } else {
         // More than five events, we'll use pagination
@@ -315,20 +294,27 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
         const visibleEvents = eventsInSlot.slice(startIdx, startIdx + 5);
         
         visibleEvents.forEach((event, index) => {
+          // Check if event starts in the first 15 minutes of the 30-minute slot
+          const inFirstQuarter = event.start.getMinutes() % 30 < 15;
+          
           processedEvents[slotKey].push({
             ...event,
             column: index,
-            maxColumns: 5
+            maxColumns: 5,
+            inFirstQuarter
           });
         });
       }
     });
     
-    return processedEvents;
+    return {
+      processedEvents,
+      halfHourSlots
+    };
   };
   
-  // Get timed events organized by slot with column information
-  const processedEventsBySlot = processTimedEvents();
+  // Get timed events organized by 30-minute slots with column information
+  const { processedEvents: processedEventsBySlot, halfHourSlots } = processTimedEvents();
   
   // Check if the date is today
   const isToday = currentTime.getDate() === date.getDate() &&
@@ -784,11 +770,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
             const minute = parseInt(minuteStr);
             
             // Get current page for this slot
-            const allEventsInSlot = dayEvents.filter(event => {
-              const startHour = event.start.getHours();
-              const startMinute = Math.floor(event.start.getMinutes() / 15) * 15;
-              return `${startHour}:${startMinute}` === slotKey;
-            });
+            const allEventsInSlot = halfHourSlots[slotKey] || [];
             const currentPage = slotPagination[slotKey] || 0;
             const totalPages = Math.ceil(allEventsInSlot.length / 5);
             const needsPagination = allEventsInSlot.length > 5;
@@ -800,10 +782,10 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                   <div 
                     className="absolute flex justify-between items-center z-20"
                     style={{
-                      top: `${(hour * 60) + (minute / 60 * 60) - 5}px`,
+                      top: `${(hour * 60) + minute - 5}px`, // Position at the start of the 30-minute slot
                       height: '15px',
                       left: '70px',
-                      width: 'calc(100% - 74px)' // Match the available width for events
+                      width: 'calc(100% - 74px)'
                     }}
                   >
                     <button
@@ -859,10 +841,9 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                   }
                   
                   // Calculate width and left position based on column
-                  // Adjust the calculation to ensure the total width doesn't exceed the container
-                  const totalAvailableWidth = 'calc(100% - 70px - 4px)'; // Total width minus left padding and right margin
+                  const totalAvailableWidth = 'calc(100% - 70px - 4px)';
                   const columnWidth = `calc((${totalAvailableWidth} / ${event.maxColumns}) - 4px)`;
-                  const columnLeft = `calc((${event.column} * (${totalAvailableWidth} / ${event.maxColumns})))`;  
+                  const columnLeft = `calc((${event.column} * (${totalAvailableWidth} / ${event.maxColumns})))`;
                   
                   return (
                     <div
@@ -894,19 +875,29 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                         {event.type === 'reminder' ? (
                           <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
                         ) : (
-                          <div className="absolute top-0 left-0 right-0 bottom-0 bg-blue-500 rounded-sm"></div>
+                          <div
+                              className="absolute top-0 left-0 right-0 bottom-0 bg-blue-500 rounded-sm"
+                              style={{
+                                border: '1px solid rgba(255, 255, 255, 0.8)'
+                              }}
+                          ></div>
                         )}
                         
                         {/* Title/icon part positioned with margins */}
                         <div 
                           className={`
-                            absolute top-0.5 left-0.5 right-0.5
+                            absolute ${event.inFirstQuarter ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')} left-1.5 right-0.5
                             px-2 py-0.5 flex items-center
-                            ${getEventColor(event.type)} ${getEventBorderColor(event.type, event.isAllDay)}
+                            ${getEventColor(event.type)} 
                             rounded-md shadow-sm
                           `}
                           style={{
-                            minHeight: '20px'
+                            minHeight: '20px',
+                            border: event.type === 'reminder' ? 
+                              '1px solid rgba(245, 158, 11, 0.8)' : // amber color for reminders
+                              event.isAllDay ?
+                              '1px solid rgba(34, 197, 94, 0.8)' : // green color for all-day events
+                              '1px solid rgba(59, 130, 246, 0.8)' // blue color for regular events
                           }}
                         >
                           {/* Icon */}
