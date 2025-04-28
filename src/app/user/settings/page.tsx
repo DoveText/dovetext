@@ -79,6 +79,12 @@ export default function SettingsPage() {
       description: 'Create, edit, and delete LLM prompts used throughout the system',
       path: '/admin-tools/prompts',
     },
+    {
+      id: 'notification-test',
+      name: 'Notification Test Tools',
+      description: 'Test notification delivery methods including email and Slack',
+      path: '/admin-tools/test/notification',
+    },
     // Add more admin tools here as needed
   ];
 
@@ -230,6 +236,8 @@ export default function SettingsPage() {
                         <Link 
                           href={tool.path}
                           className="px-4 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors"
+                          target="_blank"
+                          rel="noopener noreferrer"
                         >
                           Access
                         </Link>
