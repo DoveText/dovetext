@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePromptService } from '@/lib/services/promptService';
+import { usePromptService, LlmPromptDto, PromptFormData } from '@/app/admin-tools/api/prompts';
 import { FormEvent } from 'react';
 import PromptTestChat from '@/components/common/PromptTestChat';
 import CopyButton from '@/components/common/CopyButton';
@@ -12,24 +12,6 @@ const formatByteSize = (bytes: number): string => {
   if (bytes < 1000000) return `${(bytes / 1000).toFixed(1)}k bytes`;
   return `${(bytes / 1000000).toFixed(1)}M bytes`;
 };
-
-// Define types for our component
-interface LlmPromptDto {
-  id?: number;
-  name: string;
-  description: string;
-  prompt: string;
-  createdBy?: number;
-  updatedBy?: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface PromptFormData {
-  name: string;
-  description: string;
-  prompt: string;
-}
 
 export default function PromptsAdminPage() {
   const promptService = usePromptService();

@@ -3,30 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { FormEvent } from 'react';
-
-// Types for notification delivery methods
-interface DeliveryMethod {
-  id: number;
-  userId: number;
-  type: string;
-  name: string;
-  description: string;
-  config: string;
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Types for notification test response
-interface NotificationTestResponse {
-  success: boolean;
-  notificationId?: number;
-  methodId?: number;
-  deliveryId?: string;
-  metadata?: any;
-  error?: string;
-  message?: string;
-}
+import { notificationDeliveryApi, DeliveryMethod, NotificationTestResponse } from '@/app/admin-tools/api/notification-delivery';
 
 export default function NotificationTestPage() {
   const { user } = useAuth();
@@ -71,13 +48,8 @@ export default function NotificationTestPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/v1/test/notification-delivery/methods');
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      
-      const data = await response.json();
+      const data = await notificationDeliveryApi.getAllMethods();
       setDeliveryMethods(data);
       
       // Auto-select first method if available
@@ -128,22 +100,11 @@ export default function NotificationTestPage() {
       setError(null);
       setTestResult(null);
       
-      const response = await fetch('/api/v1/test/notification-delivery/test-delivery', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          methodId: selectedMethodId,
-          ...notificationForm
-        }),
+      const result = await notificationDeliveryApi.testDelivery({
+        methodId: selectedMethodId ? Number(selectedMethodId) : undefined,
+        ...notificationForm
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      
-      const result = await response.json();
       setTestResult(result);
     } catch (err) {
       setError('Failed to send test notification. Please try again.');
@@ -161,19 +122,7 @@ export default function NotificationTestPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/v1/test/notification-delivery/create-email-method', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(emailForm),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      
-      const result = await response.json();
+      const result = await notificationDeliveryApi.createEmailMethod(emailForm);
       
       // Refresh the delivery methods list
       await fetchDeliveryMethods();
@@ -208,19 +157,7 @@ export default function NotificationTestPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/v1/test/notification-delivery/create-slack-method', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(slackForm),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      
-      const result = await response.json();
+      const result = await notificationDeliveryApi.createSlackMethod(slackForm);
       
       // Refresh the delivery methods list
       await fetchDeliveryMethods();
