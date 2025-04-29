@@ -3,13 +3,14 @@ import { apiClient } from '@/app/api/client';
 
 export interface SettingItem {
   key: string;
-  name: string;
+  name?: string;
   description: string;
-  type: string;
+  type?: string;
   value: string;
   defaultValue: string;
   category: string;
   allowedValues?: string[];
+  sensitive?: boolean;
 }
 
 export interface FunctionRegistry {

@@ -17,23 +17,16 @@ export default function LoadingIndicator() {
       url.searchParams.append(key, value);
     });
 
-    console.log('[LoadingIndicator] Initialized with URL:', url.toString());
-    console.log('[LoadingIndicator] Current pathname:', pathname);
-
     // Function to handle route change start
     const handleStart = (newUrl: string) => {
       // Only show loading indicator if we're navigating to a different page
       if (newUrl !== url.toString()) {
-        console.log('[LoadingIndicator] Navigation started to:', newUrl || 'unknown URL');
         setLoading(true);
-      } else {
-        console.log('[LoadingIndicator] Navigation started but URL is the same, not showing indicator');
       }
     };
 
     // Function to handle route change complete
     const handleComplete = () => {
-      console.log('[LoadingIndicator] Navigation completed, hiding indicator');
       setLoading(false);
     };
 
@@ -42,12 +35,10 @@ export default function LoadingIndicator() {
     
     // Custom event listeners for Next.js router events
     document.addEventListener('routeChangeStart', () => {
-      console.log('[LoadingIndicator] routeChangeStart event received');
       handleStart('');
     });
     
     document.addEventListener('routeChangeComplete', () => {
-      console.log('[LoadingIndicator] routeChangeComplete event received');
       handleComplete();
     });
     
@@ -55,7 +46,6 @@ export default function LoadingIndicator() {
     const observer = new MutationObserver((mutations) => {
       const currentUrl = window.location.href;
       if (currentUrl !== url.toString()) {
-        console.log('[LoadingIndicator] URL changed via MutationObserver:', currentUrl);
         handleComplete();
       }
     });
@@ -69,14 +59,12 @@ export default function LoadingIndicator() {
     const resetSafetyTimeout = () => {
       clearTimeout(safetyTimeout);
       safetyTimeout = setTimeout(() => {
-        console.log('[LoadingIndicator] Safety timeout triggered, forcing indicator to hide');
         setLoading(false);
       }, 3000); // 3 seconds max loading time
     };
     
     // When loading state changes, reset the safety timeout
     if (loading) {
-      console.log('[LoadingIndicator] Loading state is true, setting safety timeout');
       resetSafetyTimeout();
     }
 
@@ -86,13 +74,8 @@ export default function LoadingIndicator() {
       document.removeEventListener('routeChangeComplete', handleComplete);
       observer.disconnect();
       clearTimeout(safetyTimeout);
-      console.log('[LoadingIndicator] Cleanup completed');
     };
   }, [pathname, searchParams, loading]);
-
-  useEffect(() => {
-    console.log('[LoadingIndicator] Loading state changed to:', loading);
-  }, [loading]);
 
   if (!loading) return null;
 

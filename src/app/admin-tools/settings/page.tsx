@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSettingsService, FunctionRegistry, SettingItem, SettingsByCategory } from '@/app/admin-tools/api/settings';
 import Link from 'next/link';
-import { ChevronRightIcon, HomeIcon } from '@heroicons/react/24/outline';
+import { ChevronRightIcon, HomeIcon, PencilIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 export default function SettingsAdminPage() {
   const settingsService = useSettingsService();
@@ -13,13 +13,14 @@ export default function SettingsAdminPage() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editingSetting, setEditingSetting] = useState<SettingItem | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [previousTabState, setPreviousTabState] = useState<{functionId: string | null, tabName: string | null}>({
     functionId: null,
     tabName: null
   });
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Load functions on initial render
   useEffect(() => {
@@ -49,6 +50,38 @@ export default function SettingsAdminPage() {
       setActiveTab(null);
     }
   }, [settings, selectedFunction, previousTabState]);
+
+  // Focus the input when editing starts
+  useEffect(() => {
+    if (editingKey && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editingKey]);
+
+  // Helper function to determine if a setting is a secure item (password, token, etc.)
+  const isSecureItem = (setting: SettingItem): boolean => {
+    if (!setting) return false;
+    // Use the sensitive flag from the server response
+    return !!setting.sensitive;
+  };
+
+  // Helper function to mask secure values
+  const maskSecureValue = (value: string): string => {
+    if (!value) return '';
+    return '•'.repeat(Math.min(value.length, 8));
+  };
+
+  // Helper function to check if a setting has boolean values only
+  const isBooleanSetting = (setting: SettingItem): boolean => {
+    return setting.allowedValues?.length === 2 && 
+           setting.allowedValues.includes('true') && 
+           setting.allowedValues.includes('false');
+  };
+
+  // Helper function to convert string "true"/"false" to boolean
+  const stringToBoolean = (value: string): boolean => {
+    return value.toLowerCase() === 'true';
+  };
 
   const fetchFunctions = async () => {
     try {
@@ -90,7 +123,7 @@ export default function SettingsAdminPage() {
       });
     }
     setSelectedFunction(functionId);
-    setEditingSetting(null);
+    setEditingKey(null);
   };
 
   const handleTabChange = (tabName: string) => {
@@ -103,17 +136,25 @@ export default function SettingsAdminPage() {
   };
 
   const handleEdit = (setting: SettingItem) => {
-    setEditingSetting(setting);
+    setEditingKey(setting.key);
     setEditValue(setting.value);
   };
 
   const handleCancelEdit = () => {
-    setEditingSetting(null);
+    setEditingKey(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, setting: SettingItem) => {
+    if (e.key === 'Enter') {
+      handleSave(setting);
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
   };
 
   // Optimistically update the UI without showing loading state
-  const handleSave = async () => {
-    if (!editingSetting || !selectedFunction || !activeTab) return;
+  const handleSave = async (setting: SettingItem) => {
+    if (!selectedFunction || !activeTab) return;
 
     try {
       setIsSaving(true);
@@ -126,16 +167,16 @@ export default function SettingsAdminPage() {
       // Optimistically update the UI
       const updatedSettings = { ...settings };
       if (updatedSettings[activeTab]) {
-        updatedSettings[activeTab] = updatedSettings[activeTab].map(setting => 
-          setting.key === editingSetting.key 
-            ? { ...setting, value: editValue } 
-            : setting
+        updatedSettings[activeTab] = updatedSettings[activeTab].map(s => 
+          s.key === setting.key 
+            ? { ...s, value: editValue } 
+            : s
         );
         setSettings(updatedSettings);
       }
       
       // Clear editing state immediately for better UX
-      setEditingSetting(null);
+      setEditingKey(null);
       
       // Preserve tab state
       setPreviousTabState({
@@ -144,7 +185,7 @@ export default function SettingsAdminPage() {
       });
       
       // Make the API call in the background
-      await settingsService.updateSetting(currentFunction, editingSetting.key, editValue);
+      await settingsService.updateSetting(currentFunction, setting.key, editValue);
       
       // Silently refresh the data to ensure consistency
       const data = await settingsService.getSettingsByCategory(currentFunction);
@@ -326,93 +367,152 @@ export default function SettingsAdminPage() {
                     </nav>
                   </div>
                   
-                  {/* Tab Content */}
+                  {/* Tab Content - Table Layout */}
                   <div className="p-6">
                     {activeTab && settings[activeTab] && (
-                      <div className="space-y-6">
-                        {settings[activeTab].map((setting) => (
-                          <div key={setting.key} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors duration-150">
-                            <div className="flex justify-between items-start">
-                              <div className="flex-grow">
-                                <h4 className="font-medium text-gray-900">{setting.name}</h4>
-                                <p className="text-sm text-gray-600 mt-1">{setting.description}</p>
-                              </div>
-                              <div className="flex space-x-2 ml-4">
-                                <button
-                                  onClick={() => handleEdit(setting)}
-                                  disabled={isSaving}
-                                  className={`px-3 py-1 text-sm text-blue-600 hover:text-blue-800 rounded border border-blue-200 hover:border-blue-400 transition-colors duration-150 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleReset(setting)}
-                                  disabled={isSaving || setting.value === setting.defaultValue}
-                                  className={`px-3 py-1 text-sm text-gray-600 hover:text-gray-800 rounded border border-gray-200 hover:border-gray-400 transition-colors duration-150 ${(isSaving || setting.value === setting.defaultValue) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                  Reset
-                                </button>
-                              </div>
-                            </div>
-                            
-                            {editingSetting?.key === setting.key ? (
-                              <div className="mt-4 bg-gray-50 p-4 rounded-md border border-gray-200">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Value
-                                </label>
-                                {setting.allowedValues ? (
-                                  <select
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                                    disabled={isSaving}
-                                  >
-                                    {setting.allowedValues.map((value) => (
-                                      <option key={value} value={value}>
-                                        {value}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : (
-                                  <input
-                                    type="text"
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                                    disabled={isSaving}
-                                  />
-                                )}
-                                <div className="mt-4 flex justify-end space-x-3">
-                                  <button
-                                    onClick={handleCancelEdit}
-                                    className="px-4 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 rounded-md border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150"
-                                    disabled={isSaving}
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    onClick={handleSave}
-                                    className={`px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md border border-transparent shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150 ${isSaving ? 'opacity-75 cursor-wait' : ''}`}
-                                    disabled={isSaving}
-                                  >
-                                    {isSaving ? 'Saving...' : 'Save'}
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
-                                <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
-                                  <span className="font-medium text-gray-700 block mb-1">Current Value:</span>
-                                  <span className="text-gray-900">{setting.value || '(empty)'}</span>
-                                </div>
-                                <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
-                                  <span className="font-medium text-gray-700 block mb-1">Default Value:</span>
-                                  <span className="text-gray-500">{setting.defaultValue || '(empty)'}</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/3">
+                                Setting
+                              </th>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                                Value
+                              </th>
+                              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {settings[activeTab].map((setting) => (
+                              <tr key={setting.key} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-medium text-gray-900">{setting.name}</div>
+                                  <div className="text-xs text-gray-500 mt-1">{setting.description}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  {editingKey === setting.key ? (
+                                    isBooleanSetting(setting) ? (
+                                      <div className="flex items-center">
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditValue('true')}
+                                          className={`px-3 py-2 text-sm font-medium rounded-l-md ${
+                                            editValue === 'true'
+                                              ? 'bg-blue-600 text-white'
+                                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                          }`}
+                                        >
+                                          Enabled
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditValue('false')}
+                                          className={`px-3 py-2 text-sm font-medium rounded-r-md ${
+                                            editValue === 'false'
+                                              ? 'bg-blue-600 text-white'
+                                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                          }`}
+                                        >
+                                          Disabled
+                                        </button>
+                                      </div>
+                                    ) : setting.allowedValues ? (
+                                      <select
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white"
+                                        disabled={isSaving}
+                                        onKeyDown={(e) => handleKeyDown(e, setting)}
+                                        onBlur={() => handleSave(setting)}
+                                      >
+                                        {setting.allowedValues.map((value) => (
+                                          <option key={value} value={value}>
+                                            {value}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <input
+                                        ref={inputRef}
+                                        type={isSecureItem(setting) ? "password" : "text"}
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                        disabled={isSaving}
+                                        onKeyDown={(e) => handleKeyDown(e, setting)}
+                                        onBlur={() => handleSave(setting)}
+                                        placeholder={setting.defaultValue || '(empty)'}
+                                        autoComplete={isSecureItem(setting) ? "new-password" : "off"}
+                                      />
+                                    )
+                                  ) : (
+                                    <div className="text-sm text-gray-900">
+                                      {setting.value ? (
+                                        isSecureItem(setting) ? (
+                                          <span className="text-gray-700">{maskSecureValue(setting.value)}</span>
+                                        ) : isBooleanSetting(setting) ? (
+                                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                            stringToBoolean(setting.value) 
+                                              ? 'bg-green-100 text-green-800' 
+                                              : 'bg-red-100 text-red-800'
+                                          }`}>
+                                            {stringToBoolean(setting.value) ? 'Enabled' : 'Disabled'}
+                                          </span>
+                                        ) : (
+                                          setting.value
+                                        )
+                                      ) : (
+                                        <span className="text-gray-400 italic">{isSecureItem(setting) ? '(secured)' : (setting.defaultValue || '(empty)')}</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                  {editingKey === setting.key ? (
+                                    <div className="flex justify-end space-x-3">
+                                      <button
+                                        onClick={handleCancelEdit}
+                                        className="text-gray-600 hover:text-gray-800"
+                                        disabled={isSaving}
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        onClick={() => handleSave(setting)}
+                                        className="text-blue-600 hover:text-blue-800"
+                                        disabled={isSaving}
+                                      >
+                                        {isSaving ? 'Saving...' : 'Save'}
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex justify-end space-x-3">
+                                      <button
+                                        onClick={() => handleEdit(setting)}
+                                        disabled={isSaving}
+                                        className={`text-blue-600 hover:text-blue-800 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        title="Edit"
+                                      >
+                                        <PencilIcon className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleReset(setting)}
+                                        disabled={isSaving || setting.value === setting.defaultValue}
+                                        className={`text-gray-600 hover:text-gray-800 ${(isSaving || setting.value === setting.defaultValue) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        title="Reset to default"
+                                      >
+                                        <ArrowPathIcon className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </div>
