@@ -65,6 +65,12 @@ export default function AdminToolsLayout({
       path: '/admin-tools/prompts',
     },
     {
+      id: 'settings',
+      name: 'Settings Manager',
+      description: 'Manage application settings and configurations',
+      path: '/admin-tools/settings',
+    },
+    {
       id: 'notification-test',
       name: 'Notification Test',
       description: 'Test notification delivery methods',
@@ -149,6 +155,9 @@ export default function AdminToolsLayout({
             <ul className="flex space-x-6">
               <li>
                 <NavLink href="/admin-tools/prompts">Prompts</NavLink>
+              </li>
+              <li>
+                <NavLink href="/admin-tools/settings">Settings</NavLink>
               </li>
               <li>
                 <NavLink href="/admin-tools/test">Test Tools</NavLink>

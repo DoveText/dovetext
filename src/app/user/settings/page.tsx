@@ -80,6 +80,12 @@ export default function SettingsPage() {
       path: '/admin-tools/prompts',
     },
     {
+      id: 'settings-manager',
+      name: 'Settings Manager',
+      description: 'Manage application settings and configurations',
+      path: '/admin-tools/settings',
+    },
+    {
       id: 'notification-test',
       name: 'Notification Test Tools',
       description: 'Test notification delivery methods including email and Slack',
