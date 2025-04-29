@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { 
@@ -17,6 +17,7 @@ import {
   ShieldCheckIcon,
   HomeIcon
 } from '@heroicons/react/24/outline';
+import LoadingIndicator from '@/components/common/LoadingIndicator';
 
 // Define admin tool types
 interface AdminTool {
@@ -39,6 +40,7 @@ export default function AdminToolsLayout({
 }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname() || '';
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
@@ -137,17 +139,26 @@ export default function AdminToolsLayout({
     },
   ];
 
-  const pathname = usePathname() || '';
   const currentTool = adminTools.find(tool => 
     pathname === tool.path || pathname.startsWith(`${tool.path}/`)
   ) || adminTools[0];
 
+  // Determine if we're on the main dashboard page
+  const isMainDashboard = pathname === '/admin-tools';
+
   return (
     <div className="bg-gray-100 min-h-screen">
+      {/* Use the shared LoadingIndicator component */}
+      <LoadingIndicator />
+      
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center">
-            <Link href="/admin-tools" className="text-xl font-bold text-gray-800 mr-4 hover:text-blue-600 transition-colors">
+            <Link 
+              href="/admin-tools" 
+              className="text-xl font-bold text-gray-800 mr-4 hover:text-blue-600 transition-colors"
+              onClick={() => document.dispatchEvent(new Event('routeChangeStart'))}
+            >
               Admin Tools
             </Link>
             
@@ -180,6 +191,7 @@ export default function AdminToolsLayout({
                               active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
                               'block px-4 py-2 text-sm'
                             )}
+                            onClick={() => document.dispatchEvent(new Event('routeChangeStart'))}
                           >
                             <div className="flex items-center">
                               {tool.icon && <span className="mr-2">{tool.icon}</span>}
@@ -202,7 +214,15 @@ export default function AdminToolsLayout({
             <span className="text-sm text-gray-600">
               Logged in as {user?.email}
             </span>
-            <a href="/" className="text-blue-600 hover:text-blue-800 text-sm">
+            <a 
+              href="/" 
+              className="text-blue-600 hover:text-blue-800 text-sm"
+              onClick={(e) => {
+                e.preventDefault();
+                document.dispatchEvent(new Event('routeChangeStart'));
+                router.push('/');
+              }}
+            >
               Back to Dashboard
             </a>
           </div>
@@ -211,7 +231,7 @@ export default function AdminToolsLayout({
           <nav>
             <ul className="flex space-x-6">
               <li>
-                <NavLink href="/admin-tools">Dashboard</NavLink>
+                <NavLink href="/admin-tools" exactPath={true}>Dashboard</NavLink>
               </li>
               <li>
                 <NavLink href="/admin-tools/settings">Settings</NavLink>
@@ -229,14 +249,22 @@ export default function AdminToolsLayout({
           </nav>
         </div>
       </header>
-      <main>{children}</main>
+      
+      {/* Apply container styles only to non-dashboard pages */}
+      {isMainDashboard ? (
+        <main>{children}</main>
+      ) : (
+        <main>{children}</main>
+      )}
     </div>
   );
 }
 
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+function NavLink({ href, children, exactPath = false }: { href: string; children: React.ReactNode; exactPath?: boolean }) {
   const pathname = usePathname() || '';
-  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = exactPath 
+    ? pathname === href 
+    : (pathname === href || pathname.startsWith(`${href}/`)) && href !== '/admin-tools';
   
   return (
     <Link 
@@ -244,6 +272,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
       className={`text-sm font-medium py-2 border-b-2 ${isActive 
         ? 'text-blue-600 border-blue-600' 
         : 'text-gray-600 border-transparent hover:text-blue-600 hover:border-blue-600'}`}
+      onClick={() => document.dispatchEvent(new Event('routeChangeStart'))}
     >
       {children}
     </Link>

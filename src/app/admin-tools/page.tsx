@@ -10,6 +10,8 @@ import {
   BellIcon, 
   ClockIcon,
   ChartBarIcon,
+  ChevronRightIcon,
+  HomeIcon,
   ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 
@@ -85,7 +87,25 @@ export default function AdminToolsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 py-8">
+      {/* Breadcrumb Navigation */}
+      <nav className="flex mb-6" aria-label="Breadcrumb">
+        <ol className="inline-flex items-center space-x-1 md:space-x-3">
+          <li className="inline-flex items-center">
+            <Link href="/admin-tools" className="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600">
+              <HomeIcon className="w-4 h-4 mr-2" />
+              Admin Tools
+            </Link>
+          </li>
+          <li>
+            <div className="flex items-center">
+              <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+              <span className="ml-1 text-sm font-medium text-gray-500 md:ml-2">Dashboard</span>
+            </div>
+          </li>
+        </ol>
+      </nav>
+
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Admin Tools</h1>
       </div>
