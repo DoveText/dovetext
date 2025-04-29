@@ -247,6 +247,23 @@ export default function Navigation() {
                             </Link>
                           )}
                         </Menu.Item>
+                        {/* Admin Tools menu item - only visible for admin users */}
+                        {user.settings?.role === 'admin' && (
+                          <Menu.Item>
+                            {({ active, close }) => (
+                              <Link
+                                href="/admin-tools"
+                                onClick={(e) => handleNavigation('/admin-tools', e, close)}
+                                className={classNames(
+                                  active ? 'bg-gray-100' : '',
+                                  'block px-4 py-2 text-sm text-gray-700'
+                                )}
+                              >
+                                Admin Tools
+                              </Link>
+                            )}
+                          </Menu.Item>
+                        )}
                         <Menu.Item>
                           {({ active }) => (
                             <button

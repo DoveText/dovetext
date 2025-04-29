@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Switch } from '@headlessui/react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Link from 'next/link';
+import { ArrowRightIcon } from '@heroicons/react/24/outline';
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
@@ -22,13 +23,6 @@ interface SecuritySetting {
   name: string;
   description: string;
   enabled: boolean;
-}
-
-interface AdminTool {
-  id: string;
-  name: string;
-  description: string;
-  path: string;
 }
 
 export default function SettingsPage() {
@@ -70,29 +64,6 @@ export default function SettingsPage() {
       enabled: true,
     },
   ]);
-
-  // Admin tools available to users with admin role
-  const adminTools: AdminTool[] = [
-    {
-      id: 'prompts-manager',
-      name: 'LLM Prompts Manager',
-      description: 'Create, edit, and delete LLM prompts used throughout the system',
-      path: '/admin-tools/prompts',
-    },
-    {
-      id: 'settings-manager',
-      name: 'Settings Manager',
-      description: 'Manage application settings and configurations',
-      path: '/admin-tools/settings',
-    },
-    {
-      id: 'notification-test',
-      name: 'Notification Test Tools',
-      description: 'Test notification delivery methods including email and Slack',
-      path: '/admin-tools/test/notification',
-    },
-    // Add more admin tools here as needed
-  ];
 
   const handleNotificationToggle = (settingId: string) => {
     setNotificationSettings(settings =>
@@ -219,38 +190,28 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Admin Tools Section - Only visible to admin users */}
+          {/* Admin Tools Link - Only visible to admin users */}
           {isAdmin && (
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:px-6">
                 <h3 className="text-lg font-medium leading-6 text-gray-900">
-                  Admin Tools
+                  Administrator Access
                 </h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Access administrator tools and settings
+                  You have administrator privileges
                 </p>
               </div>
-              <div className="border-t border-gray-200">
-                <ul role="list" className="divide-y divide-gray-200">
-                  {adminTools.map((tool) => (
-                    <li key={tool.id} className="px-4 py-4 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <p className="text-sm font-medium text-gray-900">{tool.name}</p>
-                          <p className="text-sm text-gray-500">{tool.description}</p>
-                        </div>
-                        <Link 
-                          href={tool.path}
-                          className="px-4 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Access
-                        </Link>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+              <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
+                <Link 
+                  href="/admin-tools"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                >
+                  Access Admin Tools
+                  <ArrowRightIcon className="ml-2 -mr-1 h-4 w-4" aria-hidden="true" />
+                </Link>
+                <p className="mt-3 text-xs text-gray-500">
+                  The admin tools dashboard provides access to system settings, user management, and other administrative functions.
+                </p>
               </div>
             </div>
           )}

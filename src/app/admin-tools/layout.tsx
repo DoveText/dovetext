@@ -7,7 +7,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { 
+  ChevronDownIcon, 
+  Cog6ToothIcon, 
+  UserGroupIcon, 
+  BellIcon, 
+  ClockIcon,
+  ChartBarIcon,
+  ShieldCheckIcon,
+  HomeIcon
+} from '@heroicons/react/24/outline';
 
 // Define admin tool types
 interface AdminTool {
@@ -15,6 +24,7 @@ interface AdminTool {
   name: string;
   description: string;
   path: string;
+  icon?: React.ReactNode;
 }
 
 // Helper function for conditional class names
@@ -35,7 +45,7 @@ export default function AdminToolsLayout({
     // Check authentication and redirect if not authenticated
     if (!loading) {
       if (!user) {
-        router.push('/signin?redirect=/admin-tools/prompts');
+        router.push('/signin?redirect=/admin-tools');
       } else if (user.settings?.role !== 'admin') {
         // Redirect non-admin users
         router.push('/dashboard');
@@ -59,16 +69,59 @@ export default function AdminToolsLayout({
   // Define available admin tools
   const adminTools: AdminTool[] = [
     {
+      id: 'home',
+      name: 'Admin Dashboard',
+      description: 'Overview of all admin tools',
+      path: '/admin-tools',
+      icon: <HomeIcon className="h-5 w-5 text-gray-500" />
+    },
+    {
+      id: 'settings',
+      name: 'System Settings',
+      description: 'Configure global system settings and parameters',
+      path: '/admin-tools/settings',
+      icon: <Cog6ToothIcon className="h-5 w-5 text-blue-500" />
+    },
+    {
+      id: 'users',
+      name: 'User Management',
+      description: 'Manage users, roles, and permissions',
+      path: '/admin-tools/users',
+      icon: <UserGroupIcon className="h-5 w-5 text-green-500" />
+    },
+    {
+      id: 'notifications',
+      name: 'Notification Templates',
+      description: 'Configure system notification templates',
+      path: '/admin-tools/notifications',
+      icon: <BellIcon className="h-5 w-5 text-yellow-500" />
+    },
+    {
+      id: 'scheduler',
+      name: 'Task Scheduler',
+      description: 'Configure and monitor scheduled system tasks',
+      path: '/admin-tools/scheduler',
+      icon: <ClockIcon className="h-5 w-5 text-purple-500" />
+    },
+    {
+      id: 'analytics',
+      name: 'System Analytics',
+      description: 'View system performance and usage statistics',
+      path: '/admin-tools/analytics',
+      icon: <ChartBarIcon className="h-5 w-5 text-red-500" />
+    },
+    {
+      id: 'security',
+      name: 'Security Settings',
+      description: 'Configure security policies and audit logs',
+      path: '/admin-tools/security',
+      icon: <ShieldCheckIcon className="h-5 w-5 text-indigo-500" />
+    },
+    {
       id: 'prompts',
       name: 'LLM Prompts Manager',
       description: 'Create, edit, and delete LLM prompts',
       path: '/admin-tools/prompts',
-    },
-    {
-      id: 'settings',
-      name: 'Settings Manager',
-      description: 'Manage application settings and configurations',
-      path: '/admin-tools/settings',
     },
     {
       id: 'notification-test',
@@ -82,7 +135,6 @@ export default function AdminToolsLayout({
       description: 'Access all testing tools',
       path: '/admin-tools/test',
     },
-    // Add more tools as needed
   ];
 
   const pathname = usePathname() || '';
@@ -95,7 +147,9 @@ export default function AdminToolsLayout({
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center">
-            <h1 className="text-xl font-bold text-gray-800 mr-4">Admin Tools</h1>
+            <Link href="/admin-tools" className="text-xl font-bold text-gray-800 mr-4 hover:text-blue-600 transition-colors">
+              Admin Tools
+            </Link>
             
             {/* Admin Tools Dropdown */}
             <Menu as="div" className="relative inline-block text-left">
@@ -127,9 +181,12 @@ export default function AdminToolsLayout({
                               'block px-4 py-2 text-sm'
                             )}
                           >
-                            <div>
-                              <p className="font-medium">{tool.name}</p>
-                              <p className="text-xs text-gray-500">{tool.description}</p>
+                            <div className="flex items-center">
+                              {tool.icon && <span className="mr-2">{tool.icon}</span>}
+                              <div>
+                                <p className="font-medium">{tool.name}</p>
+                                <p className="text-xs text-gray-500">{tool.description}</p>
+                              </div>
                             </div>
                           </Link>
                         )}
@@ -154,10 +211,16 @@ export default function AdminToolsLayout({
           <nav>
             <ul className="flex space-x-6">
               <li>
-                <NavLink href="/admin-tools/prompts">Prompts</NavLink>
+                <NavLink href="/admin-tools">Dashboard</NavLink>
               </li>
               <li>
                 <NavLink href="/admin-tools/settings">Settings</NavLink>
+              </li>
+              <li>
+                <NavLink href="/admin-tools/users">Users</NavLink>
+              </li>
+              <li>
+                <NavLink href="/admin-tools/prompts">Prompts</NavLink>
               </li>
               <li>
                 <NavLink href="/admin-tools/test">Test Tools</NavLink>
