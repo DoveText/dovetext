@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { FormEvent } from 'react';
 import { notificationDeliveryApi, DeliveryMethod, NotificationTestResponse } from '@/app/admin-tools/api/notification-delivery';
+import Link from 'next/link';
+import { ChevronRightIcon, HomeIcon } from '@heroicons/react/24/outline';
 
 export default function NotificationTestPage() {
   const { user } = useAuth();
@@ -186,6 +188,32 @@ export default function NotificationTestPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Breadcrumb Navigation */}
+      <nav className="flex mb-6" aria-label="Breadcrumb">
+        <ol className="inline-flex items-center space-x-1 md:space-x-3">
+          <li className="inline-flex items-center">
+            <Link href="/admin-tools" className="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600">
+              <HomeIcon className="w-4 h-4 mr-2" />
+              Admin Tools
+            </Link>
+          </li>
+          <li>
+            <div className="flex items-center">
+              <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+              <Link href="/admin-tools/test" className="ml-1 text-sm font-medium text-gray-700 hover:text-blue-600 md:ml-2">
+                Test Tools
+              </Link>
+            </div>
+          </li>
+          <li>
+            <div className="flex items-center">
+              <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+              <span className="ml-1 text-sm font-medium text-gray-500 md:ml-2">Notification Delivery</span>
+            </div>
+          </li>
+        </ol>
+      </nav>
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Notification Delivery Test</h1>
         <div className="flex space-x-4">
