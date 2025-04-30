@@ -1,11 +1,11 @@
 import { apiClient } from '@/app/api/client';
+import { formatMethodRequest, DELIVERY_METHOD_TYPES } from './delivery-method-types';
 
-// Types for notification delivery
 export interface DeliveryMethod {
   id: number;
   userId: number;
-  type: string;
   name: string;
+  type: string;
   description: string;
   config: string;
   isDefault: boolean;
@@ -13,38 +13,68 @@ export interface DeliveryMethod {
   updatedAt: string;
 }
 
+export interface TestDeliveryRequest {
+  methodId?: number;
+  methodType?: string;
+  title?: string;
+  message: string;
+  priority?: string;
+}
+
 export interface NotificationTestResponse {
   success: boolean;
-  notificationId?: number;
-  methodId?: number;
+  notificationId: number;
+  methodId: number;
   deliveryId?: string;
   metadata?: any;
   error?: string;
-  message?: string;
 }
 
-export interface EmailMethodRequest {
+// Generic request interface for all method types
+export interface DeliveryMethodRequest {
   name: string;
+  [key: string]: any;
+}
+
+// Type-specific interfaces for better type checking
+export interface EmailMethodRequest extends DeliveryMethodRequest {
   email: string;
-  format?: string;
+  format?: 'html' | 'text';
   enableReply?: boolean;
   replyToAddress?: string;
 }
 
-export interface SlackMethodRequest {
-  name: string;
+export interface SlackMethodRequest extends DeliveryMethodRequest {
   webhookUrl: string;
   channel?: string;
   username?: string;
   iconEmoji?: string;
 }
 
-export interface TestDeliveryRequest {
-  methodId?: number;
-  methodType?: string;
-  title?: string;
-  message?: string;
-  priority?: string;
+export interface TextMethodRequest extends DeliveryMethodRequest {
+  phoneNumber: string;
+  provider?: 'TWILIO' | 'BANDWIDTH' | 'AWS';
+  enableReply?: boolean;
+  replyCallbackUrl?: string;
+}
+
+export interface VoiceMethodRequest extends DeliveryMethodRequest {
+  phoneNumber: string;
+  provider?: 'TWILIO' | 'BANDWIDTH';
+  language?: string;
+  voice?: 'male' | 'female';
+  enableActions?: boolean;
+  actionCallbackUrl?: string;
+}
+
+export interface WebhookMethodRequest extends DeliveryMethodRequest {
+  url: string;
+  method?: 'GET' | 'POST' | 'PUT';
+  contentType?: string;
+  authType?: 'none' | 'basic' | 'bearer' | 'custom';
+  username?: string;
+  password?: string;
+  bearerToken?: string;
 }
 
 export const notificationDeliveryApi = {
@@ -73,81 +103,54 @@ export const notificationDeliveryApi = {
   },
 
   /**
-   * Create a Slack delivery method
+   * Create a delivery method of any type
    */
-  async createSlackMethod(request: SlackMethodRequest): Promise<DeliveryMethod> {
-    // Format the request to match what DeliveryMethodController expects
-    const formattedRequest = {
-      name: request.name,
-      type: "SLACK",
-      description: `Slack notification to ${request.channel || '#general'}`,
-      config: {
-        webhookUrl: request.webhookUrl,
-        channel: request.channel || '#general',
-        username: request.username || 'Dove Text',
-        iconEmoji: request.iconEmoji || ':dove:',
-        useBlocks: true,
-        includeAttachments: true
-      }
-    };
-    
+  async createMethod(type: string, request: DeliveryMethodRequest): Promise<DeliveryMethod> {
+    const formattedRequest = formatMethodRequest(type, request);
     const { data } = await apiClient.post<DeliveryMethod>('/api/v1/methods', formattedRequest);
     return data;
   },
 
   /**
-   * Create an Email delivery method
+   * Create a Slack delivery method (legacy method, use createMethod instead)
+   */
+  async createSlackMethod(request: SlackMethodRequest): Promise<DeliveryMethod> {
+    return this.createMethod('SLACK', request);
+  },
+
+  /**
+   * Create an Email delivery method (legacy method, use createMethod instead)
    */
   async createEmailMethod(request: EmailMethodRequest): Promise<DeliveryMethod> {
-    // Format the request to match what DeliveryMethodController expects
-    const formattedRequest = {
-      name: request.name,
-      type: "EMAIL",
-      description: `Email notification to ${request.email}`,
-      config: {
-        email: request.email,
-        format: request.format || 'html',
-        enableReply: request.enableReply || false,
-        ...(request.enableReply && request.replyToAddress ? { replyToAddress: request.replyToAddress } : {})
-      }
-    };
-    
-    const { data } = await apiClient.post<DeliveryMethod>('/api/v1/methods', formattedRequest);
-    return data;
+    return this.createMethod('EMAIL', request);
+  },
+
+  /**
+   * Create a Text (SMS) delivery method
+   */
+  async createTextMethod(request: TextMethodRequest): Promise<DeliveryMethod> {
+    return this.createMethod('TEXT', request);
+  },
+
+  /**
+   * Create a Voice delivery method
+   */
+  async createVoiceMethod(request: VoiceMethodRequest): Promise<DeliveryMethod> {
+    return this.createMethod('VOICE', request);
+  },
+
+  /**
+   * Create a Webhook delivery method
+   */
+  async createWebhookMethod(request: WebhookMethodRequest): Promise<DeliveryMethod> {
+    return this.createMethod('WEBHOOK', request);
   },
 
   /**
    * Update a delivery method
    */
-  async updateMethod(id: number, request: EmailMethodRequest | SlackMethodRequest): Promise<DeliveryMethod> {
-    // Get the current method to determine its type
-    const { data: currentMethod } = await apiClient.get<DeliveryMethod>(`/api/v1/methods/${id}`);
-    
-    let formattedRequest: any = {
-      name: request.name
-    };
-    
-    // Format the config based on the method type
-    if (currentMethod.type === 'EMAIL' && 'email' in request) {
-      formattedRequest.config = {
-        email: request.email,
-        format: request.format || 'html',
-        enableReply: request.enableReply || false,
-        ...(request.enableReply && request.replyToAddress ? { replyToAddress: request.replyToAddress } : {})
-      };
-      formattedRequest.description = `Email notification to ${request.email}`;
-    } else if (currentMethod.type === 'SLACK' && 'webhookUrl' in request) {
-      formattedRequest.config = {
-        webhookUrl: request.webhookUrl,
-        channel: request.channel || '#general',
-        username: request.username || 'Dove Text',
-        iconEmoji: request.iconEmoji || ':dove:',
-        useBlocks: true,
-        includeAttachments: true
-      };
-      formattedRequest.description = `Slack notification to ${request.channel || '#general'}`;
-    }
-    
+  async updateMethod(id: number, type: string, request: DeliveryMethodRequest): Promise<DeliveryMethod> {
+    const formattedRequest = formatMethodRequest(type, request);
     const { data } = await apiClient.put<DeliveryMethod>(`/api/v1/methods/${id}`, formattedRequest);
     return data;
   },

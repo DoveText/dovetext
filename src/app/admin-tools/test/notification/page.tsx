@@ -2,8 +2,10 @@
 
 import { useEffect, useState, Fragment } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { FormEvent } from 'react';
-import { notificationDeliveryApi, DeliveryMethod, NotificationTestResponse, EmailMethodRequest, SlackMethodRequest } from '@/app/admin-tools/api/notification-delivery';
+import { notificationDeliveryApi, DeliveryMethod, EmailMethodRequest, SlackMethodRequest, TextMethodRequest, VoiceMethodRequest, WebhookMethodRequest } from '@/app/admin-tools/api/notification-delivery';
+import { DELIVERY_METHOD_TYPES } from '@/app/admin-tools/api/delivery-method-types';
+import DeliveryMethodForm from './components/DeliveryMethodForm';
+import DeliveryMethodTypeSelector from './components/DeliveryMethodTypeSelector';
 import Link from 'next/link';
 import { ChevronRightIcon, HomeIcon, XMarkIcon, PlusIcon, ChevronDownIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Dialog, Transition, Menu } from '@headlessui/react';
@@ -13,17 +15,16 @@ export default function NotificationTestPage() {
   const [deliveryMethods, setDeliveryMethods] = useState<DeliveryMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<NotificationTestResponse | null>(null);
+  const [testResult, setTestResult] = useState<any>(null);
   
   // Modal states
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
-  const [isCreateEmailModalOpen, setIsCreateEmailModalOpen] = useState(false);
-  const [isCreateSlackModalOpen, setIsCreateSlackModalOpen] = useState(false);
-  const [isEditEmailModalOpen, setIsEditEmailModalOpen] = useState(false);
-  const [isEditSlackModalOpen, setIsEditSlackModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isTestingInProgress, setIsTestingInProgress] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<DeliveryMethod | null>(null);
+  const [editingMethod, setEditingMethod] = useState<DeliveryMethod | null>(null);
   
   // Form states
   const [selectedMethodId, setSelectedMethodId] = useState<number | ''>('');
@@ -33,23 +34,14 @@ export default function NotificationTestPage() {
     priority: 'MEDIUM'
   });
   
-  // Email method form
-  const [emailForm, setEmailForm] = useState({
-    name: 'Email Notification',
-    email: '',
-    format: 'html',
-    enableReply: false,
-    replyToAddress: ''
-  });
+  // Create modal states
+  const [selectedMethodType, setSelectedMethodType] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   
-  // Slack method form
-  const [slackForm, setSlackForm] = useState({
-    name: 'Slack Notification',
-    webhookUrl: '',
-    channel: '#general',
-    username: 'Dove Text',
-    iconEmoji: ':dove:'
-  });
+  // Edit modal states
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Fetch delivery methods on initial render
   useEffect(() => {
@@ -78,7 +70,7 @@ export default function NotificationTestPage() {
   };
 
   // Handle notification form input changes
-  const handleNotificationInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleNotificationInputChange = (e: any) => {
     const { name, value } = e.target;
     setNotificationForm(prev => ({
       ...prev,
@@ -86,26 +78,8 @@ export default function NotificationTestPage() {
     }));
   };
 
-  // Handle email form input changes
-  const handleEmailInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target as HTMLInputElement;
-    setEmailForm(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
-    }));
-  };
-
-  // Handle slack form input changes
-  const handleSlackInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setSlackForm(prev => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  // Submit test notification
-  const handleTestNotification = async (e: FormEvent) => {
+  // Handle test notification submission
+  const handleTestNotification = async (e: any) => {
     e.preventDefault();
     
     try {
@@ -127,73 +101,39 @@ export default function NotificationTestPage() {
     }
   };
 
-  // Create email delivery method
-  const handleCreateEmailMethod = async (e: FormEvent) => {
-    e.preventDefault();
+  // Handle method creation
+  const handleCreateMethod = async (values: any) => {
+    if (!selectedMethodType) return;
     
+    setIsCreating(true);
     try {
-      setLoading(true);
-      setError(null);
-      
-      const result = await notificationDeliveryApi.createEmailMethod(emailForm);
-      
-      // Refresh the delivery methods list
-      await fetchDeliveryMethods();
-      
-      // Reset form
-      setEmailForm({
-        name: 'Email Notification',
-        email: '',
-        format: 'html',
-        enableReply: false,
-        replyToAddress: ''
-      });
-      
-      // Show success message
-      setTestResult({
-        success: true,
-        message: `Email delivery method "${result.name}" created successfully.`
-      });
-    } catch (err) {
-      setError('Failed to create email delivery method. Please try again.');
-      console.error(err);
+      await notificationDeliveryApi.createMethod(selectedMethodType, values);
+      fetchDeliveryMethods();
+      setIsCreateModalOpen(false);
+      setSelectedMethodType(null);
+    } catch (error) {
+      console.error('Error creating delivery method:', error);
+      setCreateError('Failed to create delivery method. Please try again.');
     } finally {
-      setLoading(false);
+      setIsCreating(false);
     }
   };
 
-  // Create slack delivery method
-  const handleCreateSlackMethod = async (e: FormEvent) => {
-    e.preventDefault();
+  // Handle method update
+  const handleUpdateMethod = async (values: any) => {
+    if (!editingMethod) return;
     
+    setIsUpdating(true);
     try {
-      setLoading(true);
-      setError(null);
-      
-      const result = await notificationDeliveryApi.createSlackMethod(slackForm);
-      
-      // Refresh the delivery methods list
-      await fetchDeliveryMethods();
-      
-      // Reset form
-      setSlackForm({
-        name: 'Slack Notification',
-        webhookUrl: '',
-        channel: '#general',
-        username: 'Dove Text',
-        iconEmoji: ':dove:'
-      });
-      
-      // Show success message
-      setTestResult({
-        success: true,
-        message: `Slack delivery method "${result.name}" created successfully.`
-      });
-    } catch (err) {
-      setError('Failed to create Slack delivery method. Please try again.');
-      console.error(err);
+      await notificationDeliveryApi.updateMethod(editingMethod.id, editingMethod.type, values);
+      fetchDeliveryMethods();
+      setIsEditModalOpen(false);
+      setEditingMethod(null);
+    } catch (error) {
+      console.error('Error updating delivery method:', error);
+      setEditError('Failed to update delivery method. Please try again.');
     } finally {
-      setLoading(false);
+      setIsUpdating(false);
     }
   };
 
@@ -215,130 +155,16 @@ export default function NotificationTestPage() {
     }
   };
 
-  // Handle test notification submission from modal
-  const handleModalTestNotification = async (e: FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedMethodId) return;
-    
-    try {
-      setIsTestingInProgress(true);
-      setError(null);
-      setTestResult(null);
-      
-      const response = await notificationDeliveryApi.testDelivery({
-        methodId: Number(selectedMethodId),
-        title: notificationForm.title,
-        message: notificationForm.message,
-        priority: notificationForm.priority
-      });
-      
-      setTestResult(response);
-    } catch (err) {
-      setError('Failed to send test notification. Please try again.');
-      console.error(err);
-    } finally {
-      setIsTestingInProgress(false);
-    }
-  };
-
   // Open edit modal for a specific delivery method
   const openEditModal = (method: DeliveryMethod) => {
-    setSelectedMethod(method);
-    setSelectedMethodId(method.id);
-    
-    try {
-      // Parse the config JSON
-      const config = JSON.parse(method.config);
-      
-      if (method.type === 'EMAIL') {
-        setEmailForm({
-          name: method.name,
-          email: config.email || '',
-          format: config.format || 'html',
-          enableReply: config.enableReply || false,
-          replyToAddress: config.replyToAddress || ''
-        });
-        setIsEditEmailModalOpen(true);
-      } else if (method.type === 'SLACK') {
-        setSlackForm({
-          name: method.name,
-          webhookUrl: config.webhookUrl || '',
-          channel: config.channel || '#general',
-          username: config.username || 'Dove Text',
-          iconEmoji: config.iconEmoji || ':dove:'
-        });
-        setIsEditSlackModalOpen(true);
-      }
-    } catch (err) {
-      console.error('Error parsing method config:', err);
-      setError('Failed to parse method configuration. Cannot edit this method.');
-    }
+    setEditingMethod(method);
+    setIsEditModalOpen(true);
   };
 
   // Open delete confirmation modal
   const openDeleteModal = (method: DeliveryMethod) => {
     setSelectedMethod(method);
-    setSelectedMethodId(method.id);
     setIsDeleteModalOpen(true);
-  };
-
-  // Handle update email method
-  const handleUpdateEmailMethod = async (e: FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedMethod) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const request: EmailMethodRequest = {
-        name: emailForm.name,
-        email: emailForm.email,
-        format: emailForm.format,
-        enableReply: emailForm.enableReply,
-        replyToAddress: emailForm.enableReply ? emailForm.replyToAddress : undefined
-      };
-      
-      await notificationDeliveryApi.updateMethod(selectedMethod.id, request);
-      await fetchDeliveryMethods();
-      setIsEditEmailModalOpen(false);
-    } catch (err) {
-      setError('Failed to update Email delivery method. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle update slack method
-  const handleUpdateSlackMethod = async (e: FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedMethod) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const request: SlackMethodRequest = {
-        name: slackForm.name,
-        webhookUrl: slackForm.webhookUrl,
-        channel: slackForm.channel,
-        username: slackForm.username,
-        iconEmoji: slackForm.iconEmoji
-      };
-      
-      await notificationDeliveryApi.updateMethod(selectedMethod.id, request);
-      await fetchDeliveryMethods();
-      setIsEditSlackModalOpen(false);
-    } catch (err) {
-      setError('Failed to update Slack delivery method. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Handle delete method
@@ -410,12 +236,12 @@ export default function NotificationTestPage() {
           {/* Create Method Dropdown */}
           <Menu as="div" className="relative inline-block text-left">
             <div>
-              <Menu.Button className="inline-flex justify-center items-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                <PlusIcon className="h-5 w-5 mr-2" />
+              <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                 Create Method
-                <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" aria-hidden="true" />
+                <ChevronDownIcon className="-mr-1 h-5 w-5 text-gray-400" aria-hidden="true" />
               </Menu.Button>
             </div>
+
             <Transition
               as={Fragment}
               enter="transition ease-out duration-100"
@@ -425,32 +251,32 @@ export default function NotificationTestPage() {
               leaveFrom="transform opacity-100 scale-100"
               leaveTo="transform opacity-0 scale-95"
             >
-              <Menu.Items className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+              <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                 <div className="py-1">
-                  <Menu.Item>
-                    {({ active }) => (
-                      <button
-                        onClick={() => setIsCreateEmailModalOpen(true)}
-                        className={`${
-                          active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                        } block w-full text-left px-4 py-2 text-sm`}
-                      >
-                        Email Delivery Method
-                      </button>
-                    )}
-                  </Menu.Item>
-                  <Menu.Item>
-                    {({ active }) => (
-                      <button
-                        onClick={() => setIsCreateSlackModalOpen(true)}
-                        className={`${
-                          active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                        } block w-full text-left px-4 py-2 text-sm`}
-                      >
-                        Slack Delivery Method
-                      </button>
-                    )}
-                  </Menu.Item>
+                  {Object.values(DELIVERY_METHOD_TYPES).map((methodType) => (
+                    <Menu.Item key={methodType.id}>
+                      {({ active }) => (
+                        <button
+                          onClick={() => {
+                            setSelectedMethodType(methodType.id);
+                            setIsCreateModalOpen(true);
+                          }}
+                          className={`${
+                            active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                          } flex w-full items-center px-4 py-2 text-sm`}
+                        >
+                          <span className="mr-2">
+                            {methodType.icon === 'mail' && '✉️'}
+                            {methodType.icon === 'chat' && '💬'}
+                            {methodType.icon === 'phone' && methodType.id === 'TEXT' && '📱'}
+                            {methodType.icon === 'phone' && methodType.id === 'VOICE' && '📞'}
+                            {methodType.icon === 'code' && '🔗'}
+                          </span>
+                          {methodType.label}
+                        </button>
+                      )}
+                    </Menu.Item>
+                  ))}
                 </div>
               </Menu.Items>
             </Transition>
@@ -630,7 +456,7 @@ export default function NotificationTestPage() {
                   
                   {/* Test Form */}
                   {!testResult && (
-                    <form onSubmit={handleModalTestNotification} className="mt-4">
+                    <form onSubmit={handleTestNotification} className="mt-4">
                       <div className="space-y-4">
                         <div>
                           <label htmlFor="modal-title" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
@@ -713,577 +539,101 @@ export default function NotificationTestPage() {
         </Dialog>
       </Transition>
 
-      {/* Create Email Method Modal */}
-      <Transition appear show={isCreateEmailModalOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-10" onClose={() => setIsCreateEmailModalOpen(false)}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black bg-opacity-25" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
+      {/* Create Method Modal */}
+      {isCreateModalOpen && selectedMethodType && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <span className="mr-2 text-xl">
+                  {DELIVERY_METHOD_TYPES[selectedMethodType].icon === 'mail' && '✉️'}
+                  {DELIVERY_METHOD_TYPES[selectedMethodType].icon === 'chat' && '💬'}
+                  {DELIVERY_METHOD_TYPES[selectedMethodType].icon === 'phone' && selectedMethodType === 'TEXT' && '📱'}
+                  {DELIVERY_METHOD_TYPES[selectedMethodType].icon === 'phone' && selectedMethodType === 'VOICE' && '📞'}
+                  {DELIVERY_METHOD_TYPES[selectedMethodType].icon === 'code' && '🔗'}
+                </span>
+                Create {DELIVERY_METHOD_TYPES[selectedMethodType]?.label} Delivery Method
+              </h3>
+              <button
+                onClick={() => {
+                  setIsCreateModalOpen(false);
+                  setSelectedMethodType(null);
+                  setCreateError('');
+                }}
+                className="text-gray-400 hover:text-gray-500"
               >
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                  <Dialog.Title
-                    as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900 flex justify-between items-center"
-                  >
-                    Create Email Delivery Method
-                    <button
-                      type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent p-1 text-sm font-medium text-gray-400 hover:text-gray-500 focus:outline-none"
-                      onClick={() => setIsCreateEmailModalOpen(false)}
-                    >
-                      <XMarkIcon className="h-5 w-5" />
-                    </button>
-                  </Dialog.Title>
-                  
-                  <form onSubmit={handleCreateEmailMethod} className="mt-4">
-                    <div className="space-y-4">
-                      <div>
-                        <label htmlFor="email-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                        <input
-                          type="text"
-                          id="email-name"
-                          name="name"
-                          value={emailForm.name}
-                          onChange={handleEmailInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="email-email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                        <input
-                          type="email"
-                          id="email-email"
-                          name="email"
-                          value={emailForm.email}
-                          onChange={handleEmailInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="email-format" className="block text-sm font-medium text-gray-700 mb-1">Format</label>
-                        <select
-                          id="email-format"
-                          name="format"
-                          value={emailForm.format}
-                          onChange={handleEmailInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="html">HTML</option>
-                          <option value="text">Plain Text</option>
-                        </select>
-                      </div>
-                      
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id="email-enableReply"
-                          name="enableReply"
-                          checked={emailForm.enableReply}
-                          onChange={(e) => setEmailForm({...emailForm, enableReply: e.target.checked})}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="email-enableReply" className="ml-2 block text-sm text-gray-700">
-                          Enable Reply
-                        </label>
-                      </div>
-                      
-                      {emailForm.enableReply && (
-                        <div>
-                          <label htmlFor="email-replyToAddress" className="block text-sm font-medium text-gray-700 mb-1">Reply-To Address</label>
-                          <input
-                            type="email"
-                            id="email-replyToAddress"
-                            name="replyToAddress"
-                            value={emailForm.replyToAddress}
-                            onChange={handleEmailInputChange}
-                            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-6">
-                      <button
-                        type="submit"
-                        className="w-full inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        disabled={loading}
-                      >
-                        {loading ? 'Creating...' : 'Create Email Method'}
-                      </button>
-                    </div>
-                  </form>
-                </Dialog.Panel>
-              </Transition.Child>
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {createError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md">
+                  {createError}
+                </div>
+              )}
+              
+              <DeliveryMethodForm
+                type={selectedMethodType}
+                onSubmit={handleCreateMethod}
+                onCancel={() => {
+                  setIsCreateModalOpen(false);
+                  setSelectedMethodType(null);
+                }}
+                isSubmitting={isCreating}
+              />
             </div>
           </div>
-        </Dialog>
-      </Transition>
+        </div>
+      )}
 
-      {/* Create Slack Method Modal */}
-      <Transition appear show={isCreateSlackModalOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-10" onClose={() => setIsCreateSlackModalOpen(false)}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black bg-opacity-25" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
+      {/* Edit Method Modal */}
+      {isEditModalOpen && editingMethod && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <span className="mr-2 text-xl">
+                  {editingMethod.type === 'EMAIL' && '✉️'}
+                  {editingMethod.type === 'SLACK' && '💬'}
+                  {editingMethod.type === 'TEXT' && '📱'}
+                  {editingMethod.type === 'VOICE' && '📞'}
+                  {editingMethod.type === 'WEBHOOK' && '🔗'}
+                </span>
+                Edit {editingMethod.name}
+              </h3>
+              <button
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingMethod(null);
+                }}
+                className="text-gray-400 hover:text-gray-500"
               >
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                  <Dialog.Title
-                    as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900 flex justify-between items-center"
-                  >
-                    Create Slack Delivery Method
-                    <button
-                      type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent p-1 text-sm font-medium text-gray-400 hover:text-gray-500 focus:outline-none"
-                      onClick={() => setIsCreateSlackModalOpen(false)}
-                    >
-                      <XMarkIcon className="h-5 w-5" />
-                    </button>
-                  </Dialog.Title>
-                  
-                  <form onSubmit={handleCreateSlackMethod} className="mt-4">
-                    <div className="space-y-4">
-                      <div>
-                        <label htmlFor="slack-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                        <input
-                          type="text"
-                          id="slack-name"
-                          name="name"
-                          value={slackForm.name}
-                          onChange={handleSlackInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="slack-webhookUrl" className="block text-sm font-medium text-gray-700 mb-1">Webhook URL</label>
-                        <input
-                          type="url"
-                          id="slack-webhookUrl"
-                          name="webhookUrl"
-                          value={slackForm.webhookUrl}
-                          onChange={handleSlackInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="slack-channel" className="block text-sm font-medium text-gray-700 mb-1">Channel</label>
-                        <input
-                          type="text"
-                          id="slack-channel"
-                          name="channel"
-                          value={slackForm.channel}
-                          onChange={handleSlackInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="slack-username" className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                        <input
-                          type="text"
-                          id="slack-username"
-                          name="username"
-                          value={slackForm.username}
-                          onChange={handleSlackInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="slack-iconEmoji" className="block text-sm font-medium text-gray-700 mb-1">Icon Emoji</label>
-                        <input
-                          type="text"
-                          id="slack-iconEmoji"
-                          name="iconEmoji"
-                          value={slackForm.iconEmoji}
-                          onChange={handleSlackInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-6">
-                      <button
-                        type="submit"
-                        className="w-full inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        disabled={loading}
-                      >
-                        {loading ? 'Creating...' : 'Create Slack Method'}
-                      </button>
-                    </div>
-                  </form>
-                </Dialog.Panel>
-              </Transition.Child>
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {editError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md">
+                  {editError}
+                </div>
+              )}
+              
+              <DeliveryMethodForm
+                type={editingMethod.type}
+                initialValues={{
+                  name: editingMethod.name,
+                  ...(editingMethod.config ? JSON.parse(editingMethod.config) : {})
+                }}
+                onSubmit={handleUpdateMethod}
+                onCancel={() => setIsEditModalOpen(false)}
+                isSubmitting={isUpdating}
+              />
             </div>
           </div>
-        </Dialog>
-      </Transition>
-
-      {/* Edit Email Method Modal */}
-      <Transition appear show={isEditEmailModalOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-10" onClose={() => setIsEditEmailModalOpen(false)}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black bg-opacity-25" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                  <Dialog.Title
-                    as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900 flex justify-between items-center"
-                  >
-                    Edit Email Delivery Method
-                    <button
-                      type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent p-1 text-sm font-medium text-gray-400 hover:text-gray-500 focus:outline-none"
-                      onClick={() => setIsEditEmailModalOpen(false)}
-                    >
-                      <XMarkIcon className="h-5 w-5" />
-                    </button>
-                  </Dialog.Title>
-                  
-                  <form onSubmit={handleUpdateEmailMethod} className="mt-4">
-                    <div className="space-y-4">
-                      <div>
-                        <label htmlFor="edit-email-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                        <input
-                          type="text"
-                          id="edit-email-name"
-                          name="name"
-                          value={emailForm.name}
-                          onChange={handleEmailInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="edit-email-email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                        <input
-                          type="email"
-                          id="edit-email-email"
-                          name="email"
-                          value={emailForm.email}
-                          onChange={handleEmailInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="edit-email-format" className="block text-sm font-medium text-gray-700 mb-1">Format</label>
-                        <select
-                          id="edit-email-format"
-                          name="format"
-                          value={emailForm.format}
-                          onChange={handleEmailInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="html">HTML</option>
-                          <option value="text">Plain Text</option>
-                        </select>
-                      </div>
-                      
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id="edit-email-enableReply"
-                          name="enableReply"
-                          checked={emailForm.enableReply}
-                          onChange={(e) => setEmailForm({...emailForm, enableReply: e.target.checked})}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="edit-email-enableReply" className="ml-2 block text-sm text-gray-700">
-                          Enable Reply
-                        </label>
-                      </div>
-                      
-                      {emailForm.enableReply && (
-                        <div>
-                          <label htmlFor="edit-email-replyToAddress" className="block text-sm font-medium text-gray-700 mb-1">Reply-To Address</label>
-                          <input
-                            type="email"
-                            id="edit-email-replyToAddress"
-                            name="replyToAddress"
-                            value={emailForm.replyToAddress}
-                            onChange={handleEmailInputChange}
-                            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-6">
-                      <button
-                        type="submit"
-                        className="w-full inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        disabled={loading}
-                      >
-                        {loading ? 'Updating...' : 'Update Email Method'}
-                      </button>
-                    </div>
-                  </form>
-                </Dialog.Panel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
-
-      {/* Edit Slack Method Modal */}
-      <Transition appear show={isEditSlackModalOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-10" onClose={() => setIsEditSlackModalOpen(false)}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black bg-opacity-25" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                  <Dialog.Title
-                    as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900 flex justify-between items-center"
-                  >
-                    Edit Slack Delivery Method
-                    <button
-                      type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent p-1 text-sm font-medium text-gray-400 hover:text-gray-500 focus:outline-none"
-                      onClick={() => setIsEditSlackModalOpen(false)}
-                    >
-                      <XMarkIcon className="h-5 w-5" />
-                    </button>
-                  </Dialog.Title>
-                  
-                  <form onSubmit={handleUpdateSlackMethod} className="mt-4">
-                    <div className="space-y-4">
-                      <div>
-                        <label htmlFor="edit-slack-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                        <input
-                          type="text"
-                          id="edit-slack-name"
-                          name="name"
-                          value={slackForm.name}
-                          onChange={handleSlackInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="edit-slack-webhookUrl" className="block text-sm font-medium text-gray-700 mb-1">Webhook URL</label>
-                        <input
-                          type="url"
-                          id="edit-slack-webhookUrl"
-                          name="webhookUrl"
-                          value={slackForm.webhookUrl}
-                          onChange={handleSlackInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="edit-slack-channel" className="block text-sm font-medium text-gray-700 mb-1">Channel</label>
-                        <input
-                          type="text"
-                          id="edit-slack-channel"
-                          name="channel"
-                          value={slackForm.channel}
-                          onChange={handleSlackInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="edit-slack-username" className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                        <input
-                          type="text"
-                          id="edit-slack-username"
-                          name="username"
-                          value={slackForm.username}
-                          onChange={handleSlackInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="edit-slack-iconEmoji" className="block text-sm font-medium text-gray-700 mb-1">Icon Emoji</label>
-                        <input
-                          type="text"
-                          id="edit-slack-iconEmoji"
-                          name="iconEmoji"
-                          value={slackForm.iconEmoji}
-                          onChange={handleSlackInputChange}
-                          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-6">
-                      <button
-                        type="submit"
-                        className="w-full inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        disabled={loading}
-                      >
-                        {loading ? 'Updating...' : 'Update Slack Method'}
-                      </button>
-                    </div>
-                  </form>
-                </Dialog.Panel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
-
-      {/* Delete Confirmation Modal */}
-      <Transition appear show={isDeleteModalOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-10" onClose={() => setIsDeleteModalOpen(false)}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black bg-opacity-25" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                  <Dialog.Title
-                    as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900"
-                  >
-                    Delete Delivery Method
-                  </Dialog.Title>
-                  
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-500">
-                      Are you sure you want to delete the delivery method "{selectedMethod?.name}"? This action cannot be undone.
-                    </p>
-                  </div>
-
-                  <div className="mt-6 flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                      onClick={() => setIsDeleteModalOpen(false)}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                      onClick={handleDeleteMethod}
-                      disabled={loading}
-                    >
-                      {loading ? 'Deleting...' : 'Delete'}
-                    </button>
-                  </div>
-                </Dialog.Panel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
+        </div>
+      )}
     </div>
   );
 }
