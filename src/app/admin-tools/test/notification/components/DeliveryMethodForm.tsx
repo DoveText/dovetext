@@ -18,7 +18,7 @@ const DeliveryMethodForm: React.FC<DeliveryMethodFormProps> = ({
   isSubmitting
 }) => {
   const methodType = DELIVERY_METHOD_TYPES[type];
-  const [formValues, setFormValues] = useState<any>(initialValues);
+  const [formValues, setFormValues] = useState<Record<string, any>>(initialValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   if (!methodType) {
@@ -26,7 +26,7 @@ const DeliveryMethodForm: React.FC<DeliveryMethodFormProps> = ({
   }
 
   const handleChange = (field: string, value: any) => {
-    setFormValues(prev => ({
+    setFormValues((prev: Record<string, any>) => ({
       ...prev,
       [field]: value
     }));
@@ -97,7 +97,7 @@ const DeliveryMethodForm: React.FC<DeliveryMethodFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="mb-4">
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
           Name
         </label>
         <input
@@ -106,7 +106,7 @@ const DeliveryMethodForm: React.FC<DeliveryMethodFormProps> = ({
           name="name"
           value={formValues.name || ''}
           onChange={(e) => handleChange('name', e.target.value)}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          className="block w-full rounded-md border border-gray-500 p-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           placeholder={`${methodType.label} Notification`}
           required
         />
@@ -118,7 +118,7 @@ const DeliveryMethodForm: React.FC<DeliveryMethodFormProps> = ({
 
         return (
           <div key={field.name} className="mb-4">
-            <label htmlFor={field.name} className="block text-sm font-medium text-gray-700">
+            <label htmlFor={field.name} className="block text-sm font-medium text-gray-700 mb-1">
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </label>
             
@@ -128,7 +128,7 @@ const DeliveryMethodForm: React.FC<DeliveryMethodFormProps> = ({
                 name={field.name}
                 value={formValues[field.name] || field.defaultValue || ''}
                 onChange={(e) => handleChange(field.name, e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="block w-full rounded-md border border-gray-500 p-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 required={field.required}
               >
                 {field.options?.map(option => (
@@ -144,7 +144,7 @@ const DeliveryMethodForm: React.FC<DeliveryMethodFormProps> = ({
                 <label className="inline-flex items-center">
                   <input
                     type="checkbox"
-                    className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="rounded border border-gray-500 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     checked={!!formValues[field.name]}
                     onChange={(e) => handleChange(field.name, e.target.checked)}
                   />
@@ -155,12 +155,12 @@ const DeliveryMethodForm: React.FC<DeliveryMethodFormProps> = ({
 
             {(field.type === 'text' || field.type === 'email' || field.type === 'url' || field.type === 'phone') && (
               <input
-                type={field.type === 'password' ? 'password' : 'text'}
+                type={field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : 'text'}
                 id={field.name}
                 name={field.name}
                 value={formValues[field.name] || ''}
                 onChange={(e) => handleChange(field.name, e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="block w-full rounded-md border border-gray-500 p-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 placeholder={field.placeholder}
                 required={field.required}
               />
@@ -173,7 +173,7 @@ const DeliveryMethodForm: React.FC<DeliveryMethodFormProps> = ({
                 name={field.name}
                 value={formValues[field.name] || ''}
                 onChange={(e) => handleChange(field.name, e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="block w-full rounded-md border border-gray-500 p-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 placeholder={field.placeholder}
                 required={field.required}
               />
