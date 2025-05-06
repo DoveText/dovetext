@@ -44,7 +44,7 @@ export default function WaitlistSection() {
   const checkEmail = async (email: string) => {
     try {
       setStatus('checking');
-      const response = await fetch('/api/waitlist/check', {
+      const response = await fetch('/api/v1/waitlist/check', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -82,7 +82,7 @@ export default function WaitlistSection() {
 
     try {
       setStatus('checking');
-      const response = await fetch('/api/waitlist/join', {
+      const response = await fetch('/api/v1/waitlist/join', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

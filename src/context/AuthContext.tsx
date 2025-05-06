@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const token = await firebaseUser.getIdToken(false);
           
           // Fetch user data from our backend
-          const response = await fetch('/api/v1/auth/user', {
+          const response = await fetch('/api/v1/auth/profile', {
             headers: {
               'Authorization': `Bearer ${token}`
             }
