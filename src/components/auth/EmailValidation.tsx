@@ -57,7 +57,7 @@ export default function EmailValidation() {
       await sendVerificationEmail();
       
       // Update validation sent timestamp
-      const response = await fetch('/api/auth/update-validation-sent', {
+      const response = await fetch('/api/v1/auth/update-validation-sent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });

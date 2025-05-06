@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const token = await firebaseUser.getIdToken(false);
           
           // Fetch user data from our backend
-          const response = await fetch('/api/auth/user', {
+          const response = await fetch('/api/v1/auth/user', {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -138,7 +138,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     // After successful reset, update the password in local DB using email
     try {
-      const response = await fetch('/api/auth/reset-password', {
+      const response = await fetch('/api/v1/auth/reset-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -174,7 +174,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       // If email is verified, update the database
       if (auth.currentUser.emailVerified) {
-        const verifyResponse = await fetch('/api/auth/verify-email', {
+        const verifyResponse = await fetch('/api/v1/auth/verify-email', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -187,7 +187,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       // Fetch latest user data
-      const response = await fetch('/api/auth/user', {
+      const response = await fetch('/api/v1/auth/user', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

@@ -28,7 +28,7 @@ export default function EmailValidationPage() {
       
       // Update last sent timestamp
       const token = await getIdToken();
-      await fetch('/api/auth/update-validation-sent', {
+      await fetch('/api/v1/auth/update-validation-sent', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

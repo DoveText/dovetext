@@ -79,7 +79,7 @@ export default function ResetPassword() {
       
       await confirmPasswordReset(auth, oobCode, password);
       
-      const response = await fetch('/api/auth/reset-password', {
+      const response = await fetch('/api/v1/auth/reset-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
