@@ -2,7 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  output: 'standalone',
+  output: 'export',
+  // Set basePath to match your GitHub repository name
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
   // Custom server settings
   typescript: {
     ignoreBuildErrors: true,

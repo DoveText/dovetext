@@ -6,9 +6,12 @@
 import axios from 'axios';
 import { auth } from '@/lib/firebase/config';
 
-// Create axios instance with relative base URL
+// Get the API base URL from environment variables or use a default
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+// Create axios instance with configurable base URL
 export const apiClient = axios.create({
-  // No baseURL needed since we're using relative paths
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
