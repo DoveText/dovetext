@@ -22,6 +22,7 @@
     "@heroicons/react": "^2.0.18",
     "@microsoft/clarity": "^1.0.0",
     "@microsoft/fetch-event-source": "^2.0.1",
+    "@supabase/supabase-js": "^2.49.4",
     "@vercel/analytics": "^1.4.1",
     "@vercel/postgres": "^0.7.2",
     "@vercel/speed-insights": "^1.1.0",

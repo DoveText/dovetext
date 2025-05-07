@@ -1,58 +1,16 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup,
-  sendEmailVerification,
-  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
-  confirmPasswordReset as firebaseConfirmPasswordReset,
-  checkActionCode,
-  applyActionCode,
-  User as FirebaseUser,
-  getAuth
-} from 'firebase/auth';
-import { initializeApp, getApps } from 'firebase/app';
+import { BaseUser, OAuthProviderType } from '@/lib/auth/types';
+import { authProvider, auth } from '@/lib/auth/provider';
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
-
-// Initialize Firebase app
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-
-// Initialize Firebase auth
-const auth = getAuth(app);
-
-// Export auth for use in non-React contexts
+// Re-export auth object for backward compatibility
+// This ensures existing code that imports auth from AuthContext continues to work
 export { auth };
 
-// User-related types moved from @/types/user
-export interface UserSettings {
-  theme?: 'light' | 'dark' | 'system';
-  notifications?: {
-    email?: boolean;
-    push?: boolean;
-  };
-  provider?: 'email' | 'google' | 'github';
-  validated?: boolean;
-  role?: 'user' | 'admin'; // Role for permission management
-  // Add more settings as needed
-}
-
-export interface User extends FirebaseUser {
-  settings: UserSettings;
+// User type that will be used throughout the application
+// We're extending the BaseUser from our auth provider interface
+export interface User extends BaseUser {
   is_active: boolean;
   last_login_at?: Date;
   email_verified: boolean;
@@ -92,13 +50,13 @@ interface AuthContextType {
   confirmPasswordReset: (oobCode: string, newPassword: string, email: string) => Promise<void>;
   checkActionCode: (oobCode: string) => Promise<any>;
   applyActionCode: (oobCode: string) => Promise<void>;
-  auth: any;
   getIdToken: () => Promise<string | null>;
   needsValidation: boolean;
   isActive: boolean;
   refreshUserStatus: () => Promise<any>;
-  // Export Firebase functions
-  onAuthStateChanged: typeof onAuthStateChanged;
+  // For backward compatibility with existing components
+  auth: any; // Provider-specific auth instance
+  onAuthStateChanged: (auth: any, nextOrObserver: any, error?: any, completed?: any) => () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -107,179 +65,149 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Set up auth state listener when the provider changes
   useEffect(() => {
-    return onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          // Get the ID token without forcing refresh
-          const token = await firebaseUser.getIdToken(false);
-          
-          // Fetch user data from our backend
-          const response = await fetch('/api/v1/auth/profile', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          const userData = await response.json();
-          
-          // Combine Firebase user with our user data
-          setUser({
-            ...firebaseUser,
-            settings: userData.settings || {},
-            is_active: userData.is_active || false,
-            email_verified: userData.email_verified || false,
-            created_at: new Date(userData.created_at),
-            updated_at: new Date(userData.updated_at)
-          } as User);
-        } catch (error) {
-          console.error('Error fetching user data:', error);
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
+    setLoading(true);
+    const unsubscribe = authProvider.onAuthStateChanged((authUser) => {
+      // Cast to User type since we know our provider implementations ensure compatibility
+      setUser(authUser as unknown as User);
       setLoading(false);
     });
-  }, []);
+    
+    return unsubscribe;
+  }, [authProvider]);
 
-  // Check if user needs validation
-  const needsValidation = Boolean(user && 
-    user.settings?.provider === 'email' && 
-    !user.settings?.validated);
-
-  // Check if user is active
-  const isActive = user?.is_active ?? false;
-
+  // Authentication methods delegated to the provider
   const signIn = async (email: string, password: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error: any) {
-      throw new Error(getAuthErrorMessage(error.code));
+      await authProvider.signIn(email, password);
+    } catch (error) {
+      console.error('Error signing in:', error);
+      throw error;
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      if (result.user) {
-        await sendEmailVerification(result.user);
-      }
-      return result;
-    } catch (error: any) {
-      throw new Error(getAuthErrorMessage(error.code));
+      return await authProvider.signUp(email, password);
+    } catch (error) {
+      console.error('Error signing up:', error);
+      throw error;
+    }
+  };
+
+  const signInWithOAuth = async (provider: OAuthProviderType, options?: any) => {
+    try {
+      return await authProvider.signInWithOAuth(provider, options);
+    } catch (error) {
+      console.error(`Error signing in with ${provider}:`, error);
+      throw error;
     }
   };
 
   const signInWithGoogle = async () => {
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      return result;
-    } catch (error: any) {
-      console.error('Google sign-in error:', error);
-      throw new Error(getAuthErrorMessage(error.code) || 'Failed to sign in with Google');
+      return await signInWithOAuth('google');
+    } catch (error) {
+      console.error('Error signing in with Google:', error);
+      throw error;
     }
   };
 
   const logout = async () => {
     try {
-      await signOut(auth);
-    } catch (error: any) {
-      throw new Error(getAuthErrorMessage(error.code));
+      await authProvider.logout();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      throw error;
     }
   };
 
   const sendVerificationEmail = async () => {
-    if (!auth.currentUser) {
-      throw new Error('No authenticated user');
+    try {
+      await authProvider.sendVerificationEmail();
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+      throw error;
     }
-    await sendEmailVerification(auth.currentUser);
   };
 
   const sendPasswordResetEmail = async (email: string) => {
-    await firebaseSendPasswordResetEmail(auth, email, {
-      url: `${window.location.origin}/dashboard`, // After reset, redirect to dashboard
-    });
+    try {
+      await authProvider.sendPasswordResetEmail(email);
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+      throw error;
+    }
   };
 
   const confirmPasswordReset = async (oobCode: string, newPassword: string, email: string) => {
-    await firebaseConfirmPasswordReset(auth, oobCode, newPassword);
-    
-    // After successful reset, update the password in local DB using email
     try {
-      const response = await fetch('/api/v1/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          newPassword,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update local password');
-      }
+      await authProvider.confirmPasswordReset(oobCode, newPassword, email);
     } catch (error) {
-      console.error('Error updating local password:', error);
+      console.error('Error confirming password reset:', error);
+      throw error;
+    }
+  };
+
+  const checkActionCode = async (oobCode: string) => {
+    try {
+      return await authProvider.checkActionCode(oobCode);
+    } catch (error) {
+      console.error('Error checking action code:', error);
+      throw error;
+    }
+  };
+
+  const applyActionCode = async (oobCode: string) => {
+    try {
+      await authProvider.applyActionCode(oobCode);
+    } catch (error) {
+      console.error('Error applying action code:', error);
       throw error;
     }
   };
 
   const getIdToken = async () => {
-    if (!auth.currentUser) return null;
-    return auth.currentUser.getIdToken(false);  // Don't force refresh
+    try {
+      return await authProvider.getIdToken();
+    } catch (error) {
+      console.error('Error getting ID token:', error);
+      return null;
+    }
   };
 
   const refreshUserStatus = async () => {
-    if (!auth.currentUser) return null;
-    
     try {
-      // Force refresh the token to get latest claims
-      await auth.currentUser.reload();
-      const token = await auth.currentUser.getIdToken(false);
-      
-      // If email is verified, update the database
-      if (auth.currentUser.emailVerified) {
-        const verifyResponse = await fetch('/api/v1/auth/verify-email', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (!verifyResponse.ok) {
-          console.error('Failed to update email verification status in database');
-        }
-      }
-      
-      // Fetch latest user data
-      const response = await fetch('/api/v1/auth/user', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
-      }
-      
-      const userData = await response.json();
-      setUser({
-        ...auth.currentUser!,
-        settings: userData.settings || {},
-        is_active: userData.is_active || false,
-        email_verified: userData.email_verified || false,
-        created_at: new Date(userData.created_at),
-        updated_at: new Date(userData.updated_at)
-      } as User);
-      
-      return userData;
+      return await authProvider.refreshUserStatus();
     } catch (error) {
       console.error('Error refreshing user status:', error);
-      return null;
+      throw error;
+    }
+  };
+
+  const needsValidation = user ? !user.emailVerified : false;
+  const isActive = user ? user.settings?.validated !== false : false;
+
+  // Create a wrapper for onAuthStateChanged that delegates to the provider
+  // but maintains the same interface for backward compatibility with existing components
+  const wrappedOnAuthStateChanged = (auth: any, nextOrObserver: any, error?: any, completed?: any): (() => void) => {
+    // Ignore the auth parameter and use the provider's implementation
+    // Handle both callback and observer pattern
+    if (typeof nextOrObserver === 'function') {
+      return authProvider.onAuthStateChanged(nextOrObserver);
+    } else {
+      // If it's an observer object with next/error/complete methods
+      const callback = (user: User | null) => {
+        if (user && nextOrObserver.next) {
+          nextOrObserver.next(user);
+        } else if (!user && error) {
+          error(new Error('User is null'));
+        } else if (completed) {
+          completed();
+        }
+      };
+      return authProvider.onAuthStateChanged(callback);
     }
   };
 
@@ -293,15 +221,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     sendVerificationEmail,
     sendPasswordResetEmail,
     confirmPasswordReset,
-    checkActionCode: (oobCode: string) => checkActionCode(auth, oobCode),
-    applyActionCode: (oobCode: string) => applyActionCode(auth, oobCode),
-    auth,
+    checkActionCode,
+    applyActionCode,
     getIdToken,
     needsValidation,
     isActive,
     refreshUserStatus,
-    // Export Firebase functions
-    onAuthStateChanged,
+    // For backward compatibility with existing components
+    auth,
+    onAuthStateChanged: wrappedOnAuthStateChanged,
   };
 
   return (
