@@ -4,7 +4,7 @@
  * in Authorization: Bearer xxx
  */
 import axios from 'axios';
-import { auth } from '@/lib/firebase/config';
+import { auth } from '@/context/AuthContext';
 
 // Get the API base URL from environment variables or use a default
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';

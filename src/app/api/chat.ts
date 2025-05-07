@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { auth } from '@/lib/firebase/config';
+import { auth } from '@/context/AuthContext';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 export interface ChatMessage {

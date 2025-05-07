@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { auth } from '@/lib/firebase/config';
+import { auth } from '@/context/AuthContext';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 // Open a new test session with a system prompt, tools, and model
