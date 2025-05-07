@@ -2,14 +2,12 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { applyActionCode } from 'firebase/auth';
-import { auth } from '@/lib/firebase/config';
 import { useAuth } from '@/context/AuthContext';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, refreshUserStatus } = useAuth();
+  const { user, refreshUserStatus, applyActionCode, auth } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(true);
   const verificationAttempted = useRef(false);
@@ -32,7 +30,7 @@ export default function VerifyEmailPage() {
 
       try {
         // Try to apply the action code
-        await applyActionCode(auth, oobCode);
+        await applyActionCode(oobCode);
       } catch (error: any) {
         console.error('Error applying action code:', error);
         // Don't set error yet - we'll check if verification succeeded anyway

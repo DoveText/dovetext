@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { checkActionCode, confirmPasswordReset } from 'firebase/auth';
 import { Spinner } from '@/components/common/Spinner';
 
 export default function ResetPassword() {
@@ -16,7 +15,7 @@ export default function ResetPassword() {
   const [email, setEmail] = useState('');
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(true);
   
-  const { auth } = useAuth();
+  const { auth, checkActionCode, confirmPasswordReset } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const oobCode = searchParams?.get('oobCode') || '';
@@ -31,7 +30,7 @@ export default function ResetPassword() {
       }
 
       try {
-        const info = await checkActionCode(auth, oobCode);
+        const info = await checkActionCode(oobCode);
         const email = info.data.email;
         if (!email) {
           setError('Invalid or expired password reset link');
@@ -77,7 +76,7 @@ export default function ResetPassword() {
       setError('');
       setIsLoading(true);
       
-      await confirmPasswordReset(auth, oobCode, password);
+      await confirmPasswordReset(oobCode, password, email);
       
       const response = await fetch('/api/v1/auth/reset-password', {
         method: 'POST',

@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react';
 import { EscalationChain } from '@/types/escalation-chain';
 import EscalationChainList from '@/components/notifications/EscalationChainList';
 import { escalationChainsApi } from '@/app/api/escalation-chains';
-import { auth } from '@/lib/firebase/config';
-import { onAuthStateChanged } from 'firebase/auth';
+import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 export default function EscalationChainsPage() {
   const [chains, setChains] = useState<EscalationChain[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { auth, onAuthStateChanged } = useAuth();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {

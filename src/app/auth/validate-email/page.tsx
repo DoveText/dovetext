@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { User } from 'firebase/auth';
 
 export default function EmailValidationPage() {
   const { user, sendVerificationEmail, getIdToken, refreshUserStatus } = useAuth();
@@ -60,9 +59,7 @@ export default function EmailValidationPage() {
 
   useEffect(() => {
     // If user is already validated, redirect to dashboard
-    // Use type assertion to access custom properties on the user object
-    const userWithSettings = user as (User & { settings?: { validated?: boolean } });
-    if (userWithSettings?.settings?.validated) {
+    if (user?.settings?.validated) {
       router.push('/dashboard');
     }
     // If no user, redirect to signin

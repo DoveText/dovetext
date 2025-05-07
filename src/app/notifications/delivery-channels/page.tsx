@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react';
 import { DeliveryChannel } from '@/types/delivery-channel';
 import DeliveryChannelList from '@/components/notifications/DeliveryChannelList';
 import { deliveryChannelsApi } from '@/app/api/delivery-channels';
-import { auth } from '@/lib/firebase/config';
-import { onAuthStateChanged } from 'firebase/auth';
+import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 export default function DeliveryChannelsPage() {
   const [channels, setChannels] = useState<DeliveryChannel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { auth, onAuthStateChanged } = useAuth();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {

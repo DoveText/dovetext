@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Spinner } from '@/components/common/Spinner';
-import { User } from 'firebase/auth';
 
 const RESEND_COOLDOWN = 60; // seconds
 
@@ -17,22 +16,24 @@ export default function EmailValidation() {
 
   useEffect(() => {
     // If user is null or already validated, redirect to dashboard
-    const userWithSettings = user as (User & { settings?: { validated?: boolean }, is_active?: boolean });
-    if (!user || (userWithSettings.settings?.validated && userWithSettings.is_active)) {
+    if (!user || (user.settings?.validated && user.is_active)) {
       router.push('/dashboard');
     }
   }, [user, router]);
 
   useEffect(() => {
     // Set up cooldown timer if validationSentAt exists
-    const userWithSettings = user as (User & { settings?: { validationSentAt?: string } });
-    if (userWithSettings?.settings?.validationSentAt) {
-      const lastSent = new Date(userWithSettings.settings.validationSentAt).getTime();
-      const now = new Date().getTime();
-      const diff = Math.floor((now - lastSent) / 1000);
-      
-      if (diff < RESEND_COOLDOWN) {
-        setCooldownTime(RESEND_COOLDOWN - diff);
+    // Using type assertion since validationSentAt is not in the UserSettings interface
+    if (user?.settings) {
+      const userSettings = user.settings as (typeof user.settings & { validationSentAt?: string });
+      if (userSettings.validationSentAt) {
+        const lastSent = new Date(userSettings.validationSentAt).getTime();
+        const now = new Date().getTime();
+        const diff = Math.floor((now - lastSent) / 1000);
+        
+        if (diff < RESEND_COOLDOWN) {
+          setCooldownTime(RESEND_COOLDOWN - diff);
+        }
       }
     }
   }, [user]);

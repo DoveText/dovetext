@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react';
 import { DeliveryRule } from '@/types/delivery-rule';
 import DeliveryRuleList from '@/components/notifications/DeliveryRuleList';
 import { deliveryRulesApi } from '@/app/api/delivery-rules';
-import { auth } from '@/lib/firebase/config';
-import { onAuthStateChanged } from 'firebase/auth';
+import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 export default function DeliveryRulesPage() {
   const [rules, setRules] = useState<DeliveryRule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { auth, onAuthStateChanged } = useAuth();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {

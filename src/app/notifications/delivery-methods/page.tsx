@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { DeliveryMethod } from '@/types/delivery-method';
 import DeliveryMethodList from '@/components/notifications/DeliveryMethodList';
 import { deliveryMethodsApi } from '@/app/api/delivery-methods';
-import { auth } from '@/lib/firebase/config';
-import { onAuthStateChanged } from 'firebase/auth';
+import { useAuth } from '@/context/AuthContext';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useAction } from '@/context/ActionContext';
@@ -16,6 +15,7 @@ export default function DeliveryMethodsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const { auth, onAuthStateChanged } = useAuth();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {

@@ -11,9 +11,53 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   confirmPasswordReset as firebaseConfirmPasswordReset,
+  checkActionCode,
+  applyActionCode,
+  User as FirebaseUser
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { User } from '@/types/user';
+
+// User-related types moved from @/types/user
+export interface UserSettings {
+  theme?: 'light' | 'dark' | 'system';
+  notifications?: {
+    email?: boolean;
+    push?: boolean;
+  };
+  provider?: 'email' | 'google' | 'github';
+  validated?: boolean;
+  role?: 'user' | 'admin'; // Role for permission management
+  // Add more settings as needed
+}
+
+export interface User extends FirebaseUser {
+  settings: UserSettings;
+  is_active: boolean;
+  last_login_at?: Date;
+  email_verified: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// Additional user-related types
+export interface InvitationCode {
+  code: string;
+  max_uses: number;
+  used_count: number;
+  is_active: boolean;
+  platform?: string;
+  description?: string;
+  created_by?: number;
+  created_at: Date;
+}
+
+export interface InvitationCodeUse {
+  id: number;
+  code: string;
+  user_id: number;
+  user_email: string;
+  used_at: Date;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -25,11 +69,15 @@ interface AuthContextType {
   sendVerificationEmail: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   confirmPasswordReset: (oobCode: string, newPassword: string, email: string) => Promise<void>;
+  checkActionCode: (oobCode: string) => Promise<any>;
+  applyActionCode: (oobCode: string) => Promise<void>;
   auth: any;
   getIdToken: () => Promise<string | null>;
   needsValidation: boolean;
   isActive: boolean;
   refreshUserStatus: () => Promise<any>;
+  // Export Firebase functions
+  onAuthStateChanged: typeof onAuthStateChanged;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -224,11 +272,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     sendVerificationEmail,
     sendPasswordResetEmail,
     confirmPasswordReset,
+    checkActionCode: (oobCode: string) => checkActionCode(auth, oobCode),
+    applyActionCode: (oobCode: string) => applyActionCode(auth, oobCode),
     auth,
     getIdToken,
     needsValidation,
     isActive,
     refreshUserStatus,
+    // Export Firebase functions
+    onAuthStateChanged,
   };
 
   return (
