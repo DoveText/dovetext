@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: './dove-text/package-lock.json'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Install Dependencies
         run: cd dove-text && npm ci
@@ -39,10 +39,10 @@ jobs:
 
       # Create .nojekyll file to prevent Jekyll processing
       - name: Add .nojekyll file
-        run: touch dove-text/out/.nojekyll
+        run: touch out/.nojekyll
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: dove-text/out
+          folder: out
           branch: gh-pages
