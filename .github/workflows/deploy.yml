@@ -35,9 +35,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Set repository name for GitHub Pages
+      - name: Check for custom domain
+        id: check_domain
         run: |
-          echo "NEXT_PUBLIC_BASE_PATH=/$(echo ${{ github.repository }} | cut -d '/' -f 2)" >> $GITHUB_ENV
+          if [ -f "./public/CNAME" ]; then
+            echo "NEXT_PUBLIC_BASE_PATH=''" >> $GITHUB_ENV
+            echo "Custom domain found in CNAME file: $(cat ./public/CNAME)"
+          else
+            echo "NEXT_PUBLIC_BASE_PATH=/dovetext" >> $GITHUB_ENV
+            echo "No custom domain found, using GitHub Pages URL with /dovetext base path"
+          fi
       
       - name: Build with Next.js
         run: npm run build
