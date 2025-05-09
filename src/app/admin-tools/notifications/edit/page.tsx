@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   ChevronRightIcon,
@@ -10,23 +10,36 @@ import {
 import TemplateEditor from '../components/TemplateEditor';
 import { notificationTemplatesApi, NotificationTemplate, TemplateUpdateRequest } from '@/app/admin-tools/api/notification-templates';
 
-export default function EditTemplatePage({ params }: { params: { id: string } }) {
+export default function EditTemplatePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const id = searchParams?.get('id') || '';
+  
   const [template, setTemplate] = useState<NotificationTemplate | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTemplate();
-  }, [params.id]);
+    if (id) {
+      fetchTemplate();
+    } else {
+      setError('No template ID provided');
+      setIsLoading(false);
+    }
+  }, [id]);
 
   const fetchTemplate = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      const templateId = parseInt(params.id);
+      if (!id) {
+        setError('Invalid template ID');
+        return;
+      }
+      
+      const templateId = parseInt(id);
       if (isNaN(templateId)) {
         setError('Invalid template ID');
         return;
@@ -47,7 +60,12 @@ export default function EditTemplatePage({ params }: { params: { id: string } })
       setIsSubmitting(true);
       setError(null);
       
-      const templateId = parseInt(params.id);
+      if (!id) {
+        setError('Invalid template ID');
+        return;
+      }
+      
+      const templateId = parseInt(id);
       if (isNaN(templateId)) {
         setError('Invalid template ID');
         return;

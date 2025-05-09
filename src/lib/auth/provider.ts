@@ -1,6 +1,5 @@
 import { AuthProviderInterface, AuthProviderType, BaseUser } from './types';
 import { FirebaseAuthProvider } from './firebase-auth-provider';
-import { SupabaseAuthProvider } from './supabase-auth-provider';
 import { LocalAuthProvider } from './local-auth-provider';
 
 /**
@@ -11,7 +10,7 @@ function getProviderType(): AuthProviderType {
   // Check environment variable first
   if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_AUTH_PROVIDER) {
     const providerType = process.env.NEXT_PUBLIC_AUTH_PROVIDER as AuthProviderType;
-    if (['firebase', 'supabase', 'local'].includes(providerType)) {
+    if (['firebase', 'local'].includes(providerType)) {
       return providerType;
     }
   }
@@ -29,8 +28,6 @@ function createAuthProvider<T extends BaseUser = BaseUser>(): AuthProviderInterf
   switch (providerType) {
     case 'firebase':
       return new FirebaseAuthProvider() as unknown as AuthProviderInterface<T>;
-    case 'supabase':
-      return new SupabaseAuthProvider() as unknown as AuthProviderInterface<T>;
     case 'local':
       return new LocalAuthProvider() as unknown as AuthProviderInterface<T>;
     default:

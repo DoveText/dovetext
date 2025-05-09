@@ -243,7 +243,7 @@ export default function NotificationTemplatesPage() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <Link 
-                                href={`/admin-tools/notifications/${template.id}`}
+                                href={`/admin-tools/notifications/edit?id=${template.id}`}
                                 className="text-blue-600 hover:text-blue-900 mr-4"
                               >
                                 <PencilIcon className="h-5 w-5 inline" />

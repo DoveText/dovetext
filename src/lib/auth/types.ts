@@ -28,7 +28,7 @@ export interface BaseUser {
   getIdToken: (forceRefresh?: boolean) => Promise<string>;
 }
 
-export type AuthProviderType = 'firebase' | 'supabase' | 'local';
+export type AuthProviderType = 'firebase' | 'local';
 
 // Supported OAuth providers
 export type OAuthProviderType = 'google' | 'github' | 'facebook' | 'twitter' | 'microsoft' | 'apple';
