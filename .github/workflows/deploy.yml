@@ -25,10 +25,10 @@ jobs:
           cache-dependency-path: 'package-lock.json'
 
       - name: Install Dependencies
-        run: cd dove-text && npm ci
+        run: npm ci
 
       - name: Build Static Site
-        run: cd dove-text && npm run build
+        run: npm run build
         env:
           NEXT_PUBLIC_API_URL: 'https://api.dovetext.com'
           NEXT_PUBLIC_BASE_PATH: '/dovetext'
