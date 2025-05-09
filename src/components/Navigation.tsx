@@ -60,7 +60,7 @@ export default function Navigation() {
           <div className="flex-shrink-0">
             <Link href={user ? "/dashboard" : "/"} className="flex items-center">
               <Image
-                src="/logo.svg"
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/logo.svg`}
                 alt="DoveText Logo"
                 width={32}
                 height={32}
@@ -194,7 +194,7 @@ export default function Navigation() {
                   <Menu.Button className="flex items-center">
                     <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-100">
                       <Image
-                        src={user.photoURL || '/default-avatar.png'}
+                        src={user.photoURL || `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`}
                         alt="User avatar"
                         width={32}
                         height={32}
@@ -202,7 +202,7 @@ export default function Navigation() {
                         onError={(e) => {
                           // Fallback to default avatar if image fails to load
                           const img = e.target as HTMLImageElement;
-                          img.src = '/default-avatar.png';
+                          img.src = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`;
                         }}
                       />
                     </div>

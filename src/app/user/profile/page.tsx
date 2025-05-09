@@ -54,14 +54,14 @@ export default function ProfilePage() {
                 <div className="mt-2 flex items-center space-x-5">
                   <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-100">
                     <Image
-                      src={user.photoURL || '/default-avatar.png'}
+                      src={user.photoURL || `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`}
                       alt="Profile"
                       width={64}
                       height={64}
                       className="h-full w-full object-cover"
                       onError={(e) => {
                         const img = e.target as HTMLImageElement;
-                        img.src = '/default-avatar.png';
+                        img.src = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`;
                       }}
                     />
                   </div>

@@ -322,11 +322,11 @@ export default function UsersAdminPage() {
                         <div className="flex-shrink-0 h-10 w-10">
                           <img
                             className="h-10 w-10 rounded-full"
-                            src={user.avatarUrl || '/default-avatar.png'}
+                            src={user.avatarUrl || `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`}
                             alt={user.displayName || user.email}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              target.src = '/default-avatar.png';
+                              target.src = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`;
                             }}
                           />
                         </div>
