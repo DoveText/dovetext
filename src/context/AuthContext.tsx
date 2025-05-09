@@ -1,22 +1,14 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { BaseUser, OAuthProviderType } from '@/lib/auth/types';
-import { authProvider, auth } from '@/lib/auth/provider';
+import { User, OAuthProviderType, auth } from '@/lib/auth';
 
-// Re-export auth object for backward compatibility
+// Re-export auth object for compatibility
 // This ensures existing code that imports auth from AuthContext continues to work
 export { auth };
 
-// User type that will be used throughout the application
-// We're extending the BaseUser from our auth provider interface
-export interface User extends BaseUser {
-  is_active: boolean;
-  last_login_at?: Date;
-  email_verified: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
+// Additional user-related types
+// We're using the User interface directly from auth.ts
 
 // Additional user-related types
 export interface InvitationCode {
@@ -65,22 +57,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Set up auth state listener when the provider changes
+  // Set up auth state listener
   useEffect(() => {
     setLoading(true);
-    const unsubscribe = authProvider.onAuthStateChanged((authUser) => {
-      // Cast to User type since we know our provider implementations ensure compatibility
-      setUser(authUser as unknown as User);
+    const unsubscribe = auth.onAuthStateChanged((authUser) => {
+      setUser(authUser);
       setLoading(false);
     });
     
     return unsubscribe;
-  }, [authProvider]);
+  }, []);
 
-  // Authentication methods delegated to the provider
+  // Authentication methods delegated to the auth module
   const signIn = async (email: string, password: string) => {
     try {
-      await authProvider.signIn(email, password);
+      await auth.signIn(email, password);
     } catch (error) {
       console.error('Error signing in:', error);
       throw error;
@@ -89,25 +80,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signUp = async (email: string, password: string) => {
     try {
-      return await authProvider.signUp(email, password);
+      return await auth.signUp(email, password);
     } catch (error) {
       console.error('Error signing up:', error);
       throw error;
     }
   };
 
-  const signInWithOAuth = async (provider: OAuthProviderType, options?: any) => {
-    try {
-      return await authProvider.signInWithOAuth(provider, options);
-    } catch (error) {
-      console.error(`Error signing in with ${provider}:`, error);
-      throw error;
-    }
-  };
-
   const signInWithGoogle = async () => {
     try {
-      return await signInWithOAuth('google');
+      return await auth.signInWithGoogle();
     } catch (error) {
       console.error('Error signing in with Google:', error);
       throw error;
@@ -116,16 +98,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     try {
-      await authProvider.logout();
+      await auth.logout();
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Error logging out:', error);
       throw error;
     }
   };
 
   const sendVerificationEmail = async () => {
     try {
-      await authProvider.sendVerificationEmail();
+      // Pass undefined instead of null to match the expected type
+      await auth.sendVerificationEmail(user || undefined);
     } catch (error) {
       console.error('Error sending verification email:', error);
       throw error;
@@ -134,7 +117,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const sendPasswordResetEmail = async (email: string) => {
     try {
-      await authProvider.sendPasswordResetEmail(email);
+      await auth.sendPasswordResetEmail(email);
     } catch (error) {
       console.error('Error sending password reset email:', error);
       throw error;
@@ -143,7 +126,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const confirmPasswordReset = async (oobCode: string, newPassword: string, email: string) => {
     try {
-      await authProvider.confirmPasswordReset(oobCode, newPassword, email);
+      await auth.confirmPasswordReset(oobCode, newPassword, email);
     } catch (error) {
       console.error('Error confirming password reset:', error);
       throw error;
@@ -152,7 +135,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkActionCode = async (oobCode: string) => {
     try {
-      return await authProvider.checkActionCode(oobCode);
+      return await auth.checkActionCode(oobCode);
     } catch (error) {
       console.error('Error checking action code:', error);
       throw error;
@@ -161,7 +144,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const applyActionCode = async (oobCode: string) => {
     try {
-      await authProvider.applyActionCode(oobCode);
+      await auth.applyActionCode(oobCode);
     } catch (error) {
       console.error('Error applying action code:', error);
       throw error;
@@ -170,32 +153,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const getIdToken = async () => {
     try {
-      return await authProvider.getIdToken();
+      return await auth.getIdToken();
     } catch (error) {
       console.error('Error getting ID token:', error);
-      return null;
+      throw error;
     }
   };
 
   const refreshUserStatus = async () => {
     try {
-      return await authProvider.refreshUserStatus();
+      return await auth.refreshUserStatus();
     } catch (error) {
       console.error('Error refreshing user status:', error);
       throw error;
     }
   };
 
-  const needsValidation = user ? !user.emailVerified : false;
-  const isActive = user ? user.settings?.validated !== false : false;
+  // Determine if the user needs validation and is active
+  const needsValidation = user ? !user.emailVerified || user.settings?.validated === false : false;
+  const isActive = user ? user.is_active === true : false;
 
-  // Create a wrapper for onAuthStateChanged that delegates to the provider
-  // but maintains the same interface for backward compatibility with existing components
-  const wrappedOnAuthStateChanged = (auth: any, nextOrObserver: any, error?: any, completed?: any): (() => void) => {
-    // Ignore the auth parameter and use the provider's implementation
+  // Create a wrapper for onAuthStateChanged that maintains compatibility with existing components
+  const wrappedOnAuthStateChanged = (authObj: any, nextOrObserver: any, error?: any, completed?: any): (() => void) => {
+    // Ignore the auth parameter and use our auth implementation
     // Handle both callback and observer pattern
     if (typeof nextOrObserver === 'function') {
-      return authProvider.onAuthStateChanged(nextOrObserver);
+      return auth.onAuthStateChanged(nextOrObserver);
     } else {
       // If it's an observer object with next/error/complete methods
       const callback = (user: User | null) => {
@@ -207,7 +190,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           completed();
         }
       };
-      return authProvider.onAuthStateChanged(callback);
+      return auth.onAuthStateChanged(callback);
     }
   };
 
