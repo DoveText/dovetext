@@ -3,8 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Footer from '@/components/Footer';
 import Navigation from '@/components/Navigation'; 
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next';
+// Vercel analytics removed to avoid CSP issues
 import { AuthProvider } from '@/context/AuthContext';
 import { ActionProvider } from '@/context/ActionContext';
 import { ChatProvider } from '@/context/ChatContext';
@@ -50,8 +49,6 @@ export default function RootLayout({
             </ChatProvider>
           </ActionProvider>
         </AuthProvider>
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   );

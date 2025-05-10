@@ -41,17 +41,17 @@ const nextConfig = {
   async headers() {
     const isDev = process.env.NODE_ENV === 'development';
     const allowedDomains = isDev 
-      ? ['localhost:3000', 'localhost:*'] 
-      : ['api.dovetext.com', 'dovetext.com', '*.dovetext.com'];
+      ? ['127.0.0.1:*', 'localhost:*', '*.dovetext.cn']
+      : ['*.dovetext.com'];
 
     const baseDirectives = [
       "default-src 'self'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https: https://lh3.googleusercontent.com https://firebasestorage.googleapis.com",
       "font-src 'self'",
-      `connect-src 'self' https://*.googleapis.com https://*.google.com https://va.vercel-scripts.com https://*.vercel.app https://*.vercel.com ${allowedDomains.map(domain => `https://${domain}`).join(' ')}`,
+      `connect-src 'self' https://*.googleapis.com https://*.google.com ${allowedDomains.map(domain => `https://${domain}`).join(' ')}`,
       "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://va.vercel-scripts.com https://*.vercel-scripts.com https://*.vercel.app https://*.vercel.com",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.googleapis.com https://*.google.com https://*.gstatic.com",
       "media-src 'self'",
       "worker-src 'self' blob:"
     ];
