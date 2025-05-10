@@ -19,6 +19,7 @@ module.exports = {
         'scaleUp': 'scaleUp 0.3s ease-in-out forwards',
         'scaleDown': 'scaleDown 0.3s ease-in-out forwards',
         'pulse': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'loading-bar': 'loading-bar 2s ease-in-out infinite',
       },
       keyframes: {
         'gradient-x': {
@@ -51,7 +52,12 @@ module.exports = {
         },
         'scaleDown': {
           '0%': { transform: 'scale(1)', opacity: '1' },
-          '100%': { transform: 'scale(0.5)', opacity: '0' },
+          '100%': { transform: 'scale(0.5)', opacity: '0.5' },
+        },
+        'loading-bar': {
+          '0%': { width: '0%', opacity: '0.7' },
+          '50%': { width: '70%', opacity: '1' },
+          '100%': { width: '100%', opacity: '0.7' },
         },
         'pulse': {
           '0%, 100%': { opacity: '1', transform: 'scale(1)' },

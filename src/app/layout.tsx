@@ -12,11 +12,23 @@ import LoadingIndicator from '@/components/common/LoadingIndicator';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export const metadata: Metadata = {
-  title: 'DoveText - Smart Notifications Reimagined',
-  description: 'Your digital life, curated with intelligence',
-  keywords: ['AI notifications', 'smart alerts', 'intelligent scheduling', 'notification management'],
+// This function allows us to generate dynamic metadata based on environment variables
+function generateMetadata(): Metadata {
+  // Get the base path from environment variable or default to empty string
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  
+  return {
+    title: 'DoveText - Smart Notifications Reimagined',
+    description: 'Your digital life, curated with intelligence',
+    keywords: ['AI notifications', 'smart alerts', 'intelligent scheduling', 'notification management'],
+    icons: {
+      icon: `${basePath}/favicon.ico`,
+    },
+  };
 };
+
+// For backward compatibility
+export const metadata = generateMetadata();
 
 export default function RootLayout({
   children,
@@ -25,9 +37,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="icon" href="/src/app/favicon.ico" />
-      </head>
       <body className={inter.className}>
         <AuthProvider>
           <ActionProvider>

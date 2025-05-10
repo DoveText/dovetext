@@ -1,28 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 
 export default function LoadingIndicator() {
   const [loading, setLoading] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
-    // Create a new URL object
-    const url = new URL(pathname || '/', window.location.origin);
-    
-    // Add search params if any
-    searchParams?.forEach((value, key) => {
-      url.searchParams.append(key, value);
-    });
+    // Track the current URL to detect changes
+    let currentUrl = window.location.href;
 
     // Function to handle route change start
-    const handleStart = (newUrl: string) => {
-      // Only show loading indicator if we're navigating to a different page
-      if (newUrl !== url.toString()) {
-        setLoading(true);
-      }
+    const handleStart = () => {
+      setLoading(true);
     };
 
     // Function to handle route change complete
@@ -30,25 +23,37 @@ export default function LoadingIndicator() {
       setLoading(false);
     };
 
-    // Listen for route change events
-    window.addEventListener('beforeunload', () => handleStart(''));
-    
-    // Custom event listeners for Next.js router events
-    document.addEventListener('routeChangeStart', () => {
-      handleStart('');
-    });
-    
-    document.addEventListener('routeChangeComplete', () => {
-      handleComplete();
-    });
-    
-    // Create a MutationObserver to detect when the URL changes
-    const observer = new MutationObserver((mutations) => {
-      const currentUrl = window.location.href;
-      if (currentUrl !== url.toString()) {
+    // Function to handle clicks on anchor tags
+    const handleLinkClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest('a');
+      
+      if (anchor && 
+          anchor.href && 
+          anchor.href.startsWith(window.location.origin) && 
+          !anchor.target && 
+          !anchor.hasAttribute('download') &&
+          !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        // It's an internal navigation link
+        handleStart();
+      }
+    };
+
+    // Create a MutationObserver to detect DOM changes that might indicate navigation
+    const observer = new MutationObserver(() => {
+      if (window.location.href !== currentUrl) {
+        currentUrl = window.location.href;
         handleComplete();
       }
     });
+    
+    // Listen for navigation events
+    document.addEventListener('click', handleLinkClick);
+    window.addEventListener('popstate', handleStart);
+    
+    // Custom event listeners for our app's navigation
+    document.addEventListener('routeChangeStart', handleStart);
+    document.addEventListener('routeChangeComplete', handleComplete);
     
     // Start observing the document with the configured parameters
     observer.observe(document, { subtree: true, childList: true });
@@ -60,7 +65,7 @@ export default function LoadingIndicator() {
       clearTimeout(safetyTimeout);
       safetyTimeout = setTimeout(() => {
         setLoading(false);
-      }, 3000); // 3 seconds max loading time
+      }, 5000); // 5 seconds max loading time
     };
     
     // When loading state changes, reset the safety timeout
@@ -68,9 +73,17 @@ export default function LoadingIndicator() {
       resetSafetyTimeout();
     }
 
+    // Initial page load should trigger loading indicator
+    if (document.readyState !== 'complete') {
+      handleStart();
+      window.addEventListener('load', handleComplete);
+    }
+
     return () => {
-      window.removeEventListener('beforeunload', () => handleStart(''));
-      document.removeEventListener('routeChangeStart', () => handleStart(''));
+      window.removeEventListener('popstate', handleStart);
+      window.removeEventListener('load', handleComplete);
+      document.removeEventListener('click', handleLinkClick);
+      document.removeEventListener('routeChangeStart', handleStart);
       document.removeEventListener('routeChangeComplete', handleComplete);
       observer.disconnect();
       clearTimeout(safetyTimeout);
@@ -81,8 +94,8 @@ export default function LoadingIndicator() {
 
   return (
     <div className="fixed top-0 left-0 w-full z-50">
-      <div className="h-1 bg-blue-600 animate-pulse">
-        <div className="h-full bg-blue-500 animate-progress"></div>
+      <div className="h-1 bg-blue-600">
+        <div className="h-full bg-blue-500 w-full animate-loading-bar"></div>
       </div>
     </div>
   );

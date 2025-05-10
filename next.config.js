@@ -2,9 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  output: 'export',
-  // Set basePath to match your GitHub repository name
-  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
+  // Only use static export for production builds (GitHub Pages)
+  ...(process.env.NODE_ENV === 'production' && {
+    output: 'export',
+    // Set basePath to match your GitHub repository name
+    basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
+  }),
   // Custom server settings
   typescript: {
     ignoreBuildErrors: true,
