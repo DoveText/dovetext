@@ -173,10 +173,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const needsValidation = user ? !user.emailVerified || user.settings?.validated === false : false;
   const isActive = user ? user.is_active === true : false;
 
-  // Create a wrapper for onAuthStateChanged that maintains compatibility with existing components
+  // Simplified wrapper for onAuthStateChanged that works directly with our auth system
   const wrappedOnAuthStateChanged = (authObj: any, nextOrObserver: any, error?: any, completed?: any): (() => void) => {
-    // Ignore the auth parameter and use our auth implementation
-    // Handle both callback and observer pattern
+    // Always use our centralized auth implementation regardless of the passed auth object
     if (typeof nextOrObserver === 'function') {
       return auth.onAuthStateChanged(nextOrObserver);
     } else {

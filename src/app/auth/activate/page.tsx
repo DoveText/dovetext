@@ -27,7 +27,7 @@ export default function ActivatePage() {
       setError(null);
 
       const token = await getIdToken();
-      const response = await fetch('/api/v1/auth/activate', {
+      const response = await fetch('/api/v1/profile/activate', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

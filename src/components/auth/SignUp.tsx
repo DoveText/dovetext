@@ -41,7 +41,7 @@ export default function SignUp() {
 
   const completeSignup = async (email: string, firebaseUid: string, password: string | null, provider: 'email' | 'google') => {
     try {
-      const response = await fetch('/api/v1/auth/signup', {
+      const response = await fetch('/public/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ export default function SignUp() {
     if (!emailToValidate) return false;
 
     try {
-      const response = await fetch(`/api/v1/auth/check-email?email=${encodeURIComponent(emailToValidate)}`);
+      const response = await fetch(`/public/auth/check-email?email=${encodeURIComponent(emailToValidate)}`);
       const data = await response.json();
       
       if (!response.ok) {

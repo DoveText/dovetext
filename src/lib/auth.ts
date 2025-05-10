@@ -5,6 +5,9 @@
  * including user management, authentication, and token handling.
  */
 
+import { apiConfig } from '@/config/api';
+import { api } from '@/utils/api';
+
 // Define user settings interface
 export interface UserSettings {
   theme?: 'light' | 'dark' | 'system';
@@ -110,17 +113,15 @@ class AuthState {
   // Fetch user data from the backend
   async fetchUserData(token: string): Promise<void> {
     try {
-      const response = await fetch('/api/v1/auth/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const { data, error, status } = await api.get('api/v1/profile', {
+        token
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
+      if (error || !data) {
+        throw new Error(error || 'Failed to fetch user data');
       }
       
-      const userData = await response.json();
+      const userData = data;
       
       // Create a properly typed User object
       const user: User = {
@@ -171,20 +172,14 @@ export class Auth {
   // Authentication methods
   async signIn(email: string, password: string): Promise<User> {
     try {
-      const response = await fetch('/api/v1/auth/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
+      const { data, error, status } = await api.post('public/auth/signin', { 
+        email, 
+        password 
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to sign in');
+      if (error || !data) {
+        throw new Error(error || 'Failed to sign in');
       }
-      
-      const data = await response.json();
       
       // Store the token
       this.authState.setToken(data.token);
@@ -218,20 +213,24 @@ export class Auth {
   }
 
   async signInWithOAuth(providerType: OAuthProviderType, options?: any): Promise<User> {
-    try {
-      // Use a popup window approach for OAuth
-      const popup = window.open(
-        `/api/v1/auth/oauth/${providerType}`,
-        `${providerType}-auth`,
-        'width=500,height=600'
-      );
-      
-      if (!popup) {
-        throw new Error('Popup blocked. Please allow popups for this site.');
-      }
-      
-      // Listen for messages from the popup
-      return new Promise<User>((resolve, reject) => {
+    return new Promise((resolve, reject) => {
+      try {
+        // Open the OAuth popup
+        const width = 500;
+        const height = 600;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2.5;
+        const popup = window.open(
+          `/api/v1/auth/oauth/${providerType}`,
+          `${providerType}-auth`,
+          `width=${width},height=${height},left=${left},top=${top}`
+        );
+        
+        if (!popup) {
+          throw new Error('Popup blocked. Please allow popups for this site.');
+        }
+        
+        // Listen for messages from the popup
         const handleMessage = (event: MessageEvent) => {
           // Verify origin for security
           if (event.origin !== window.location.origin) return;
@@ -280,11 +279,10 @@ export class Auth {
             reject(new Error('Authentication cancelled'));
           }
         }, 1000);
-      });
-    } catch (error: any) {
-      console.error(`${providerType} sign in error:`, error);
-      throw error;
-    }
+      } catch (e) {
+        reject(e);
+      }
+    });
   }
 
   // Convenience method for Google sign-in
@@ -299,24 +297,15 @@ export class Auth {
 
   async signUp(email: string, password: string, displayName?: string): Promise<User> {
     try {
-      const response = await fetch('/api/v1/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          email, 
-          password,
-          displayName: displayName || email.split('@')[0] // Use part of email as display name if not provided
-        })
+      const { data, error, status } = await api.post('public/auth/signup', { 
+        email, 
+        password,
+        displayName: displayName || email.split('@')[0]
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to sign up');
+      if (error || !data) {
+        throw new Error(error || 'Failed to sign up');
       }
-      
-      const data = await response.json();
       
       // Store the token
       this.authState.setToken(data.token);
@@ -351,27 +340,20 @@ export class Auth {
 
   async logout(): Promise<void> {
     try {
-      const token = this.authState.getToken();
+      // Clear local auth state first
+      this.authState.setUser(null);
+      this.authState.setToken(null);
       
-      if (token) {
-        // Call the logout endpoint - this could be a no-op on the backend
-        // since we're using JWTs which don't need server-side invalidation
+      // Then notify the server
+      if (typeof window !== 'undefined') {
         try {
-          await fetch('/api/v1/auth/logout', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+          await api.post('public/auth/logout', {}, {
+            token: this.authState.getToken()
           });
         } catch (e) {
-          // Ignore errors from the logout endpoint
           console.warn('Logout endpoint error:', e);
         }
       }
-      
-      // Clear local state
-      this.authState.setToken(null);
-      this.authState.setUser(null);
     } catch (error: any) {
       console.error('Logout error:', error);
       // Still clear the local state even if the server request failed
@@ -383,16 +365,15 @@ export class Auth {
   // Email verification
   async sendVerificationEmail(user?: User): Promise<void> {
     try {
-      const token = this.authState.getToken();
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
+      const currentUser = user || this.authState.getUser();
+      if (!currentUser || !currentUser.email) throw new Error('User email not available');
       
       const response = await fetch('/api/v1/auth/send-verification', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: currentUser.email })
       });
       
       if (!response.ok) {
@@ -434,7 +415,7 @@ export class Auth {
   // Password management
   async sendPasswordResetEmail(email: string): Promise<void> {
     try {
-      const response = await fetch('/api/v1/auth/forgot-password', {
+      const response = await fetch('/public/auth/forgot-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -454,7 +435,7 @@ export class Auth {
 
   async confirmPasswordReset(oobCode: string, newPassword: string, email: string): Promise<void> {
     try {
-      const response = await fetch('/api/v1/auth/reset-password', {
+      const response = await fetch('/public/auth/reset-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -478,7 +459,7 @@ export class Auth {
 
   async checkActionCode(oobCode: string): Promise<any> {
     try {
-      const response = await fetch('/api/v1/auth/check-code', {
+      const response = await fetch('/public/auth/check-code', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -529,7 +510,7 @@ export class Auth {
   // Check if email exists
   async checkEmailExists(email: string): Promise<boolean> {
     try {
-      const response = await fetch(`/api/v1/auth/check-email?email=${encodeURIComponent(email)}`);
+      const response = await fetch(`/public/auth/check-email?email=${encodeURIComponent(email)}`);
       
       if (!response.ok) {
         throw new Error('Failed to check email');
@@ -546,7 +527,7 @@ export class Auth {
   // Check if invitation code is valid
   async checkInvitationCode(code: string): Promise<any> {
     try {
-      const response = await fetch('/api/v1/auth/check-invitation', {
+      const response = await fetch('/public/auth/check-invitation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

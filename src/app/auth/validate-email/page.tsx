@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { api } from '@/utils/api';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function EmailValidationPage() {
@@ -26,20 +27,13 @@ export default function EmailValidationPage() {
       await sendVerificationEmail();
       
       // Update last sent timestamp
-      const token = await getIdToken();
-      await fetch('/api/v1/auth/update-validation-sent', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      await api.post('public/auth/update-validation-sent', {});
 
       setSuccess('Verification email sent! Please check your inbox.');
       setCooldownTime(60); // 60 second cooldown
     } catch (error: any) {
       console.error('Error sending verification email:', error);
-      if (error.code === 'auth/too-many-requests') {
+      if (error.message?.includes('too many requests') || error.message?.includes('rate limit')) {
         setError('Too many attempts. Please wait a few minutes before trying again.');
         setCooldownTime(300); // 5 minute cooldown on rate limit
       } else {

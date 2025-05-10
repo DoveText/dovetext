@@ -1,13 +1,14 @@
 /**
  * A helper class to make request to API server (Java backend)
- * The API may need authentication, in this case it would try piggy back Firebase ID token
- * in Authorization: Bearer xxx
+ * The API may need authentication, in which case it will use the authentication token
+ * from our centralized auth system in Authorization: Bearer xxx
  */
 import axios from 'axios';
-import { auth } from '@/context/AuthContext';
+import { auth } from '@/lib/auth';
+import { apiConfig } from '@/config/api';
 
-// Get the API base URL from environment variables or use a default
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+// Use the centralized API configuration
+const API_BASE_URL = apiConfig.baseUrl;
 
 // Create axios instance with configurable base URL
 export const apiClient = axios.create({
@@ -17,21 +18,25 @@ export const apiClient = axios.create({
   },
 });
 
-// Add request interceptor to add Firebase ID token
+// Add request interceptor to add authentication token
 apiClient.interceptors.request.use(
   async (config) => {
     console.log('[API Client] Request interceptor called for:', config.url);
+    
+    // Skip authentication for public endpoints
+    if (config.url?.startsWith('/public/')) {
+      return config;
+    }
+    
     try {
-      // Get current user and wait for it to be ready
-      const user = auth.currentUser;
-      if (!user) {
+      // Get token from our auth system
+      const token = await auth.getIdToken();
+      if (!token) {
         // Don't make the request if we're not authenticated
         console.error('[API Client] Not authenticated, rejecting request');
         return Promise.reject(new Error('Not authenticated'));
       }
 
-      // Get token directly from Firebase
-      const token = await user.getIdToken();
       console.log('[API Client] Successfully obtained token for request');
       config.headers.Authorization = `Bearer ${token}`;
       console.log('[API Client] Request headers set:', {
@@ -41,7 +46,7 @@ apiClient.interceptors.request.use(
         url: config.url
       });
     } catch (error) {
-      console.error('[API Client] Error getting Firebase token:', error);
+      console.error('[API Client] Error getting authentication token:', error);
       return Promise.reject(error);
     }
     return config;
