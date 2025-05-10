@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useClientSearchParams } from '@/hooks/useClientSearchParams';
 import { Spinner } from '@/components/common/Spinner';
 
 export default function ResetPassword() {
@@ -17,9 +18,9 @@ export default function ResetPassword() {
   
   const { auth, checkActionCode, confirmPasswordReset } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const oobCode = searchParams?.get('oobCode') || '';
-  const mode = searchParams?.get('mode');
+  const { get } = useClientSearchParams();
+  const oobCode = get('oobCode') || '';
+  const mode = get('mode');
 
   useEffect(() => {
     const verifyCode = async () => {

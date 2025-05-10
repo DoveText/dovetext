@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useClientSearchParams } from '@/hooks/useClientSearchParams';
 
 /**
  * Client-side component that handles Firebase auth action URLs
@@ -9,11 +10,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
  */
 export function ActionHandler() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { get } = useClientSearchParams();
   
   useEffect(() => {
-    const mode = searchParams.get('mode');
-    const oobCode = searchParams.get('oobCode');
+    const mode = get('mode');
+    const oobCode = get('oobCode');
     
     if (!mode || !oobCode) {
       router.push('/');
@@ -34,7 +35,7 @@ export function ActionHandler() {
         router.push('/');
         break;
     }
-  }, [router, searchParams]);
+  }, [router, get]);
 
   // Return null or a loading indicator while redirecting
   return (

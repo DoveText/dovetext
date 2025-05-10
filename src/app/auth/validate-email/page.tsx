@@ -3,12 +3,13 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/utils/api';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useClientSearchParams } from '@/hooks/useClientSearchParams';
 
 export default function EmailValidationPage() {
   const { user, loading, sendVerificationEmail, getIdToken, refreshUserStatus } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { get } = useClientSearchParams();
   const [cooldownTime, setCooldownTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -44,12 +45,12 @@ export default function EmailValidationPage() {
 
   // Handle automatic resend when coming from verify page
   useEffect(() => {
-    const action = searchParams?.get('action');
+    const action = get('action');
     if (action === 'resend' && !cooldownTime && !resendAttempted.current) {
       resendAttempted.current = true;
       handleResendEmail();
     }
-  }, [searchParams, cooldownTime, handleResendEmail]);
+  }, [get, cooldownTime, handleResendEmail]);
 
   // Track if we've already redirected to prevent loops
   const hasRedirected = useRef(false);

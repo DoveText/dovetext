@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useClientSearchParams } from '@/hooks/useClientSearchParams';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { get: getParam } = useClientSearchParams();
   const { user, refreshUserStatus, applyActionCode, auth } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(true);
@@ -20,7 +21,7 @@ export default function VerifyEmailPage() {
       }
       verificationAttempted.current = true;
 
-      const oobCode = searchParams?.get('oobCode');
+      const oobCode = getParam('oobCode');
       
       if (!oobCode) {
         setError('Invalid verification link. Please request a new verification email.');
@@ -56,7 +57,7 @@ export default function VerifyEmailPage() {
     };
 
     verifyEmail();
-  }, [router, searchParams, refreshUserStatus]);
+  }, [router, getParam, refreshUserStatus]);
 
   if (error) {
     return (

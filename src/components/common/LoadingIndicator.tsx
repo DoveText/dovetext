@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useClientSearchParams } from '@/hooks/useClientSearchParams';
 
 export default function LoadingIndicator() {
   const [loading, setLoading] = useState(false);
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { searchParams } = useClientSearchParams();
   const router = useRouter();
 
   useEffect(() => {

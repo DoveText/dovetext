@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useClientSearchParams } from '@/hooks/useClientSearchParams';
 import Link from 'next/link';
 import { 
   ChevronRightIcon,
@@ -12,8 +13,8 @@ import { notificationTemplatesApi, NotificationTemplate, TemplateUpdateRequest }
 
 export default function EditTemplatePage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const id = searchParams?.get('id') || '';
+  const { get } = useClientSearchParams();
+  const id = get('id') || '';
   
   const [template, setTemplate] = useState<NotificationTemplate | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

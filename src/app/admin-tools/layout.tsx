@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import { useClientSearchParams } from '@/hooks/useClientSearchParams';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { 
