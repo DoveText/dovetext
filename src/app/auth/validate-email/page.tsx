@@ -6,7 +6,7 @@ import { api } from '@/utils/api';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function EmailValidationPage() {
-  const { user, sendVerificationEmail, getIdToken, refreshUserStatus } = useAuth();
+  const { user, loading, sendVerificationEmail, getIdToken, refreshUserStatus } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [cooldownTime, setCooldownTime] = useState(0);

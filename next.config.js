@@ -41,15 +41,15 @@ const nextConfig = {
   async headers() {
     const isDev = process.env.NODE_ENV === 'development';
     const allowedDomains = isDev 
-      ? ['127.0.0.1:*', 'localhost:*', '*.dovetext.cn']
-      : ['*.dovetext.com'];
+      ? ['http://127.0.0.1:*', 'http://localhost:*', 'http://*.dovetext.cn']
+      : ['https://*.dovetext.com'];
 
     const baseDirectives = [
       "default-src 'self'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https: https://lh3.googleusercontent.com https://firebasestorage.googleapis.com",
       "font-src 'self'",
-      `connect-src 'self' https://*.googleapis.com https://*.google.com ${allowedDomains.map(domain => `https://${domain}`).join(' ')}`,
+      `connect-src 'self' https://*.googleapis.com https://*.google.com ${allowedDomains.join(' ')}`,
       "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com",
       "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.googleapis.com https://*.google.com https://*.gstatic.com",
       "media-src 'self'",
