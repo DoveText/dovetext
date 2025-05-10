@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { usePathname } from 'next/navigation';
@@ -9,23 +9,71 @@ import TaskOrientedChat from '@/components/common/TaskOrientedChat';
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, needsValidation, isActive } = useAuth();
   const router = useRouter();
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
+  // Add a timeout to handle cases where auth state might be stuck
   useEffect(() => {
-    if (!loading) {
+    let timer: NodeJS.Timeout;
+    if (loading) {
+      timer = setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 3000); // 3 second timeout
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  // Handle redirects based on auth state
+  useEffect(() => {
+    if (!loading || loadingTimeout) {
       if (!user) {
-        router.push('/signin');
+        console.log('No user found, redirecting to signin');
+        router.push('/');
       } else if (needsValidation) {
+        console.log('User needs validation, redirecting');
         router.push('/auth/validate-email');
       } else if (!isActive) {
+        console.log('User not active, redirecting to activation');
         router.push('/auth/activate');
       }
     }
-  }, [user, loading, needsValidation, isActive, router]);
+  }, [user, loading, needsValidation, isActive, router, loadingTimeout]);
 
-  if (loading) {
-    return <div>Loading...</div>;
+  // Show loading state
+  if (loading && !loadingTimeout) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
+  // If we've timed out or auth has failed, show a helpful message
+  if (loadingTimeout && !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center max-w-md p-6 bg-white rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-red-600">Authentication Issue</h2>
+          <p className="mb-4">We're having trouble verifying your login status. This could be due to:</p>
+          <ul className="list-disc text-left pl-6 mb-4">
+            <li>Your session has expired</li>
+            <li>Network connectivity issues</li>
+            <li>Server is temporarily unavailable</li>
+          </ul>
+          <button 
+            onClick={() => router.push('/signin')} 
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Go to Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render children if user isn't properly authenticated
   if (!user || needsValidation || !isActive) {
     return null;
   }

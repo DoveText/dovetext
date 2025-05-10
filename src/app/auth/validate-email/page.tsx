@@ -51,16 +51,26 @@ export default function EmailValidationPage() {
     }
   }, [searchParams, cooldownTime, handleResendEmail]);
 
+  // Track if we've already redirected to prevent loops
+  const hasRedirected = useRef(false);
+
   useEffect(() => {
-    // If user is already validated, redirect to dashboard
-    if (user?.settings?.validated) {
-      router.push('/dashboard');
+    // Only perform redirects if we haven't already redirected
+    // and we're not still loading the user state
+    if (!hasRedirected.current && !loading) {
+      // If user is already validated, redirect to dashboard
+      if (user?.settings?.validated) {
+        hasRedirected.current = true;
+        router.push('/dashboard');
+      }
+      // If no user after loading is complete, redirect to signin
+      else if (!user) {
+        hasRedirected.current = true;
+        router.push('/signin');
+      }
+      // Otherwise, we're in the correct state - user is logged in but not validated
     }
-    // If no user, redirect to signin
-    if (!user) {
-      router.push('/signin');
-    }
-  }, [user, router]);
+  }, [user, router, loading]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;

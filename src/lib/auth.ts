@@ -105,8 +105,16 @@ class AuthState {
         this.fetchUserData(token).catch(error => {
           console.error('Error initializing auth state:', error);
           this.setToken(null);
+          // Notify listeners that auth state is resolved (but no user)
+          this.listeners.forEach(listener => listener(null));
         });
+      } else {
+        // No token found, notify listeners that auth state is resolved (no user)
+        this.listeners.forEach(listener => listener(null));
       }
+    } else {
+      // Not in browser environment, notify listeners that auth state is resolved (no user)
+      this.listeners.forEach(listener => listener(null));
     }
   }
 
