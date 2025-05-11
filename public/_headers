@@ -1,0 +1,20 @@
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  X-XSS-Protection: 1; mode=block
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET,OPTIONS,PATCH,DELETE,POST,PUT
+  Access-Control-Allow-Headers: X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version
+
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/api/*
+  Cache-Control: no-cache
+
+/*
+  Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: https://lh3.googleusercontent.com https://firebasestorage.googleapis.com; font-src 'self'; connect-src 'self' https://*.googleapis.com https://*.google.com http://127.0.0.1:* http://localhost:* http://*.dovetext.cn; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.googleapis.com https://*.google.com https://*.gstatic.com; media-src 'self'; worker-src 'self' blob:
+  Cache-Control: public, max-age=0, must-revalidate
