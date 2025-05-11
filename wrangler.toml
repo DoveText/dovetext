@@ -1,15 +1,13 @@
+# Build configuration
+name = "dovetext"
+
+# Output directory for Pages
+pages_build_output_dir = "out"
+
+# Build command and Node.js version
 [build]
 command = "npm run build"
 
+# Environment variables for build
 [build.environment]
 NODE_VERSION = "20"
-
-[site]
-bucket = "./out"
-
-[env.production]
-name = "DoveText"
-
-# This is the key configuration for Pages
-[pages_build_output_dir]
-directory = "out"
