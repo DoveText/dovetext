@@ -1,11 +1,12 @@
 [build]
 command = "npm run build"
 
-[build.environment]
-NODE_VERSION = "20"
+# Node version specification
+node_version = "20"
 
+# For Pages projects
 [site]
-site_name = "DoveText"
+bucket = "./out"
 
-[pages_build_output_dir]
-value = "out"
+# Main entry point
+main = "workers-site/index.js"
