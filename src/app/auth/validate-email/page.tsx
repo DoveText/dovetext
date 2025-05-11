@@ -54,23 +54,35 @@ export default function EmailValidationPage() {
 
   // Track if we've already redirected to prevent loops
   const hasRedirected = useRef(false);
+  const redirectTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Only perform redirects if we haven't already redirected
     // and we're not still loading the user state
     if (!hasRedirected.current && !loading) {
-      // If user is already validated, redirect to dashboard
+      // If user is already validated, redirect to dashboard with a slight delay
       if (user?.settings?.validated) {
         hasRedirected.current = true;
-        router.push('/dashboard');
+        redirectTimer.current = setTimeout(() => {
+          router.push('/dashboard');
+        }, 300); // Small delay to prevent flashing
       }
-      // If no user after loading is complete, redirect to signin
+      // If no user after loading is complete, redirect to signin with a slight delay
       else if (!user) {
         hasRedirected.current = true;
-        router.push('/signin');
+        redirectTimer.current = setTimeout(() => {
+          router.push('/signin');
+        }, 300); // Small delay to prevent flashing
       }
       // Otherwise, we're in the correct state - user is logged in but not validated
     }
+    
+    // Clean up timer on unmount
+    return () => {
+      if (redirectTimer.current) {
+        clearTimeout(redirectTimer.current);
+      }
+    };
   }, [user, router, loading]);
 
   useEffect(() => {

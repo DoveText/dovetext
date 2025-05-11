@@ -58,7 +58,7 @@ interface ChatContextType {
   handleInteractiveResponse: (messageId: string, response: any, contextType?: string) => void;
   
   // Message submission
-  sendMessage: (message: string, type?: string, contextType: string) => Promise<void>;
+  sendMessage: (message: string, contextType: string, type?: string) => Promise<void>;
   
   // UI methods
   expandChat: () => void;
@@ -78,22 +78,36 @@ interface ChatProviderProps {
   animationDuration?: number;
 }
 
-/**
- * Provider component for the ChatContext
- * Manages all chat-related state and functionality
- */
+// Wrapper component to handle the conditional rendering
+// This avoids the React hooks order issues
 export function ChatProvider({ 
   children, 
   maxReconnectAttempts = 5,
   animationDuration = 300
 }: ChatProviderProps) {
   const auth = useAuth();
-  const router = useRouter();
   
   // If user is not authenticated or not active, just render children without chat functionality
   if (!auth.user || !auth.isActive) {
     return <>{children}</>;
   }
+  
+  return <ChatProviderContent 
+    children={children} 
+    maxReconnectAttempts={maxReconnectAttempts} 
+    animationDuration={animationDuration} 
+  />;
+}
+
+// Inner component that only renders when user is authenticated
+// All hooks are defined here without conditionals
+function ChatProviderContent({ 
+  children, 
+  maxReconnectAttempts,
+  animationDuration
+}: ChatProviderProps) {
+  const auth = useAuth();
+  const router = useRouter();
   
   // ===== Connection State =====
   const [eventSource, setEventSource] = useState<CustomEventSource | null>(null);
@@ -101,10 +115,8 @@ export function ChatProvider({
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [isConnecting, setIsConnecting] = useState(false);
-  const MAX_AUTO_RECONNECT_ATTEMPTS = maxReconnectAttempts;
-
-  // Track last time a heartbeat is received from server
   const [lastHeartbeatReceivedTime, setLastHeartbeatReceivedTime] = useState<number | null>(null);
+  const MAX_AUTO_RECONNECT_ATTEMPTS = maxReconnectAttempts;
   const HEARTBEAT_TIMEOUT_MS = 45 * 1000;
   
   // ===== Chat State =====
@@ -116,608 +128,356 @@ export function ChatProvider({
   const [isSending, setIsSending] = useState(false);
   
   // ===== UI State =====
+  const [isUserInitiated, setIsUserInitiated] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [animationState, setAnimationState] = useState<AnimationState>('closed');
-  const [isUserInitiated, setIsUserInitiated] = useState(false);
   const [isActive, setIsActive] = useState(false);
-  
+
   // ===== Chat Methods =====
   
   /**
-   * Adds a user message to the chat history
+   * Add a user message to the chat history
    */
-  const addUserMessage = useCallback((
-    content: string, 
-    id?: string, 
-    interactive: boolean = false,
-    request: string = 'chat'
-  ) => {
+  const addUserMessage = useCallback((content: string, id?: string, interactive = false, request = '') => {
+    const messageId = id || `user-${Date.now()}`;
     setChatHistory(prev => [...prev, {
-      type: 'user',
+      id: messageId,
+      role: 'user',
       content,
-      id,
       timestamp: Date.now(),
       interactive,
       request
     }]);
+    return messageId;
   }, []);
-  
+
   /**
-   * Adds a system message to the chat history
+   * Add a system message to the chat history
    */
-  const addSystemMessage = useCallback((content: string, id?: string, interactiveData?: InteractiveMessage, isResponseSubmitted?: boolean) => {
+  const addSystemMessage = useCallback((content: string, id?: string, interactiveData?: InteractiveMessage, isResponseSubmitted = false) => {
+    const messageId = id || `system-${Date.now()}`;
     setChatHistory(prev => [...prev, {
-      type: 'system',
+      id: messageId,
+      role: 'system',
       content,
-      id,
       timestamp: Date.now(),
       interactive: !!interactiveData,
       interactiveData,
       isResponseSubmitted
     }]);
+    return messageId;
   }, []);
 
   /**
-   * Adds an error message to the chat history
+   * Add an error message to the chat history
    */
   const addErrorMessage = useCallback((content: string, id?: string) => {
+    const messageId = id || `error-${Date.now()}`;
     setChatHistory(prev => [...prev, {
-      type: 'error',
+      id: messageId,
+      role: 'error',
       content,
-      id,
       timestamp: Date.now()
     }]);
+    return messageId;
   }, []);
-  
+
   /**
-   * Clears the chat history
+   * Clear the chat history
    */
   const clearChatHistory = useCallback(() => {
     setChatHistory([]);
     setCurrentTask(null);
   }, []);
-  
+
   /**
-   * Updates the current task progress
+   * Update the current task
    */
   const updateTask = useCallback((task: Partial<ChatTask>) => {
-    setCurrentTask(prev => {
-      if (!prev) {
-        return {
-          complete: task.complete || false,
-          steps: task.steps || 1,
-          currentStep: task.currentStep || 1
-        };
-      }
-      
-      return {
-        ...prev,
-        ...task
-      };
-    });
+    setCurrentTask(prev => prev ? { ...prev, ...task } : null);
   }, []);
-  
+
   /**
-   * Sets the processing state and optional hint message
+   * Set the processing state
    */
-  const setProcessing = useCallback((processing: boolean, hint: string = '') => {
+  const setProcessing = useCallback((processing: boolean, hint = '') => {
     setIsProcessing(processing);
     setProcessingHint(hint);
   }, []);
-  
-  // ===== UI Methods =====
-  
+
   /**
-   * Expands the chat interface
+   * Handle an interactive response from the user
+   */
+  const handleInteractiveResponse = useCallback((messageId: string, response: any, contextType = 'general') => {
+    // Find the message in the chat history
+    const message = chatHistory.find(msg => msg.id === messageId);
+    if (!message || !message.interactive) return;
+
+    // Mark the message as having a response
+    setChatHistory(prev => prev.map(msg => 
+      msg.id === messageId ? { ...msg, isResponseSubmitted: true } : msg
+    ));
+
+    // Send the response to the backend
+    chatApi.sendInteractiveResponse({
+      messageId,
+      response,
+      contextType
+    }).catch(error => {
+      console.error('Error sending interactive response:', error);
+      addErrorMessage('Failed to send your response. Please try again.');
+    });
+  }, [chatHistory, addErrorMessage]);
+
+  /**
+   * Connect to the server-sent events endpoint
+   */
+  const connectToSSE = useCallback(async (): Promise<SSEConnectionResult> => {
+    if (isConnecting) {
+      return { success: false, error: 'Already connecting' };
+    }
+
+    setIsConnecting(true);
+    
+    try {
+      // Create a new EventSource connection
+      const result = await chatApi.connectSSE();
+      
+      if (!result.success) {
+        setConnectionStatus('error');
+        setIsConnecting(false);
+        return result;
+      }
+      
+      const { eventSource, connectionId } = result;
+      
+      // Set up event listeners
+      eventSource.addEventListener('open', () => {
+        setConnectionStatus('connected');
+        setConnectionId(connectionId);
+        setLastHeartbeatReceivedTime(Date.now());
+        setReconnectAttempts(0);
+      });
+      
+      eventSource.addEventListener('message', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === 'heartbeat') {
+            setLastHeartbeatReceivedTime(Date.now());
+            return;
+          }
+          
+          // Handle other message types here
+          
+        } catch (error) {
+          console.error('Error parsing SSE message:', error);
+        }
+      });
+      
+      eventSource.addEventListener('error', () => {
+        setConnectionStatus('error');
+        eventSource.close();
+        setEventSource(null);
+      });
+      
+      // Store the event source and connection ID
+      setEventSource(eventSource);
+      setConnectionId(connectionId);
+      setIsConnecting(false);
+      
+      return { success: true, eventSource, connectionId };
+    } catch (error) {
+      console.error('Error connecting to SSE:', error);
+      setConnectionStatus('error');
+      setIsConnecting(false);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }, [isConnecting]);
+
+  /**
+   * Handle reconnection to the server
+   */
+  const handleReconnect = useCallback(async () => {
+    if (isConnecting || reconnectAttempts >= MAX_AUTO_RECONNECT_ATTEMPTS) {
+      return;
+    }
+    
+    setReconnectAttempts(prev => prev + 1);
+    await connectToSSE();
+  }, [isConnecting, reconnectAttempts, MAX_AUTO_RECONNECT_ATTEMPTS, connectToSSE]);
+
+  /**
+   * Terminate the connection to the server
+   */
+  const terminateConnection = useCallback(() => {
+    if (eventSource) {
+      eventSource.close();
+      setEventSource(null);
+    }
+    
+    setConnectionId(null);
+    setConnectionStatus('disconnected');
+  }, [eventSource]);
+
+  /**
+   * Send a message to the server
+   * - If no connection, connect first
+   * - If no heartbeat for 30s, reconnect first
+   * - If 404 error, reconnect and retry ONCE
+   */
+  const sendMessage = useCallback(async (message: string, contextType: string, type?: string) => {
+    addUserMessage(message, undefined, false, 'chat');
+    setIsSending(true);
+    let activeConnectionId = connectionId;
+    let triedReconnect = false;
+    
+    try {
+      // If not connected or heartbeat timeout, try to reconnect
+      const now = Date.now();
+      const heartbeatExpired = lastHeartbeatReceivedTime && (now - lastHeartbeatReceivedTime > HEARTBEAT_TIMEOUT_MS);
+      
+      if (!activeConnectionId || heartbeatExpired) {
+        triedReconnect = true;
+        const result = await connectToSSE();
+        if (!result.success) {
+          throw new Error('Failed to connect to server');
+        }
+        activeConnectionId = result.connectionId;
+      }
+      
+      // Send the message
+      try {
+        const response = await chatApi.sendMessage({
+          message,
+          type: type || 'chat',
+          connectionId: activeConnectionId!,
+          contextType
+        });
+        
+        // Handle successful response
+        if (response.task) {
+          setCurrentTask(response.task);
+        }
+        
+        if (response.message) {
+          addSystemMessage(response.message);
+        }
+      } catch (error: any) {
+        // If 404 error and haven't tried reconnecting yet, try once
+        if (error.status === 404 && !triedReconnect) {
+          triedReconnect = true;
+          const result = await connectToSSE();
+          if (!result.success) {
+            throw new Error('Failed to reconnect to server');
+          }
+          
+          // Retry with new connection
+          const retryResponse = await chatApi.sendMessage({
+            message,
+            type: type || 'chat',
+            connectionId: result.connectionId!,
+            contextType
+          });
+          
+          if (retryResponse.task) {
+            setCurrentTask(retryResponse.task);
+          }
+          
+          if (retryResponse.message) {
+            addSystemMessage(retryResponse.message);
+          }
+        } else {
+          // Other error, just throw
+          throw error;
+        }
+      }
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      addErrorMessage(error.message || 'Failed to send message');
+    } finally {
+      setIsSending(false);
+    }
+  }, [
+    connectionId, 
+    lastHeartbeatReceivedTime, 
+    HEARTBEAT_TIMEOUT_MS, 
+    connectToSSE, 
+    addUserMessage, 
+    addSystemMessage, 
+    addErrorMessage
+  ]);
+
+  /**
+   * Expand the chat UI
    */
   const expandChat = useCallback(() => {
     setAnimationState('opening');
-    setIsExpanded(true);
-    setIsActive(true);
-    
     setTimeout(() => {
+      setIsExpanded(true);
       setAnimationState('open');
     }, animationDuration);
   }, [animationDuration]);
-  
+
   /**
-   * Minimizes the chat interface
+   * Minimize the chat UI
    */
   const minimizeChat = useCallback(() => {
     setAnimationState('closing');
-    
     setTimeout(() => {
       setIsExpanded(false);
       setAnimationState('closed');
     }, animationDuration);
   }, [animationDuration]);
-  
-  // ===== Connection Methods =====
-  
-  /**
-   * Process SSE events received from the server
-   */
-  const processSSEEvent = useCallback((eventType: string, eventData: any) => {
-    console.log('[ChatContext] Processing SSE event:', eventType, eventData);
-    
-    try {
-      // Process different event types
-      if (eventType === 'heartbeat') {
-        setLastHeartbeatReceivedTime(Date.now());
-        return;
-      }
-      if (eventType === 'connected') {
-        setConnectionStatus('connected');
-        setConnectionId(eventData.connectionId);
-        setReconnectAttempts(0);
-        setLastHeartbeatReceivedTime(Date.now());
-      }
-      if (eventType === 'thinking' || eventType === 'processing') {
-        const content = eventData.content || 'Thinking...';
-        setProcessing(true, content);
-      } else if (eventType === 'message') {
-        // Only set processing to false if the message is complete
-        if (eventData.complete !== false) {
-          console.log("######## Processing completed")
-          setProcessing(false);
-        }
-        
-        // Check if this is an interactive message
-        if (eventData.interactive) {
-          addSystemMessage(
-            eventData.content, 
-            eventData.id, 
-            {
-              interactive: true,
-              function: eventData.function,
-              parameters: eventData.parameters
-            }
-          );
-        } else {
-          addSystemMessage(eventData.content, eventData.id);
-        }
-      } else if (eventType === 'interactive') {
-        // Handle interactive event type directly
-        setProcessing(false);
-        
-        // Extract the appropriate content based on the function type
-        let content = '';
-        
-        if (eventData.function === 'confirm') {
-          // For confirm interactions, use the message parameter
-          content = eventData.parameters?.message || 'Confirm?';
-        } else if (eventData.function === 'select') {
-          // For select interactions, use the question parameter
-          content = eventData.parameters?.question || 'Select an option:';
-        } else if (eventData.function === 'form') {
-          // For form interactions, use the title parameter
-          content = eventData.parameters?.prompt || 'Please fill out this form:';
-        } else if (eventData.function === 'chat') {
-          // For chat interactions, use the question parameter
-          content = eventData.parameters?.question || 'What would you like to chat about?';
-        } else if (eventData.function === 'present') {
-          // For present interactions, don't use the title as content
-          // Instead, use a generic message or empty string since the PresentInteraction component will show the title
-          content = ''; // Don't include title in the message content
-        } else {
-          // Default fallback for unknown function types
-          content = 'Interactive message';
-        }
-        
-        console.log('[ChatContext] Extracted content for interactive message:', content);
-        console.log('[ChatContext] Full interactive message data:', eventData);
-        
-        // For present interactions, mark as already responded to since they don't expect responses
-        const isPresent = eventData.function === 'present';
-        
-        addSystemMessage(
-          content,
-          eventData.messageId || eventData.id || `interactive-${Date.now()}`,
-          {
-            interactive: true,
-            function: eventData.function,
-            parameters: eventData.parameters
-          },
-          isPresent // Mark present messages as already responded to
-        );
-      } else if (eventType === 'task_update') {
-        updateTask({
-          complete: eventData.complete || false,
-          steps: eventData.steps || 1,
-          currentStep: eventData.currentStep || 1
-        });
-        
-        // If task is complete, reset chat after a delay
-        if (eventData.complete) {
-          setTimeout(() => {
-            clearChatHistory();
-          }, 5000);
-        }
-      } else if (eventType === 'action') {
-        // Handle action events (navigation, form filling, etc.)
-        // This would need to be expanded based on your application's needs
-        console.log('[ChatContext] Action received:', eventData.actionType);
-      } else if (eventType === 'complete') {
-        // Handle session completion event
-        console.log('[ChatContext] Session completed:', eventData);
-        
-        // Add a system message to indicate completion
-        addSystemMessage(eventData.content || 'Session completed');
-        
-        // Set processing to false
-        setProcessing(false);
-        
-        // Wait a moment to allow the user to see the completion message
-        setTimeout(() => {
-          // Minimize the chat window
-          minimizeChat();
-          
-          // Terminate the SSE connection
-          terminateConnection();
-          
-          // Optional: Clear chat history after a delay if desired
-          // setTimeout(() => {
-          //   clearChatHistory();
-          // }, 3000);
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('[ChatContext] Error processing SSE event:', error);
-      addSystemMessage('An error occurred processing the response. Please try again.');
-    }
-  }, [setProcessing, addSystemMessage, updateTask, clearChatHistory]);
-  
-  /**
-   * Establishes an SSE connection to the server
-   * Returns the connectionId immediately for use without waiting for state updates
-   */
-  const connectToSSE = useCallback(async (): Promise<SSEConnectionResult> => {
-    console.log('[ChatContext] Starting SSE connection...');
-    try {
-      // Prevent duplicate connection attempts
-      if (isConnecting) {
-        console.log('[ChatContext] Connection already in progress, skipping');
-        return { connectionId };
-      }
-      
-      // Update connection status
-      setIsConnecting(true);
-      setConnectionStatus('reconnecting');
-      
-      // Define the message handler for SSE events
-      const handleSSEEvent = (eventType: string, data: any) => {
-        console.log('[ChatContext] Received SSE event:', eventType, data);
-        
-        // Update connection status on first successful message
-        if (connectionStatus !== 'connected') {
-          setConnectionStatus('connected');
-          setReconnectAttempts(0);
-        }
-        
-        // Process the event
-        processSSEEvent(eventType, data);
-      };
-      
-      console.log('[ChatContext] Calling createChatStream');
-      const { eventSource: newEventSource, connectionId: newConnectionId } = await chatApi.createChatStream(handleSSEEvent);
-      
-      console.log('[ChatContext] createChatStream returned:', { 
-        eventSource: !!newEventSource, 
-        connectionId: newConnectionId 
-      });
-      
-      // Update state with new connection details
-      setEventSource(newEventSource);
-      setConnectionId(newConnectionId);
-      setIsConnecting(false);
-      setConnectionStatus('connected');
-      
-      // Return the connection ID for immediate use
-      return { connectionId: newConnectionId };
-    } catch (error) {
-      console.error('[ChatContext] Error establishing SSE connection:', error);
-      setIsConnecting(false);
-      setConnectionStatus('disconnected');
-      
-      addSystemMessage('Error connecting to chat service. Please try again.');
-      
-      return { connectionId: null };
-    }
-  }, [isConnecting, connectionId, connectionStatus, processSSEEvent, addSystemMessage]);
-  
-  /**
-   * Handles manual reconnection attempts
-   */
-  const handleReconnect = useCallback(async () => {
-    if (connectionStatus === 'reconnecting') return;
-    
-    // Attempt to reconnect
-    await connectToSSE();
-  }, [connectToSSE, connectionStatus]);
-  
-  /**
-   * Terminates the SSE connection and cleans up resources
-   */
-  const terminateConnection = useCallback(() => {
-    if (eventSource) {
-      console.log('[ChatContext] Terminating SSE connection');
-      // Use the terminateChatStream method to properly notify the server
-      chatApi.terminateChatStream().catch(err => {
-        console.error('[ChatContext] Error terminating chat stream:', err);
-      });
-      
-      // Clean up the event source
-      eventSource.close();
-      setEventSource(null);
-      setConnectionId(null);
-      setConnectionStatus('disconnected');
-    }
 
-    clearChatHistory();
-  }, [eventSource, clearChatHistory]);
-  
   /**
-   * Handles sending a message to the chat backend
-   * - If no heartbeat for 30s, reconnect first
-   * - If 404 error, reconnect and retry ONCE
-   */
-  const sendMessage = useCallback(async (message: string, type?: string, contextType: string) => {
-    addUserMessage(message, undefined, false, 'chat');
-    setIsSending(true);
-    let activeConnectionId = connectionId;
-    let triedReconnect = false;
-
-    // Helper to reconnect SSE and get new connectionId
-    const reconnect = async () => {
-      setConnectionStatus('reconnecting');
-      setConnectionId(null);
-      if (eventSource) {
-        eventSource.close();
-        setEventSource(null);
-      }
-      const result = await connectToSSE();
-      setLastHeartbeatReceivedTime(Date.now());
-      return result.connectionId;
-    };
-
-    // Check heartbeat freshness
-    const now = Date.now();
-    if (!lastHeartbeatReceivedTime || now - lastHeartbeatReceivedTime > HEARTBEAT_TIMEOUT_MS) {
-      console.log('[ChatContext] No recent heartbeat, reconnecting before sending message');
-      activeConnectionId = await reconnect();
-      if (!activeConnectionId) {
-        setIsSending(false);
-        addSystemMessage('Failed to reconnect before sending message.');
-        return;
-      }
-    }
-
-    // Try sending message, retry ONCE on error (response or 404 exception)
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const response = await chatApi.sendMessage({
-          type: type ?? "chat",
-          context: contextType,
-          content: message,
-          connectionId: activeConnectionId ?? undefined,
-          currentPage: window.location.pathname
-        });
-        setIsSending(false);
-        // Update heartbeat timestamp on any successful response (connection is alive)
-        if (response && response.type !== 'error') {
-          setLastHeartbeatReceivedTime(Date.now());
-        }
-        if (response.type === 'error') {
-          if (!triedReconnect) {
-            console.log('[ChatContext] Error response, reconnecting and retrying message');
-            activeConnectionId = await reconnect();
-            triedReconnect = true;
-            continue; // retry
-          } else {
-            addSystemMessage('Connection lost. Please click the reconnect button to continue chatting.');
-            return;
-          }
-        }
-        // Success
-        return;
-      } catch (error: any) {
-        // Axios or network error: check for 404 status
-        setIsSending(false);
-        if (error && error.response && error.response.status === 404) {
-          if (!triedReconnect) {
-            console.log('[ChatContext] 404 error (exception), reconnecting and retrying message');
-            activeConnectionId = await reconnect();
-            triedReconnect = true;
-            continue; // retry
-          } else {
-            addSystemMessage('Connection lost. Please click the reconnect button to continue chatting.');
-            return;
-          }
-        }
-        console.error('[ChatContext] Error sending message:', error);
-        addSystemMessage('Sorry, there was an error sending your message. Please use the reconnect button to try again.');
-        return;
-      }
-    }
-  }, [connectionId, connectToSSE, addUserMessage, addSystemMessage, setIsSending, eventSource, lastHeartbeatReceivedTime]);
-  
-  /**
-   * Handles a chat trigger event (e.g., from dashboard input)
+   * Handle a chat trigger (e.g., from a button click)
    */
   const handleChatTrigger = useCallback((message: string, contextType: string) => {
-    // Expand the chat
-    expandChat();
-
-    clearChatHistory();
-
-    // Check if we need to reset the connection
-    if (connectionStatus === 'disconnected') {
-      console.log('[ChatContext] Connection is disconnected, resetting connection state before sending message');
-      
-      // Reset connection state
+    // If not expanded, expand first
+    if (!isExpanded) {
+      expandChat();
+    }
+    
+    // If not connected, connect first
+    if (connectionStatus !== 'connected') {
       setConnectionId(null);
       setEventSource(null);
-      setConnectionStatus('reconnecting');
-      
-      // Clear chat history for a fresh start
-      clearChatHistory();
+      setConnectionStatus('disconnected');
     }
 
     // Send the message to the backend (this will establish a new connection if needed)
-    sendMessage(message, 'new_chat', contextType);
-  }, [expandChat, sendMessage, connectionStatus, setConnectionId, setEventSource, setConnectionStatus, clearChatHistory]);
-  
-  /**
-   * Handles responses from interactive messages
-   */
-  const handleInteractiveResponse = useCallback((messageId: string, response: any, contextType: string = 'general') => {
-    console.log('[ChatContext] Handling interactive response for message ID:', messageId, 'response:', response);
-    
-    // Mark the message as having received a response
-    setChatHistory(prev => prev.map(message => {
-      if (message.id === messageId) {
-        return {
-          ...message,
-          isResponseSubmitted: true,
-          responseValue: response // Store the actual response value
-        };
-      }
-      return message;
-    }));
-    
-    // Format the response based on type and get response content
-    let responseContent = '';
-    if (typeof response === 'boolean') {
-      // For confirm interactions, find the original message to get the button text
-      const originalMessage = chatHistory.find(msg => msg.id === messageId);
-      if (originalMessage?.interactiveData?.function === 'confirm') {
-        // Use the yesPrompt/noPrompt text as the response content
-        const params = originalMessage.interactiveData.parameters;
-        responseContent = response ? params.yesPrompt : params.noPrompt;
-      } else {
-        // Fallback if we can't find the original message
-        responseContent = response ? 'Yes' : 'No';
-      }
-    } else if (typeof response === 'string') {
-      responseContent = response;
-    } else if (typeof response === 'object') {
-      // For form responses, create a summary
-      responseContent = 'Form submitted';
-    } else {
-      responseContent = String(response);
-    }
-    
-    // Add the response as a user message
-    const originalMessage = chatHistory.find(msg => msg.id === messageId);
-    const requestType = originalMessage?.interactiveData?.function as string;
-    
-    addUserMessage(
-      responseContent,
-      `response-${messageId}`, // Use original message ID to link the response
-      true, // This is an interactive message
-      requestType || 'chat' // Use the original message's function type
-    );
-    
-    // Send the response to the backend
-    if (connectionId) {
-      // Make sure we're using the exact messageId format that the backend expects
-      // For interactive messages, the backend expects the raw messageId without any prefix
-      const cleanMessageId = messageId.startsWith('interactive-') ? messageId : messageId;
-      
-      console.log('[ChatContext] Sending interactive response with messageId:', cleanMessageId);
-      
-      chatApi.sendMessage({
-        type: 'interactive_response',
-        context: contextType,
-        content: JSON.stringify({
-          messageId: cleanMessageId,
-          response
-        }),
-        connectionId
-      }).catch(error => {
-        console.error('[ChatContext] Error sending interactive response:', error);
-        addErrorMessage('Failed to send your response. Please try again.');
-      });
-    }
-  }, [connectionId, addUserMessage, addErrorMessage, chatHistory]);
+    sendMessage(message, contextType, 'new_chat');
+  }, [expandChat, sendMessage, connectionStatus, setConnectionId, setEventSource, setConnectionStatus, clearChatHistory, isExpanded]);
 
-  // Auto-connect when isActive becomes true
+  /**
+   * Check for heartbeat timeouts
+   */
   useEffect(() => {
-    if (isActive && connectionStatus === 'disconnected' && !isConnecting) {
-      console.log('[ChatContext] Auto-connecting because isActive is true');
-      connectToSSE().catch(error => {
-        console.error('[ChatContext] Error initializing connection:', error);
-      });
-    } else if (!isActive && connectionStatus !== 'disconnected') {
-      // Terminate connection when isActive becomes false
-      console.log('[ChatContext] Terminating connection because isActive is false');
-      terminateConnection();
-    }
-  }, [isActive, connectionStatus, isConnecting, connectToSSE, terminateConnection]);
-  
-  // Add automatic reconnection logic with exponential backoff
-  useEffect(() => {
-    let reconnectTimer: NodeJS.Timeout | null = null;
-    
-    // Only attempt automatic reconnection if:
-    // 1. We're currently disconnected
-    // 2. We haven't exceeded the maximum number of attempts
-    // 3. The connection should be active
-    if (connectionStatus === 'disconnected' && 
-        reconnectAttempts < MAX_AUTO_RECONNECT_ATTEMPTS && 
-        isActive) {
+    const interval = setInterval(() => {
+      if (!lastHeartbeatReceivedTime) return;
       
-      console.log(`[ChatContext] Attempting automatic reconnection (attempt ${reconnectAttempts + 1}/${MAX_AUTO_RECONNECT_ATTEMPTS})`);
-      
-      // Use exponential backoff for reconnection attempts
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-      
-      reconnectTimer = setTimeout(() => {
+      const now = Date.now();
+      if (now - lastHeartbeatReceivedTime > HEARTBEAT_TIMEOUT_MS) {
+        // Heartbeat timeout, try to reconnect
         handleReconnect();
-        setReconnectAttempts(prev => prev + 1);
-      }, delay);
-    }
-    
-    // Clean up timer on unmount or when reconnection status changes
-    return () => {
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
       }
-    };
-  }, [connectionStatus, reconnectAttempts, MAX_AUTO_RECONNECT_ATTEMPTS, isActive, handleReconnect]);
-  
-  // Set up event listener for chat triggers
-  useEffect(() => {
-    const handleChatTriggerEvent = (event: CustomEvent) => {
-      if (event.detail?.message) {
-        handleChatTrigger(event.detail.message, event.detail.contextType);
-      }
-    };
+    }, 10000); // Check every 10 seconds
     
-    window.addEventListener('triggerChatBubble', handleChatTriggerEvent as EventListener);
-    
-    return () => {
-      window.removeEventListener('triggerChatBubble', handleChatTriggerEvent as EventListener);
-    };
-  }, [handleChatTrigger]);
-  
-  // Reset user initiated flag when animation completes
-  useEffect(() => {
-    if (animationState === 'open' || animationState === 'closed') {
-      setIsUserInitiated(false);
-    }
-  }, [animationState]);
-  
-  // Clean up connection when component unmounts
+    return () => clearInterval(interval);
+  }, [lastHeartbeatReceivedTime, HEARTBEAT_TIMEOUT_MS, handleReconnect]);
+
+  /**
+   * Clean up on unmount
+   */
   useEffect(() => {
     return () => {
       if (eventSource) {
-        console.log('#### Terminating connection due to eventSource unmount')
-        terminateConnection();
+        eventSource.close();
       }
     };
-  }, []);
-  
+  }, [eventSource]);
+
   // Create the context value
   const contextValue: ChatContextType = {
     // Connection state
@@ -765,7 +525,7 @@ export function ChatProvider({
     minimizeChat,
     handleChatTrigger
   };
-  
+
   return (
     <ChatContext.Provider value={contextValue}>
       {children}
@@ -780,10 +540,8 @@ export function ChatProvider({
  */
 export function useChat() {
   const context = useContext(ChatContext);
-  
-  if (context === null) {
+  if (!context) {
     throw new Error('useChat must be used within a ChatProvider');
   }
-  
   return context;
 }

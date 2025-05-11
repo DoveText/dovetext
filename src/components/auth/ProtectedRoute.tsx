@@ -22,21 +22,33 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     return () => clearTimeout(timer);
   }, [loading]);
 
+  // Get current path to prevent redirection loops and for context type
+  const pathname = usePathname();
+  
   // Handle redirects based on auth state
   useEffect(() => {
     if (!loading || loadingTimeout) {
       if (!user) {
-        console.log('No user found, redirecting to signin');
-        router.push('/');
+        // Only redirect if not already on the signin page
+        if (pathname !== '/' && pathname !== '/signin') {
+          console.log('No user found, redirecting to signin');
+          router.push('/');
+        }
       } else if (needsValidation) {
-        console.log('User needs validation, redirecting');
-        router.push('/auth/validate-email');
+        // Only redirect if not already on the validation page
+        if (pathname !== '/auth/validate-email') {
+          console.log('User needs validation, redirecting');
+          router.push('/auth/validate-email');
+        }
       } else if (!isActive) {
-        console.log('User not active, redirecting to activation');
-        router.push('/auth/activate');
+        // Only redirect if not already on the activation page
+        if (pathname !== '/auth/activate') {
+          console.log('User not active, redirecting to activation');
+          router.push('/auth/activate');
+        }
       }
     }
-  }, [user, loading, needsValidation, isActive, router, loadingTimeout]);
+  }, [user, loading, needsValidation, isActive, router, loadingTimeout, pathname]);
 
   // Show loading state
   if (loading && !loadingTimeout) {
@@ -78,7 +90,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     return null;
   }
 
-  const pathname = usePathname();
+  // Determine contextType for chat component based on pathname
   const contextType = pathname?.includes('/schedule') ? 'schedule' : pathname?.includes('/tasks') ? 'automation' : 'general';
 
   return (
