@@ -1,12 +1,15 @@
 [build]
 command = "npm run build"
 
-# Node version specification
-node_version = "20"
+[build.environment]
+NODE_VERSION = "20"
 
-# For Pages projects
 [site]
 bucket = "./out"
 
-# Main entry point
-main = "workers-site/index.js"
+[env.production]
+name = "DoveText"
+
+# This is the key configuration for Pages
+[pages_build_output_dir]
+directory = "out"
