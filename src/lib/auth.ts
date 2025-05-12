@@ -99,15 +99,24 @@ class AuthState {
   init(): void {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('auth_token');
+      
       if (token) {
         this.authToken = token;
+        
         // Fetch user data using the token
-        this.fetchUserData(token).catch(error => {
-          console.error('Error initializing auth state:', error);
-          this.setToken(null);
-          // Notify listeners that auth state is resolved (but no user)
-          this.listeners.forEach(listener => listener(null));
-        });
+        this.fetchUserData(token)
+          .then(() => {
+            // Explicitly notify listeners after successful fetch
+            this.listeners.forEach(listener => {
+              listener(this.currentUser);
+            });
+          })
+          .catch(error => {
+            console.error('Error initializing auth state:', error);
+            this.setToken(null);
+            // Notify listeners that auth state is resolved (but no user)
+            this.listeners.forEach(listener => listener(null));
+          });
       } else {
         // No token found, notify listeners that auth state is resolved (no user)
         this.listeners.forEach(listener => listener(null));
@@ -494,6 +503,15 @@ export class Auth {
 
   // Auth state
   onAuthStateChanged(callback: (user: User | null) => void): () => void {
+    // Immediately trigger the callback with the current user state
+    const currentUser = this.authState.getUser();
+    
+    // Schedule the immediate callback to run after the current execution context
+    setTimeout(() => {
+      callback(currentUser);
+    }, 0);
+    
+    // Add the listener for future auth state changes
     return this.authState.addListener(callback);
   }
 

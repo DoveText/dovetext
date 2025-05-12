@@ -19,7 +19,9 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
         setLoadingTimeout(true);
       }, 3000); // 3 second timeout
     }
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [loading]);
 
   // Get current path to prevent redirection loops and for context type
@@ -31,19 +33,16 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       if (!user) {
         // Only redirect if not already on the signin page
         if (pathname !== '/' && pathname !== '/signin') {
-          console.log('No user found, redirecting to signin');
           router.push('/');
         }
       } else if (needsValidation) {
         // Only redirect if not already on the validation page
         if (pathname !== '/auth/validate-email') {
-          console.log('User needs validation, redirecting');
           router.push('/auth/validate-email');
         }
       } else if (!isActive) {
         // Only redirect if not already on the activation page
         if (pathname !== '/auth/activate') {
-          console.log('User not active, redirecting to activation');
           router.push('/auth/activate');
         }
       }

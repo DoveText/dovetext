@@ -16,7 +16,8 @@ import {
   ClockIcon,
   ChartBarIcon,
   ShieldCheckIcon,
-  HomeIcon
+  HomeIcon,
+  EnvelopeIcon
 } from '@heroicons/react/24/outline';
 import LoadingIndicator from '@/components/common/LoadingIndicator';
 
@@ -77,6 +78,13 @@ export default function AdminToolsLayout({
       description: 'Overview of all admin tools',
       path: '/admin-tools',
       icon: <HomeIcon className="h-5 w-5 text-gray-500" />
+    },
+    {
+      id: 'emails',
+      name: 'Email & Templates',
+      description: 'Manage email templates and monitor email status',
+      path: '/admin-tools/emails',
+      icon: <EnvelopeIcon className="h-5 w-5 text-orange-500" />
     },
     {
       id: 'settings',
@@ -233,6 +241,9 @@ export default function AdminToolsLayout({
             <ul className="flex space-x-6">
               <li>
                 <NavLink href="/admin-tools" exactPath={true}>Dashboard</NavLink>
+              </li>
+              <li>
+                <NavLink href="/admin-tools/emails">Email & Templates</NavLink>
               </li>
               <li>
                 <NavLink href="/admin-tools/settings">Settings</NavLink>

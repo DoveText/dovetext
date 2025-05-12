@@ -60,12 +60,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Set up auth state listener
   useEffect(() => {
     setLoading(true);
+    
     const unsubscribe = auth.onAuthStateChanged((authUser) => {
       setUser(authUser);
       setLoading(false);
     });
     
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Authentication methods delegated to the auth module

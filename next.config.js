@@ -8,6 +8,17 @@ const nextConfig = {
     // Set basePath to match your GitHub repository name
     basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
   }),
+  // API proxy configuration for development
+  ...(process.env.NODE_ENV !== 'production' && {
+    async rewrites() {
+      return [
+        {
+          source: '/api/:path*',
+          destination: 'http://api.dovetext.cn/api/:path*',
+        },
+      ];
+    },
+  }),
   // Custom server settings
   typescript: {
     ignoreBuildErrors: true,
