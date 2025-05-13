@@ -120,6 +120,44 @@ export const emailsApi = {
     );
     return data;
   },
+  
+  /**
+   * Test a template by sending a test email with email type explicitly set
+   * This is a workaround for the backend limitation that requires template names to match EmailType enum values
+   */
+  async testTemplateWithType(id: number, recipient: string, emailType: string = 'NOTIFICATION', testData: Record<string, string> = {}): Promise<{ success: boolean; message: string }> {
+    try {
+      // First get the template to get its name
+      const template = await this.getTemplateById(id);
+      
+      // Create a direct email with the template content
+      const emailData = {
+        type: emailType,
+        recipient: recipient,
+        subject: template.subject,
+        bodyText: template.bodyText,
+        bodyHtml: template.bodyHtml,
+        ...testData
+      };
+      
+      // Use the direct email API endpoint
+      const response = await apiClient.post('/api/v1/admin/emails', emailData);
+      
+      // Send the created email
+      const emailId = response.data.id;
+      const sendResult = await apiClient.post<{ success: boolean; message: string }>(
+        `/api/v1/admin/emails/${emailId}/send`
+      );
+      
+      return sendResult.data;
+    } catch (error: any) {
+      console.error('Error in testTemplateWithType:', error);
+      return {
+        success: false,
+        message: `Failed to send test email: ${error.message || 'Unknown error'}`
+      };
+    }
+  },
 
   /**
    * Get email status with pagination and filtering

@@ -35,6 +35,8 @@ export function EmailTestDialog({
   const [recipient, setRecipient] = useState<string>('');
   const [variables, setVariables] = useState<VariableInput[]>([]);
   const [isSending, setIsSending] = useState(false);
+  // Hidden state for email type - automatically determined from template name
+  const [emailType, setEmailType] = useState<string>('NOTIFICATION');
   const [testResult, setTestResult] = useState<{
     success: boolean;
     message: string;
@@ -59,12 +61,36 @@ export function EmailTestDialog({
     }
   }, [isOpen, initialTemplateId, initialRecipient]);
 
-  // Update variables when template changes
+  // Update variables and determine email type when template changes
   useEffect(() => {
     if (selectedTemplateId) {
       const template = templates.find(t => t.id.toString() === selectedTemplateId);
       if (template) {
         setVariables(template.variables.map(name => ({ name, value: '' })));
+        
+        // Determine the appropriate email type based on template name
+        const templateName = template.name.toUpperCase();
+        
+        // Check if template name contains any of the valid email types
+        const validTypes = ['SYSTEM', 'NOTIFICATION', 'VERIFICATION', 'PASSWORD_RESET', 'WELCOME', 'ALERT', 'MARKETING'];
+        const matchedType = validTypes.find(type => templateName.includes(type));
+        
+        if (matchedType) {
+          setEmailType(matchedType);
+        } else if (templateName.includes('RESET')) {
+          setEmailType('PASSWORD_RESET');
+        } else if (templateName.includes('VERIFY') || templateName.includes('CONFIRM')) {
+          setEmailType('VERIFICATION');
+        } else if (templateName.includes('WELCOME') || templateName.includes('ONBOARD')) {
+          setEmailType('WELCOME');
+        } else if (templateName.includes('ALERT') || templateName.includes('WARN')) {
+          setEmailType('ALERT');
+        } else if (templateName.includes('MARKET') || templateName.includes('PROMO')) {
+          setEmailType('MARKETING');
+        } else {
+          // Default to NOTIFICATION if no match
+          setEmailType('NOTIFICATION');
+        }
       }
     } else {
       setVariables([]);
@@ -127,9 +153,24 @@ export function EmailTestDialog({
     }, {} as Record<string, string>);
 
     try {
-      const result = await emailsApi.testTemplate(
+      // Make sure all required variables have values
+      const missingVariables = variables.filter(v => !v.value && v.name.toLowerCase() !== 'unsubscribe_link');
+      if (missingVariables.length > 0) {
+        const missingNames = missingVariables.map(v => v.name).join(', ');
+        setTestResult({
+          success: false,
+          message: `Please fill in all required variables: ${missingNames}`
+        });
+        showToast('Warning', `Missing required variables: ${missingNames}`, 'error');
+        setIsSending(false);
+        return;
+      }
+
+      // Use the new function that works around the EmailType limitation
+      const result = await emailsApi.testTemplateWithType(
         parseInt(selectedTemplateId), 
-        recipient, 
+        recipient,
+        emailType,
         variablesObject
       );
       
@@ -146,14 +187,23 @@ export function EmailTestDialog({
     } catch (error: any) {
       console.error('Error sending test email:', error);
       
+      // Check if it's a 500 error (likely due to template name not matching EmailType)
+      let errorMessage = 'Unknown error';
+      
+      if (error.response && error.response.status === 500) {
+        errorMessage = 'Server error: The template may have an invalid name format. Template names should match valid email types.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       setTestResult({
         success: false,
-        message: `Failed to send test email: ${error.message || 'Unknown error'}`
+        message: `Failed to send test email: ${errorMessage}`
       });
       
       showToast(
         'Error',
-        `Failed to send test email: ${error.message || 'Unknown error'}`,
+        `Failed to send test email: ${errorMessage}`,
         'error'
       );
     } finally {
@@ -212,6 +262,8 @@ export function EmailTestDialog({
                       className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
                     />
                   </div>
+                  
+                  {/* Email type is now automatically determined based on template name */}
                   
                   {variables.length > 0 && (
                     <div className="space-y-3">
