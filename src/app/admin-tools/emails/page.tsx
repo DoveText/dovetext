@@ -5,7 +5,6 @@ import { HomeIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { EmailTemplates } from './templates';
 import { EmailStatus } from './status';
-import { EmailTesting } from './testing';
 
 export default function EmailManagement() {
   const [activeTab, setActiveTab] = useState('templates');
@@ -57,16 +56,6 @@ export default function EmailManagement() {
           >
             Email Status
           </button>
-          <button
-            onClick={() => setActiveTab('testing')}
-            className={`${activeTab === 'testing'
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
-              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-            aria-current={activeTab === 'testing' ? 'page' : undefined}
-          >
-            Email Testing
-          </button>
         </nav>
       </div>
       
@@ -81,12 +70,6 @@ export default function EmailManagement() {
         {activeTab === 'status' && (
           <div className="p-0">
             <EmailStatus />
-          </div>
-        )}
-
-        {activeTab === 'testing' && (
-          <div className="p-0">
-            <EmailTesting />
           </div>
         )}
       </div>

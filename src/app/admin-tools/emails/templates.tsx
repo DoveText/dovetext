@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { emailsApi, EmailTemplate, EmailTemplateCreateRequest, EmailTemplateUpdateRequest } from '../api/emails';
+import { EmailTestDialog } from './components/EmailTestDialog';
 
 // Using the EmailTemplate interface from the API file
 type FormData = {
@@ -180,26 +181,12 @@ export function EmailTemplates() {
     }
   };
 
-  const handleTestTemplate = async (templateId: number) => {
-    const email = prompt('Enter email address to send test to:');
-    if (!email) return;
-    
-    try {
-      const result = await emailsApi.testTemplate(templateId, email);
-      
-      showToast(
-        result.success ? 'Success' : 'Error',
-        result.success ? 'Test email sent successfully' : 'Failed to send test email',
-        result.success ? 'success' : 'error'
-      );
-    } catch (error: any) {
-      console.error('Error testing template:', error);
-      showToast(
-        'Error',
-        `Failed to test template: ${error.message || 'Unknown error'}`,
-        'error'
-      );
-    }
+  const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
+  const [testTemplateId, setTestTemplateId] = useState<number | undefined>(undefined);
+
+  const handleTestTemplate = (templateId: number) => {
+    setTestTemplateId(templateId);
+    setIsTestDialogOpen(true);
   };
 
   return (
@@ -441,6 +428,13 @@ export function EmailTemplates() {
           </div>
         </div>
       )}
+
+      {/* Email Test Dialog */}
+      <EmailTestDialog 
+        isOpen={isTestDialogOpen}
+        onClose={() => setIsTestDialogOpen(false)}
+        initialTemplateId={testTemplateId}
+      />
     </div>
   );
 }

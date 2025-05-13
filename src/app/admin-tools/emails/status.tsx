@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowPathIcon, EnvelopeIcon, XMarkIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { emailsApi, EmailStatus as EmailStatusType, EmailStatusParams } from '../api/emails';
+import { EmailTestDialog } from './components/EmailTestDialog';
 
 // Using the EmailStatus interface from the API file
 
@@ -16,6 +17,9 @@ export function EmailStatus() {
   const [pageSize, setPageSize] = useState<number>(10);
   const [totalPages, setTotalPages] = useState<number>(0);
   const [totalElements, setTotalElements] = useState<number>(0);
+  const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
+  const [testTemplateId, setTestTemplateId] = useState<number | undefined>(undefined);
+  const [testRecipient, setTestRecipient] = useState<string>('');
 
   // Fetch emails on component mount and when filters or pagination changes
   useEffect(() => {
@@ -66,25 +70,14 @@ export function EmailStatus() {
     }, 3000);
   };
 
-  const handleResendEmail = async (id: number) => {
-    try {
-      const result = await emailsApi.resendEmail(id);
-      
-      showToast(
-        result.success ? 'Success' : 'Error',
-        result.message,
-        result.success ? 'success' : 'error'
-      );
-      
-      fetchEmails();
-    } catch (error: any) {
-      console.error('Error resending email:', error);
-      showToast(
-        'Error',
-        `Failed to resend email: ${error.message || 'Unknown error'}`,
-        'error'
-      );
-    }
+  const handleResendEmail = async (email: EmailStatusType) => {
+    // Find the template ID for this email
+    const templateId = email.templateId;
+    
+    // Set the test dialog parameters
+    setTestTemplateId(templateId);
+    setTestRecipient(email.recipient);
+    setIsTestDialogOpen(true);
   };
 
   // Handle page change
@@ -302,7 +295,7 @@ export function EmailStatus() {
                         <div className="flex justify-end space-x-2">
                           {email.status === 'failed' && (
                             <button 
-                              onClick={() => handleResendEmail(email.id)}
+                              onClick={() => handleResendEmail(email)}
                               className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                               title="Resend Email"
                             >
@@ -358,6 +351,14 @@ export function EmailStatus() {
           </div>
         </div>
       )}
+
+      {/* Email Test Dialog */}
+      <EmailTestDialog 
+        isOpen={isTestDialogOpen}
+        onClose={() => setIsTestDialogOpen(false)}
+        initialTemplateId={testTemplateId}
+        initialRecipient={testRecipient}
+      />
     </div>
   );
 }
