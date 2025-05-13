@@ -1,33 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Button, 
-  Card, 
-  CardContent, 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow,
-  Badge,
-  Input,
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  toast
-} from '@/components/ui';
-import { ArrowPathIcon, EnvelopeIcon, XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { emailsApi, EmailStatus as EmailStatusType, EmailStatusParams, PaginatedResponse } from '../api/emails';
+import { ArrowPathIcon, EnvelopeIcon, XMarkIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { emailsApi, EmailStatus as EmailStatusType, EmailStatusParams } from '../api/emails';
 
 // Using the EmailStatus interface from the API file
 
@@ -64,34 +39,51 @@ export function EmailStatus() {
       setTotalElements(response.totalElements);
     } catch (error) {
       console.error('Error fetching emails:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load emails',
-        variant: 'destructive'
-      });
+      showToast('Error', 'Failed to load emails', 'error');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Simple toast function to replace the imported toast component
+  const showToast = (title: string, message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    console.log(`${title}: ${message}`);
+    // In a real implementation, you might want to use a proper toast notification library
+    // or implement a custom toast component
+    const toastClasses = {
+      success: 'bg-green-500',
+      error: 'bg-red-500',
+      info: 'bg-blue-500'
+    };
+    
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 p-4 rounded shadow-lg text-white ${toastClasses[type]} z-50`;
+    toast.innerHTML = `<h4 class="font-bold">${title}</h4><p>${message}</p>`;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.remove();
+    }, 3000);
   };
 
   const handleResendEmail = async (id: number) => {
     try {
       const result = await emailsApi.resendEmail(id);
       
-      toast({
-        title: result.success ? 'Success' : 'Error',
-        description: result.message,
-        variant: result.success ? 'default' : 'destructive'
-      });
+      showToast(
+        result.success ? 'Success' : 'Error',
+        result.message,
+        result.success ? 'success' : 'error'
+      );
       
       fetchEmails();
     } catch (error: any) {
       console.error('Error resending email:', error);
-      toast({
-        title: 'Error',
-        description: `Failed to resend email: ${error.message || 'Unknown error'}`,
-        variant: 'destructive'
-      });
+      showToast(
+        'Error',
+        `Failed to resend email: ${error.message || 'Unknown error'}`,
+        'error'
+      );
     }
   };
 
@@ -109,6 +101,12 @@ export function EmailStatus() {
       setSubjectFilter(value);
     }
     // Reset to first page when filters change
+    setCurrentPage(0);
+  };
+
+  // Handle status filter change
+  const handleStatusFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setStatusFilter(e.target.value);
     setCurrentPage(0);
   };
   
@@ -136,179 +134,229 @@ export function EmailStatus() {
     
     for (let i = startPage; i <= endPage; i++) {
       items.push(
-        <PaginationItem key={i}>
-          <PaginationLink 
-            isActive={currentPage === i}
+        <li key={i} className="inline-block">
+          <button
             onClick={() => handlePageChange(i)}
+            className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+              i === currentPage
+                ? 'bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+            }`}
           >
             {i + 1}
-          </PaginationLink>
-        </PaginationItem>
+          </button>
+        </li>
       );
     }
     
     return items;
   };
 
-
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'sent':
-        return <Badge variant="outline">Sent</Badge>;
-      case 'delivered':
-        return <Badge variant="success">Delivered</Badge>;
-      case 'opened':
-        return <Badge variant="success">Opened</Badge>;
-      case 'clicked':
-        return <Badge variant="success">Clicked</Badge>;
-      case 'bounced':
-        return <Badge variant="destructive">Bounced</Badge>;
-      case 'failed':
-        return <Badge variant="destructive">Failed</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
+    const statusClasses = {
+      sent: 'bg-blue-100 text-blue-800',
+      delivered: 'bg-green-100 text-green-800',
+      opened: 'bg-purple-100 text-purple-800',
+      clicked: 'bg-indigo-100 text-indigo-800',
+      bounced: 'bg-yellow-100 text-yellow-800',
+      failed: 'bg-red-100 text-red-800',
+      default: 'bg-gray-100 text-gray-800'
+    };
+    
+    const badgeClass = statusClasses[status as keyof typeof statusClasses] || statusClasses.default;
+    
+    return (
+      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClass}`}>
+        {status}
+      </span>
+    );
   };
 
   return (
-    <div>
-      <div className="flex flex-col space-y-4 mb-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold">Email Status</h2>
-        </div>
-        
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Email Status</h2>
+      </div>
+      
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-lg shadow space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Input
-              name="recipient"
-              placeholder="Filter by recipient"
-              value={recipientFilter}
-              onChange={handleFilterChange}
-              className="w-full"
-            />
+          <div className="space-y-2">
+            <label htmlFor="recipient" className="block text-sm font-medium text-gray-700">
+              Recipient
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                id="recipient"
+                name="recipient"
+                value={recipientFilter}
+                onChange={handleFilterChange}
+                placeholder="Filter by recipient"
+                className="pl-10 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+              />
+            </div>
           </div>
           
-          <div>
-            <Input
-              name="subject"
-              placeholder="Filter by subject"
-              value={subjectFilter}
-              onChange={handleFilterChange}
-              className="w-full"
-            />
+          <div className="space-y-2">
+            <label htmlFor="subject" className="block text-sm font-medium text-gray-700">
+              Subject
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                id="subject"
+                name="subject"
+                value={subjectFilter}
+                onChange={handleFilterChange}
+                placeholder="Filter by subject"
+                className="pl-10 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+              />
+            </div>
           </div>
           
-          <div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
-                <SelectItem value="sent">Sent</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
-                <SelectItem value="opened">Opened</SelectItem>
-                <SelectItem value="clicked">Clicked</SelectItem>
-                <SelectItem value="bounced">Bounced</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-2">
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+              Status
+            </label>
+            <select
+              id="status"
+              name="status"
+              value={statusFilter}
+              onChange={handleStatusFilterChange}
+              className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+            >
+              <option value="">All Statuses</option>
+              <option value="sent">Sent</option>
+              <option value="delivered">Delivered</option>
+              <option value="opened">Opened</option>
+              <option value="clicked">Clicked</option>
+              <option value="bounced">Bounced</option>
+              <option value="failed">Failed</option>
+            </select>
           </div>
         </div>
         
         <div className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={clearFilters}>
+          <button 
+            onClick={clearFilters}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
             Clear Filters
-          </Button>
+          </button>
         </div>
       </div>
 
       {isLoading ? (
-        <p>Loading emails...</p>
+        <div className="bg-white shadow overflow-hidden rounded-lg">
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          </div>
+        </div>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Template</TableHead>
-                  <TableHead>Recipient</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Sent At</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+        <div className="bg-white shadow overflow-hidden rounded-lg">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Template</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recipient</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent At</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
                 {emails.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center">
+                  <tr>
+                    <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
                       No emails found
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ) : (
                   emails.map((email) => (
-                    <TableRow key={email.id}>
-                      <TableCell>{email.id}</TableCell>
-                      <TableCell>{email.templateName}</TableCell>
-                      <TableCell>{email.recipient}</TableCell>
-                      <TableCell>{email.subject}</TableCell>
-                      <TableCell>{getStatusBadge(email.status)}</TableCell>
-                      <TableCell>{email.sentAt ? formatDate(email.sentAt) : '-'}</TableCell>
-                      <TableCell className="text-right">
+                    <tr key={email.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{email.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{email.templateName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{email.recipient}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{email.subject}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {getStatusBadge(email.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {email.sentAt ? formatDate(email.sentAt) : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
                           {email.status === 'failed' && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
+                            <button 
                               onClick={() => handleResendEmail(email.id)}
+                              className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                               title="Resend Email"
                             >
                               <ArrowPathIcon className="h-4 w-4" />
-                            </Button>
+                            </button>
                           )}
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   ))
                 )}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
             
             {/* Pagination */}
-            <div className="flex items-center justify-between space-x-6 py-4">
-              <div className="text-sm text-muted-foreground">
-                Showing {emails.length} of {totalElements} emails
-              </div>
-              
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious 
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing <span className="font-medium">{emails.length}</span> of{' '}
+                    <span className="font-medium">{totalElements}</span> emails
+                  </p>
+                </div>
+                <div>
+                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                    <button
                       onClick={() => handlePageChange(Math.max(0, currentPage - 1))}
-                      disabled={currentPage === 0} 
-                    />
-                  </PaginationItem>
-                  
-                  {renderPaginationItems()}
-                  
-                  <PaginationItem>
-                    <PaginationNext 
+                      disabled={currentPage === 0}
+                      className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                        currentPage === 0 ? 'cursor-not-allowed opacity-50' : ''
+                      }`}
+                    >
+                      <span className="sr-only">Previous</span>
+                      <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                    
+                    {renderPaginationItems()}
+                    
+                    <button
                       onClick={() => handlePageChange(Math.min(totalPages - 1, currentPage + 1))}
-                      disabled={currentPage === totalPages - 1} 
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+                      disabled={currentPage === totalPages - 1}
+                      className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                        currentPage === totalPages - 1 ? 'cursor-not-allowed opacity-50' : ''
+                      }`}
+                    >
+                      <span className="sr-only">Next</span>
+                      <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );

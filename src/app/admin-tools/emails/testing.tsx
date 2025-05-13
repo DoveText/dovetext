@@ -1,20 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Button, 
-  Card, 
-  CardContent, 
-  Input, 
-  Label, 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Textarea,
-  toast
-} from '@/components/ui';
+import { emailsApi } from '../api/emails';
 
 type EmailTemplate = {
   id: number;
@@ -54,20 +41,35 @@ export function EmailTesting() {
     }
   }, [selectedTemplateId, templates]);
 
+  // Simple toast function to replace the imported toast component
+  const showToast = (title: string, message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    console.log(`${title}: ${message}`);
+    // In a real implementation, you might want to use a proper toast notification library
+    // or implement a custom toast component
+    const toastClasses = {
+      success: 'bg-green-500',
+      error: 'bg-red-500',
+      info: 'bg-blue-500'
+    };
+    
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 p-4 rounded shadow-lg text-white ${toastClasses[type]} z-50`;
+    toast.innerHTML = `<h4 class="font-bold">${title}</h4><p>${message}</p>`;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.remove();
+    }, 3000);
+  };
+
   const fetchTemplates = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/v1/admin/emails/templates');
-      if (!response.ok) throw new Error('Failed to fetch templates');
-      const data = await response.json();
+      const data = await emailsApi.getAllTemplates();
       setTemplates(data);
     } catch (error) {
       console.error('Error fetching templates:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load email templates',
-        variant: 'destructive'
-      });
+      showToast('Error', 'Failed to load email templates', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -81,11 +83,7 @@ export function EmailTesting() {
 
   const handleSendTest = async () => {
     if (!selectedTemplateId || !recipient) {
-      toast({
-        title: 'Error',
-        description: 'Please select a template and enter a recipient email',
-        variant: 'destructive'
-      });
+      showToast('Error', 'Please select a template and enter a recipient email', 'error');
       return;
     }
 
@@ -100,74 +98,68 @@ export function EmailTesting() {
     }, {} as Record<string, string>);
 
     try {
-      const response = await fetch(
-        `/api/v1/admin/emails/templates/${selectedTemplateId}/test?recipient=${encodeURIComponent(recipient)}`, 
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(variablesObject)
-        }
+      const result = await emailsApi.testTemplate(
+        parseInt(selectedTemplateId), 
+        recipient, 
+        variablesObject
       );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Test failed');
-      }
-
-      const result = await response.json();
       
-      toast({
-        title: result.success ? 'Success' : 'Failed',
-        description: result.message
-      });
-    } catch (error) {
+      showToast(
+        result.success ? 'Success' : 'Failed',
+        result.message,
+        result.success ? 'success' : 'error'
+      );
+    } catch (error: any) {
       console.error('Error sending test email:', error);
-      toast({
-        title: 'Error',
-        description: `Failed to send test email: ${error.message}`,
-        variant: 'destructive'
-      });
+      showToast(
+        'Error',
+        `Failed to send test email: ${error.message || 'Unknown error'}`,
+        'error'
+      );
     } finally {
       setIsSending(false);
     }
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-6">Test Email Templates</h2>
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold">Test Email Templates</h2>
       
-      <Card>
-        <CardContent className="p-6">
+      <div className="bg-white shadow overflow-hidden rounded-lg">
+        <div className="p-6">
           <div className="grid gap-6">
             <div className="space-y-2">
-              <Label htmlFor="template">Select Template</Label>
-              <Select 
+              <label htmlFor="template" className="block text-sm font-medium text-gray-700">
+                Select Template
+              </label>
+              <select 
+                id="template"
                 value={selectedTemplateId} 
-                onValueChange={setSelectedTemplateId}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
                 disabled={isLoading}
+                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a template" />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.map(template => (
-                    <SelectItem key={template.id} value={template.id.toString()}>
-                      {template.name} - {template.subject}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="">Select a template</option>
+                {templates.map(template => (
+                  <option key={template.id} value={template.id.toString()}>
+                    {template.name} - {template.subject}
+                  </option>
+                ))}
+              </select>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="recipient">Recipient Email</Label>
-              <Input
+              <label htmlFor="recipient" className="block text-sm font-medium text-gray-700">
+                Recipient Email
+              </label>
+              <input
                 id="recipient"
                 type="email"
                 value={recipient}
                 onChange={e => setRecipient(e.target.value)}
                 placeholder="Enter recipient email"
                 required
+                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
               />
             </div>
             
@@ -177,27 +169,40 @@ export function EmailTesting() {
                 
                 {variables.map((variable, index) => (
                   <div key={variable.name} className="space-y-2">
-                    <Label htmlFor={`var-${variable.name}`}>{variable.name}</Label>
-                    <Input
+                    <label 
+                      htmlFor={`var-${variable.name}`}
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      {variable.name}
+                    </label>
+                    <input
                       id={`var-${variable.name}`}
                       value={variable.value}
                       onChange={e => handleVariableChange(index, e.target.value)}
                       placeholder={`Value for ${variable.name}`}
+                      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
                     />
                   </div>
                 ))}
               </div>
             )}
             
-            <Button 
-              onClick={handleSendTest} 
-              disabled={isSending || !selectedTemplateId || !recipient}
-            >
-              {isSending ? 'Sending...' : 'Send Test Email'}
-            </Button>
+            <div>
+              <button 
+                onClick={handleSendTest} 
+                disabled={isSending || !selectedTemplateId || !recipient}
+                className={`inline-flex justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium text-white shadow-sm ${
+                  isSending || !selectedTemplateId || !recipient
+                    ? 'bg-blue-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                }`}
+              >
+                {isSending ? 'Sending...' : 'Send Test Email'}
+              </button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
