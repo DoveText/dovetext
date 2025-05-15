@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilIcon, TrashIcon, CodeBracketIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { emailsApi, EmailTemplate, EmailTemplateCreateRequest, EmailTemplateUpdateRequest } from '../api/emails';
 import { EmailTestDialog } from './components/EmailTestDialog';
+import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
+import 'react-tabs/style/react-tabs.css';
+import ReactMarkdown from 'react-markdown';
+import { marked } from 'marked';
 
 // Using the EmailTemplate interface from the API file
 type FormData = {
@@ -12,6 +16,7 @@ type FormData = {
   subject: string;
   bodyText: string;
   bodyHtml: string;
+  bodyMarkdown: string; // For markdown editing
   variables: string;
 };
 
@@ -27,10 +32,12 @@ export function EmailTemplates() {
     subject: '',
     bodyText: '',
     bodyHtml: '',
+    bodyMarkdown: '',
     variables: ''
   });
   const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
   const [testTemplateId, setTestTemplateId] = useState<number | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState(0); // For managing tabs
 
   // Fetch templates on component mount
   useEffect(() => {
@@ -73,7 +80,33 @@ export function EmailTemplates() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'bodyMarkdown') {
+      // When markdown changes, update both the markdown field and convert to HTML
+      const htmlContent = convertMarkdownToHtml(value);
+      setFormData(prev => ({ 
+        ...prev, 
+        bodyMarkdown: value,
+        bodyHtml: htmlContent
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+  
+  // Convert markdown to HTML
+  const convertMarkdownToHtml = (markdown: string): string => {
+    try {
+      return marked.parse(markdown) as string;
+    } catch (error) {
+      console.error('Error converting markdown to HTML:', error);
+      return markdown;
+    }
+  };
+  
+  // Handle tab change
+  const handleTabChange = (index: number) => {
+    setActiveTab(index);
   };
 
   const resetForm = () => {
@@ -83,9 +116,11 @@ export function EmailTemplates() {
       subject: '',
       bodyText: '',
       bodyHtml: '',
+      bodyMarkdown: '',
       variables: ''
     });
     setCurrentTemplate(null);
+    setActiveTab(0);
   };
 
   const openCreateDialog = () => {
@@ -94,16 +129,21 @@ export function EmailTemplates() {
   };
 
   const openEditDialog = (template: EmailTemplate) => {
+    // Replace escaped newlines with actual line breaks for better editing
+    const formattedBodyText = template.bodyText.replace(/\\n/g, '\n');
+  
     setCurrentTemplate(template);
     setFormData({
       type: template.type,
       description: template.description,
       subject: template.subject,
-      bodyText: template.bodyText,
+      bodyText: formattedBodyText,
       bodyHtml: template.bodyHtml,
+      bodyMarkdown: template.bodyHtml, // Initialize markdown with HTML content
       variables: template.variables.join(', ')
     });
     setIsDialogOpen(true);
+    setActiveTab(0);
   };
 
   const openDeleteDialog = (template: EmailTemplate) => {
@@ -119,11 +159,13 @@ export function EmailTemplates() {
       .map(v => v.trim())
       .filter(v => v !== '');
 
+    // Preserve actual line breaks in the plain text content when saving to the server
+    // The server expects escaped newlines (\n) but we want to edit with real line breaks
     const templateData = {
       type: formData.type,
       description: formData.description,
       subject: formData.subject,
-      bodyText: formData.bodyText,
+      bodyText: formData.bodyText, // We'll keep the actual line breaks as they are
       bodyHtml: formData.bodyHtml,
       variables
     };
@@ -269,7 +311,7 @@ export function EmailTemplates() {
               <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
             </div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
@@ -331,29 +373,105 @@ export function EmailTemplates() {
                         </div>
                         
                         <div className="space-y-2">
-                          <label htmlFor="bodyText" className="block text-sm font-medium text-gray-700">Plain Text Body</label>
-                          <textarea
-                            id="bodyText"
-                            name="bodyText"
-                            value={formData.bodyText}
-                            onChange={handleInputChange}
-                            rows={4}
-                            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            placeholder="Use {{variableName}} for variables"
-                          ></textarea>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <label htmlFor="bodyHtml" className="block text-sm font-medium text-gray-700">HTML Body</label>
-                          <textarea
-                            id="bodyHtml"
-                            name="bodyHtml"
-                            value={formData.bodyHtml}
-                            onChange={handleInputChange}
-                            rows={8}
-                            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            placeholder="Use {{variableName}} for variables"
-                          ></textarea>
+                          <label className="block text-sm font-medium text-gray-700">Email Body</label>
+                          <Tabs selectedIndex={activeTab} onSelect={handleTabChange} className="mt-2">
+                            <TabList className="flex border-b border-gray-200 mb-4">
+                              <Tab className="px-4 py-2 font-medium text-sm text-gray-500 cursor-pointer border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300 focus:outline-none">
+                                <div className="flex items-center">
+                                  <DocumentTextIcon className="h-4 w-4 mr-2" />
+                                  Plain Text
+                                </div>
+                              </Tab>
+                              <Tab className="px-4 py-2 font-medium text-sm text-gray-500 cursor-pointer border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300 focus:outline-none">
+                                <div className="flex items-center">
+                                  <CodeBracketIcon className="h-4 w-4 mr-2" />
+                                  HTML (Markdown Editor)
+                                </div>
+                              </Tab>
+                            </TabList>
+                            
+                            {/* Plain Text Tab */}
+                            <TabPanel>
+                              <textarea
+                                id="bodyText"
+                                name="bodyText"
+                                value={formData.bodyText}
+                                onChange={handleInputChange}
+                                rows={10}
+                                className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                placeholder="Hello {'{name}'},
+
+Welcome to our service! We're excited to have you on board.
+
+Get started by visiting your dashboard: {'{dashboard_url}'}
+
+If you have any questions, please don't hesitate to contact our support team.
+
+Thank you,
+The Team"
+                              ></textarea>
+                              <p className="mt-1 text-xs text-gray-500">Plain text version of the email for clients that don't support HTML. Use <span className="font-mono">{'{variableName}'}</span> for variables.</p>
+                            </TabPanel>
+                            
+                            {/* HTML (Markdown) Tab */}
+                            <TabPanel>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Markdown Editor</label>
+                                  <textarea
+                                    id="bodyMarkdown"
+                                    name="bodyMarkdown"
+                                    value={formData.bodyMarkdown}
+                                    onChange={handleInputChange}
+                                    rows={15}
+                                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono"
+                                    placeholder="# Welcome to Our Service!
+
+Hello {'{name}'},
+
+We're excited to have you on board. Our service helps you manage your tasks and stay organized.
+
+## Getting Started
+
+1. Visit your [dashboard]({'{dashboard_url}'})
+2. Complete your profile
+3. Explore our features
+
+If you have any questions, please don't hesitate to contact our support team.
+
+Thank you,  
+The Team"
+                                  ></textarea>
+                                  <p className="mt-1 text-xs text-gray-500">Write in Markdown format. It will be automatically converted to HTML.</p>
+                                </div>
+                                
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">HTML Preview</label>
+                                  <div className="border border-gray-300 rounded-md p-4 h-[360px] overflow-auto bg-white">
+                                    <div dangerouslySetInnerHTML={{ __html: formData.bodyHtml }} />
+                                  </div>
+                                  <p className="mt-1 text-xs text-gray-500">Preview of how the HTML email will appear.</p>
+                                </div>
+                              </div>
+                              
+                              <div className="mt-4">
+                                <details className="text-sm">
+                                  <summary className="cursor-pointer text-blue-600 hover:text-blue-800">Advanced: Edit HTML directly</summary>
+                                  <div className="mt-2">
+                                    <textarea
+                                      id="bodyHtml"
+                                      name="bodyHtml"
+                                      value={formData.bodyHtml}
+                                      onChange={handleInputChange}
+                                      rows={4}
+                                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono text-xs"
+                                    ></textarea>
+                                    <p className="mt-1 text-xs text-gray-500">You can directly edit the HTML if needed, but it's recommended to use the Markdown editor above.</p>
+                                  </div>
+                                </details>
+                              </div>
+                            </TabPanel>
+                          </Tabs>
                         </div>
                       </div>
                       
@@ -389,7 +507,7 @@ export function EmailTemplates() {
               <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
             </div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
