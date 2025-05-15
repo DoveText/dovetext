@@ -39,30 +39,14 @@ export function EmailStatus() {
       
       const response = await emailsApi.getEmailStatus(params);
       
-      // Process emails to extract type from template information
-      const processedEmails = await Promise.all(response.content.map(async (email) => {
-        let type = '';
-        
-        // If we have a templateId, try to get the actual template type
-        if (email.templateId) {
-          try {
-            const template = await emailsApi.getTemplateById(email.templateId);
-            type = template.type;
-          } catch (error) {
-            console.warn(`Failed to fetch template details for ID ${email.templateId}:`, error);
-            // Fallback to templateName if available
-            type = email.templateName || 'NOTIFICATION';
-          }
-        } else if (email.templateName) {
-          // If we only have templateName but no ID, use it as the type
-          type = email.templateName;
-        } else {
-          // Default type if no template info is available
-          type = 'NOTIFICATION';
-        }
+      // Use the email's type field directly from the API response
+      const processedEmails = response.content.map((email) => {
+        // If the email already has a type field, use it directly
+        // Otherwise, fallback to templateName or default to NOTIFICATION
+        const type = email.type || email.templateName || 'NOTIFICATION';
         
         return { ...email, type };
-      }));
+      });
       
       setEmails(processedEmails);
       setTotalPages(response.totalPages);
@@ -173,6 +157,27 @@ export function EmailStatus() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
+  };
+
+  const getTypeBadgeColor = (type: string) => {
+    switch (type.toUpperCase()) {
+      case 'WELCOME':
+        return 'bg-green-100 text-green-800';
+      case 'VERIFICATION':
+        return 'bg-blue-100 text-blue-800';
+      case 'PASSWORD_RESET':
+        return 'bg-purple-100 text-purple-800';
+      case 'ALERT':
+        return 'bg-red-100 text-red-800';
+      case 'MARKETING':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'NOTIFICATION':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'SYSTEM':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-blue-100 text-blue-800';
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -324,7 +329,7 @@ export function EmailStatus() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{email.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {email.type ? (
-                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeBadgeColor(email.type)}`}>
                             {email.type.replace(/_/g, ' ')}
                           </span>
                         ) : (

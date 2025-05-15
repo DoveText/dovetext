@@ -35,6 +35,7 @@ export interface EmailStatus {
   id: number;
   templateId: number;
   templateName: string;
+  type?: string; // Email type (WELCOME, NOTIFICATION, etc.)
   recipient: string;
   subject: string;
   status: 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed';
@@ -45,6 +46,17 @@ export interface EmailStatus {
   bouncedAt?: string;
   failedAt?: string;
   failureReason?: string;
+  sender?: string;
+  cc?: string;
+  bcc?: string;
+  bodyText?: string;
+  bodyHtml?: string;
+  messageId?: string;
+  errorMessage?: string;
+  attemptCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  metadata?: Record<string, any>;
 }
 
 // Pagination and filter parameters
