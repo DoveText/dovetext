@@ -37,7 +37,8 @@ export function EmailTemplates() {
   });
   const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
   const [testTemplateId, setTestTemplateId] = useState<number | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState(0); // For managing tabs
+  const [activeTab, setActiveTab] = useState(0);
+  const [htmlViewMode, setHtmlViewMode] = useState('editor'); // 'editor' or 'preview' // For managing tabs
 
   // Fetch templates on component mount
   useEffect(() => {
@@ -127,10 +128,10 @@ export function EmailTemplates() {
       // Style links to be blue and underlined
       html = html.replace(/<a([^>]*)>/g, '<a$1 style="color: #3b82f6; text-decoration: underline;">');
       
-      // Style headings with proper spacing
-      html = html.replace(/<h1([^>]*)>/g, '<h1$1 style="margin-top: 1.5em; margin-bottom: 0.75em; color: #111;">');
-      html = html.replace(/<h2([^>]*)>/g, '<h2$1 style="margin-top: 1.5em; margin-bottom: 0.75em; color: #111;">');
-      html = html.replace(/<h3([^>]*)>/g, '<h3$1 style="margin-top: 1.5em; margin-bottom: 0.75em; color: #111;">');
+      // Style headings with proper spacing and distinct sizes
+      html = html.replace(/<h1([^>]*)>/g, '<h1$1 style="margin-top: 0; margin-bottom: 0.75em; color: #111; font-size: 24px; font-weight: bold;">');
+      html = html.replace(/<h2([^>]*)>/g, '<h2$1 style="margin-top: 0; margin-bottom: 0.75em; color: #111; font-size: 20px; font-weight: bold;">');
+      html = html.replace(/<h3([^>]*)>/g, '<h3$1 style="margin-top: 0; margin-bottom: 0.75em; color: #111; font-size: 16px; font-weight: bold;">');
       
       // Style paragraphs with proper spacing
       html = html.replace(/<p([^>]*)>/g, '<p$1 style="margin-bottom: 1em;">');
@@ -171,15 +172,13 @@ export function EmailTemplates() {
   };
 
   const openEditDialog = (template: EmailTemplate) => {
-    // Replace escaped newlines with actual line breaks for better editing
-    const formattedBodyText = template.bodyText.replace(/\\n/g, '\n');
-  
+    // We no longer need to replace escaped newlines as the backend now stores actual line breaks
     setCurrentTemplate(template);
     setFormData({
       type: template.type,
       description: template.description,
       subject: template.subject,
-      bodyText: formattedBodyText,
+      bodyText: template.bodyText,
       bodyHtml: template.bodyHtml,
       // Use stored markdown if available, otherwise initialize with HTML content
       bodyMarkdown: template.bodyMarkdown || template.bodyHtml,
@@ -202,13 +201,11 @@ export function EmailTemplates() {
       .map(v => v.trim())
       .filter(v => v !== '');
 
-    // Preserve actual line breaks in the plain text content when saving to the server
-    // The server expects escaped newlines (\n) but we want to edit with real line breaks
     const templateData = {
       type: formData.type,
       description: formData.description,
       subject: formData.subject,
-      bodyText: formData.bodyText, // We'll keep the actual line breaks as they are
+      bodyText: formData.bodyText,
       bodyHtml: formData.bodyHtml,
       bodyMarkdown: formData.bodyMarkdown, // Save the markdown content for future editing
       variables
@@ -459,15 +456,49 @@ The Team"
                             
                             {/* HTML (Markdown) Tab */}
                             <TabPanel>
-                              <div className="grid grid-cols-2 gap-4">
+                              <div className="mb-4">
+                                <div className="flex items-center justify-between">
+                                  <label className="block text-sm font-medium text-gray-700">
+                                    {htmlViewMode === 'editor' ? 'Markdown Editor' : 'Email Preview'}
+                                  </label>
+                                  <div className="flex items-center space-x-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setHtmlViewMode('editor')}
+                                      className={`px-3 py-1.5 text-xs font-medium rounded-md ${htmlViewMode === 'editor' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                    >
+                                      <span className="flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                        </svg>
+                                        Edit
+                                      </span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setHtmlViewMode('preview')}
+                                      className={`px-3 py-1.5 text-xs font-medium rounded-md ${htmlViewMode === 'preview' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                    >
+                                      <span className="flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                                        </svg>
+                                        Preview
+                                      </span>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {htmlViewMode === 'editor' ? (
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">Markdown Editor</label>
                                   <textarea
                                     id="bodyMarkdown"
                                     name="bodyMarkdown"
                                     value={formData.bodyMarkdown}
                                     onChange={handleInputChange}
-                                    rows={15}
+                                    rows={18}
                                     className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono"
                                     placeholder="## Welcome to DoveText!
 
@@ -484,15 +515,14 @@ The DoveText Team"
                                   ></textarea>
                                   <p className="mt-1 text-xs text-gray-500">Write in Markdown format. It will be automatically converted to HTML.</p>
                                 </div>
-                                
+                              ) : (
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">Preview</label>
-                                  <div className="border border-gray-300 rounded-md p-4 h-[360px] overflow-auto bg-white email-preview">
+                                  <div className="border border-gray-300 rounded-md p-6 min-h-[400px] overflow-auto bg-white email-preview">
                                     <div dangerouslySetInnerHTML={{ __html: formData.bodyHtml }} />
                                   </div>
                                   <p className="mt-1 text-xs text-gray-500">Preview of how the email will appear.</p>
                                 </div>
-                              </div>
+                              )}
                               
                               {/* We'll use a different approach for styling the preview */}
                             </TabPanel>
