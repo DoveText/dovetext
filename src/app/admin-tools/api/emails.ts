@@ -12,6 +12,7 @@ export interface EmailTemplate {
   subject: string;
   bodyText: string;
   bodyHtml: string;
+  bodyMarkdown?: string; // Markdown content for the HTML body
   variables: string[];
   createdAt: string;
   updatedAt: string;
@@ -23,6 +24,7 @@ export interface EmailTemplateCreateRequest {
   subject: string;
   bodyText: string;
   bodyHtml: string;
+  bodyMarkdown?: string; // Markdown content for the HTML body
   variables: string[];
 }
 

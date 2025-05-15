@@ -94,10 +94,52 @@ export function EmailTemplates() {
     }
   };
   
-  // Convert markdown to HTML
+  // Convert markdown to HTML with proper styling
   const convertMarkdownToHtml = (markdown: string): string => {
     try {
-      return marked.parse(markdown) as string;
+      // Pre-process markdown to handle variable placeholders in links
+      // For the preview, we'll use a special format to ensure links with variables display properly
+      markdown = markdown.replace(/\[([^\]]*)\]\(\{([^}]*)\}\)/g, (match, text, variable) => {
+        // For preview purposes, we'll use a fake URL that will be styled as a link
+        return `[${text}](https://example.com/preview?var=${variable})`;  
+      });
+
+      // First convert markdown to HTML
+      let html = marked.parse(markdown) as string;
+      
+      // Apply email-friendly styling to the HTML
+      // Wrap the content in a div with base styling
+      html = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        ${html}
+      </div>`;
+      
+      // Replace the fake preview URLs with the variable display
+      html = html.replace(/href="https:\/\/example\.com\/preview\?var=([^"]*)"/g, (match, variable) => {
+        return `href="#" style="color: #3b82f6; text-decoration: underline;" class="variable-link" data-variable="${variable}"`;
+      });
+      
+      // Add the variable placeholder to the link text for clarity in the preview
+      html = html.replace(/<a([^>]*) class="variable-link" data-variable="([^"]*)">([^<]*)<\/a>/g, (match, attrs, variable, text) => {
+        return `<a${attrs} class="variable-link" data-variable="${variable}">${text} ({{${variable}}})</a>`;
+      });
+      
+      // Apply specific styles to elements using a simple parser approach
+      // Style links to be blue and underlined
+      html = html.replace(/<a([^>]*)>/g, '<a$1 style="color: #3b82f6; text-decoration: underline;">');
+      
+      // Style headings with proper spacing
+      html = html.replace(/<h1([^>]*)>/g, '<h1$1 style="margin-top: 1.5em; margin-bottom: 0.75em; color: #111;">');
+      html = html.replace(/<h2([^>]*)>/g, '<h2$1 style="margin-top: 1.5em; margin-bottom: 0.75em; color: #111;">');
+      html = html.replace(/<h3([^>]*)>/g, '<h3$1 style="margin-top: 1.5em; margin-bottom: 0.75em; color: #111;">');
+      
+      // Style paragraphs with proper spacing
+      html = html.replace(/<p([^>]*)>/g, '<p$1 style="margin-bottom: 1em;">');
+      
+      // Style lists with proper spacing and indentation
+      html = html.replace(/<ul([^>]*)>/g, '<ul$1 style="margin-bottom: 1em; padding-left: 2em;">');
+      html = html.replace(/<ol([^>]*)>/g, '<ol$1 style="margin-bottom: 1em; padding-left: 2em;">');
+      
+      return html;
     } catch (error) {
       console.error('Error converting markdown to HTML:', error);
       return markdown;
@@ -139,7 +181,8 @@ export function EmailTemplates() {
       subject: template.subject,
       bodyText: formattedBodyText,
       bodyHtml: template.bodyHtml,
-      bodyMarkdown: template.bodyHtml, // Initialize markdown with HTML content
+      // Use stored markdown if available, otherwise initialize with HTML content
+      bodyMarkdown: template.bodyMarkdown || template.bodyHtml,
       variables: template.variables.join(', ')
     });
     setIsDialogOpen(true);
@@ -167,6 +210,7 @@ export function EmailTemplates() {
       subject: formData.subject,
       bodyText: formData.bodyText, // We'll keep the actual line breaks as they are
       bodyHtml: formData.bodyHtml,
+      bodyMarkdown: formData.bodyMarkdown, // Save the markdown content for future editing
       variables
     };
 
@@ -425,51 +469,32 @@ The Team"
                                     onChange={handleInputChange}
                                     rows={15}
                                     className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono"
-                                    placeholder="# Welcome to Our Service!
+                                    placeholder="## Welcome to DoveText!
 
 Hello {'{name}'},
 
-We're excited to have you on board. Our service helps you manage your tasks and stay organized.
+We're excited to have you on board. DoveText helps you to manage your notifications and stay connected.
 
-## Getting Started
-
-1. Visit your [dashboard]({'{dashboard_url}'})
-2. Complete your profile
-3. Explore our features
+Get started by visiting your [dashboard]({'{dashboard_url}'}).
 
 If you have any questions, please don't hesitate to contact our support team.
 
-Thank you,  
-The Team"
+Thank you,<br>
+The DoveText Team"
                                   ></textarea>
                                   <p className="mt-1 text-xs text-gray-500">Write in Markdown format. It will be automatically converted to HTML.</p>
                                 </div>
                                 
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">HTML Preview</label>
-                                  <div className="border border-gray-300 rounded-md p-4 h-[360px] overflow-auto bg-white">
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Preview</label>
+                                  <div className="border border-gray-300 rounded-md p-4 h-[360px] overflow-auto bg-white email-preview">
                                     <div dangerouslySetInnerHTML={{ __html: formData.bodyHtml }} />
                                   </div>
-                                  <p className="mt-1 text-xs text-gray-500">Preview of how the HTML email will appear.</p>
+                                  <p className="mt-1 text-xs text-gray-500">Preview of how the email will appear.</p>
                                 </div>
                               </div>
                               
-                              <div className="mt-4">
-                                <details className="text-sm">
-                                  <summary className="cursor-pointer text-blue-600 hover:text-blue-800">Advanced: Edit HTML directly</summary>
-                                  <div className="mt-2">
-                                    <textarea
-                                      id="bodyHtml"
-                                      name="bodyHtml"
-                                      value={formData.bodyHtml}
-                                      onChange={handleInputChange}
-                                      rows={4}
-                                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono text-xs"
-                                    ></textarea>
-                                    <p className="mt-1 text-xs text-gray-500">You can directly edit the HTML if needed, but it's recommended to use the Markdown editor above.</p>
-                                  </div>
-                                </details>
-                              </div>
+                              {/* We'll use a different approach for styling the preview */}
                             </TabPanel>
                           </Tabs>
                         </div>
