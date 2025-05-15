@@ -7,7 +7,7 @@ import { EmailTestDialog } from './components/EmailTestDialog';
 
 // Using the EmailTemplate interface from the API file
 type FormData = {
-  name: string;
+  type: string;
   description: string;
   subject: string;
   bodyText: string;
@@ -22,13 +22,15 @@ export function EmailTemplates() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<EmailTemplate | null>(null);
   const [formData, setFormData] = useState<FormData>({
-    name: '',
+    type: '',
     description: '',
     subject: '',
     bodyText: '',
     bodyHtml: '',
     variables: ''
   });
+  const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
+  const [testTemplateId, setTestTemplateId] = useState<number | undefined>(undefined);
 
   // Fetch templates on component mount
   useEffect(() => {
@@ -76,7 +78,7 @@ export function EmailTemplates() {
 
   const resetForm = () => {
     setFormData({
-      name: '',
+      type: '',
       description: '',
       subject: '',
       bodyText: '',
@@ -94,7 +96,7 @@ export function EmailTemplates() {
   const openEditDialog = (template: EmailTemplate) => {
     setCurrentTemplate(template);
     setFormData({
-      name: template.name,
+      type: template.type,
       description: template.description,
       subject: template.subject,
       bodyText: template.bodyText,
@@ -118,7 +120,7 @@ export function EmailTemplates() {
       .filter(v => v !== '');
 
     const templateData = {
-      name: formData.name,
+      type: formData.type,
       description: formData.description,
       subject: formData.subject,
       bodyText: formData.bodyText,
@@ -149,8 +151,8 @@ export function EmailTemplates() {
     } catch (error: any) {
       console.error('Error saving template:', error);
       showToast(
-        'Error',
-        `Failed to ${currentTemplate ? 'update' : 'create'} template: ${error.message || 'Unknown error'}`,
+        'Error', 
+        error.response?.data?.message || 'Failed to save template',
         'error'
       );
     }
@@ -161,28 +163,18 @@ export function EmailTemplates() {
     
     try {
       await emailsApi.deleteTemplate(currentTemplate.id);
-      
-      showToast(
-        'Success',
-        'Template deleted successfully',
-        'success'
-      );
-      
+      showToast('Success', 'Template deleted successfully', 'success');
       setIsDeleteDialogOpen(false);
-      setCurrentTemplate(null);
       fetchTemplates();
     } catch (error: any) {
       console.error('Error deleting template:', error);
       showToast(
-        'Error',
-        `Failed to delete template: ${error.message || 'Unknown error'}`,
+        'Error', 
+        error.response?.data?.message || 'Failed to delete template',
         'error'
       );
     }
   };
-
-  const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
-  const [testTemplateId, setTestTemplateId] = useState<number | undefined>(undefined);
 
   const handleTestTemplate = (templateId: number) => {
     setTestTemplateId(templateId);
@@ -193,11 +185,11 @@ export function EmailTemplates() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Email Templates</h2>
-        <button 
-          onClick={openCreateDialog} 
+        <button
+          onClick={openCreateDialog}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
-          <PlusIcon className="h-5 w-5 mr-1" />
+          <PlusIcon className="h-5 w-5 mr-2" />
           <span>Create Template</span>
         </button>
       </div>
@@ -220,7 +212,7 @@ export function EmailTemplates() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[250px]">Name</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[250px]">Type</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Description</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Subject</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Variables</th>
@@ -230,7 +222,7 @@ export function EmailTemplates() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {templates.map((template) => (
                   <tr key={template.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{template.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{template.type}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-500 hidden md:table-cell">{template.description}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-500 hidden md:table-cell">{template.subject}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-500 hidden lg:table-cell">
@@ -254,7 +246,7 @@ export function EmailTemplates() {
                         </button>
                         <button
                           onClick={() => openDeleteDialog(template)}
-                          className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded shadow-sm text-red-600 hover:text-red-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                           title="Delete template"
                         >
                           <TrashIcon className="h-4 w-4" />
@@ -269,7 +261,7 @@ export function EmailTemplates() {
         </div>
       )}
 
-      {/* Create/Edit Template Dialog */}
+      {/* Template Form Dialog */}
       {isDialogOpen && (
         <div className="fixed inset-0 overflow-y-auto z-50">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -288,14 +280,15 @@ export function EmailTemplates() {
                       <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <label htmlFor="name" className="block text-sm font-medium text-gray-700">Template Name</label>
+                            <label htmlFor="type" className="block text-sm font-medium text-gray-700">Email Type</label>
                             <input
-                              id="name"
-                              name="name"
-                              value={formData.name}
+                              id="type"
+                              name="type"
+                              value={formData.type}
                               onChange={handleInputChange}
                               required
                               className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                              placeholder="WELCOME, VERIFICATION, PASSWORD_RESET, etc."
                             />
                           </div>
                           
@@ -332,26 +325,26 @@ export function EmailTemplates() {
                             name="variables"
                             value={formData.variables}
                             onChange={handleInputChange}
-                            placeholder="e.g. name, date, link"
                             className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            placeholder="firstName, lastName, verificationLink, etc."
                           />
                         </div>
                         
                         <div className="space-y-2">
-                          <label htmlFor="bodyText" className="block text-sm font-medium text-gray-700">Plain Text Content</label>
+                          <label htmlFor="bodyText" className="block text-sm font-medium text-gray-700">Plain Text Body</label>
                           <textarea
                             id="bodyText"
                             name="bodyText"
                             value={formData.bodyText}
                             onChange={handleInputChange}
-                            rows={5}
-                            required
+                            rows={4}
                             className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          />
+                            placeholder="Use {{variableName}} for variables"
+                          ></textarea>
                         </div>
                         
                         <div className="space-y-2">
-                          <label htmlFor="bodyHtml" className="block text-sm font-medium text-gray-700">HTML Content</label>
+                          <label htmlFor="bodyHtml" className="block text-sm font-medium text-gray-700">HTML Body</label>
                           <textarea
                             id="bodyHtml"
                             name="bodyHtml"
@@ -359,16 +352,17 @@ export function EmailTemplates() {
                             onChange={handleInputChange}
                             rows={8}
                             className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          />
+                            placeholder="Use {{variableName}} for variables"
+                          ></textarea>
                         </div>
                       </div>
                       
-                      <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                         <button
                           type="submit"
                           className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
                         >
-                          {currentTemplate ? 'Update Template' : 'Create Template'}
+                          {currentTemplate ? 'Update' : 'Create'}
                         </button>
                         <button
                           type="button"
@@ -402,7 +396,7 @@ export function EmailTemplates() {
                     <h3 className="text-lg leading-6 font-medium text-gray-900">Confirm Deletion</h3>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
-                        Are you sure you want to delete the template "{currentTemplate?.name}"? This action cannot be undone.
+                        Are you sure you want to delete the template "{currentTemplate?.type}"? This action cannot be undone.
                       </p>
                     </div>
                   </div>

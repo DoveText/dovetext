@@ -3,13 +3,11 @@
 import { useState, useEffect } from 'react';
 import { emailsApi } from '../../api/emails';
 
-type EmailTemplate = {
-  id: number;
-  name: string;
-  description: string;
-  subject: string;
-  variables: string[];
-};
+// Import the EmailTemplate interface from the API file
+import { EmailTemplate as ApiEmailTemplate } from '../../api/emails';
+
+// Extend the API's EmailTemplate interface for local use
+type EmailTemplate = ApiEmailTemplate;
 
 type VariableInput = {
   name: string;
@@ -68,24 +66,24 @@ export function EmailTestDialog({
       if (template) {
         setVariables(template.variables.map(name => ({ name, value: '' })));
         
-        // Determine the appropriate email type based on template name
-        const templateName = template.name.toUpperCase();
+        // The template type is now directly available from the API
+        const templateType = template.type.toUpperCase();
         
-        // Check if template name contains any of the valid email types
+        // Check if template type is one of the valid email types
         const validTypes = ['SYSTEM', 'NOTIFICATION', 'VERIFICATION', 'PASSWORD_RESET', 'WELCOME', 'ALERT', 'MARKETING'];
-        const matchedType = validTypes.find(type => templateName.includes(type));
+        const matchedType = validTypes.find(type => templateType.includes(type));
         
         if (matchedType) {
           setEmailType(matchedType);
-        } else if (templateName.includes('RESET')) {
+        } else if (templateType.includes('RESET')) {
           setEmailType('PASSWORD_RESET');
-        } else if (templateName.includes('VERIFY') || templateName.includes('CONFIRM')) {
+        } else if (templateType.includes('VERIFY') || templateType.includes('CONFIRM')) {
           setEmailType('VERIFICATION');
-        } else if (templateName.includes('WELCOME') || templateName.includes('ONBOARD')) {
+        } else if (templateType.includes('WELCOME') || templateType.includes('ONBOARD')) {
           setEmailType('WELCOME');
-        } else if (templateName.includes('ALERT') || templateName.includes('WARN')) {
+        } else if (templateType.includes('ALERT') || templateType.includes('WARN')) {
           setEmailType('ALERT');
-        } else if (templateName.includes('MARKET') || templateName.includes('PROMO')) {
+        } else if (templateType.includes('MARKET') || templateType.includes('PROMO')) {
           setEmailType('MARKETING');
         } else {
           // Default to NOTIFICATION if no match
@@ -166,11 +164,10 @@ export function EmailTestDialog({
         return;
       }
 
-      // Use the new function that works around the EmailType limitation
-      const result = await emailsApi.testTemplateWithType(
-        parseInt(selectedTemplateId), 
+      // Use the updated testTemplate method that accepts the TestEmailRequest format
+      const result = await emailsApi.testTemplate(
+        parseInt(selectedTemplateId),
         recipient,
-        emailType,
         variablesObject
       );
       
@@ -242,7 +239,7 @@ export function EmailTestDialog({
                       <option value="">Select a template</option>
                       {templates.map(template => (
                         <option key={template.id} value={template.id.toString()}>
-                          {template.name} - {template.subject}
+                          {template.type} - {template.subject}
                         </option>
                       ))}
                     </select>

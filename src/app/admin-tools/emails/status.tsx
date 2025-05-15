@@ -8,7 +8,7 @@ import { EmailTestDialog } from './components/EmailTestDialog';
 // Using the EmailStatus interface from the API file
 
 export function EmailStatus() {
-  const [emails, setEmails] = useState<EmailStatusType[]>([]);
+  const [emails, setEmails] = useState<(EmailStatusType & { type?: string })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [recipientFilter, setRecipientFilter] = useState<string>('');
@@ -38,7 +38,33 @@ export function EmailStatus() {
       };
       
       const response = await emailsApi.getEmailStatus(params);
-      setEmails(response.content);
+      
+      // Process emails to extract type from template information
+      const processedEmails = await Promise.all(response.content.map(async (email) => {
+        let type = '';
+        
+        // If we have a templateId, try to get the actual template type
+        if (email.templateId) {
+          try {
+            const template = await emailsApi.getTemplateById(email.templateId);
+            type = template.type;
+          } catch (error) {
+            console.warn(`Failed to fetch template details for ID ${email.templateId}:`, error);
+            // Fallback to templateName if available
+            type = email.templateName || 'NOTIFICATION';
+          }
+        } else if (email.templateName) {
+          // If we only have templateName but no ID, use it as the type
+          type = email.templateName;
+        } else {
+          // Default type if no template info is available
+          type = 'NOTIFICATION';
+        }
+        
+        return { ...email, type };
+      }));
+      
+      setEmails(processedEmails);
       setTotalPages(response.totalPages);
       setTotalElements(response.totalElements);
     } catch (error) {
@@ -262,13 +288,27 @@ export function EmailStatus() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Template</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recipient</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent At</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ID
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    TEMPLATE TYPE
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    RECIPIENT
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    SUBJECT
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    STATUS
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    SENT AT
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ACTIONS
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -282,7 +322,15 @@ export function EmailStatus() {
                   emails.map((email) => (
                     <tr key={email.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{email.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{email.templateName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {email.type ? (
+                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                            {email.type.replace(/_/g, ' ')}
+                          </span>
+                        ) : (
+                          email.templateName || `Template #${email.templateId || 'Unknown'}`
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{email.recipient}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{email.subject}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -293,6 +341,7 @@ export function EmailStatus() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
+                          {/* Resend button for failed emails */}
                           {email.status === 'failed' && (
                             <button 
                               onClick={() => handleResendEmail(email)}
@@ -300,8 +349,41 @@ export function EmailStatus() {
                               title="Resend Email"
                             >
                               <ArrowPathIcon className="h-4 w-4" />
+                              <span className="sr-only">Resend</span>
                             </button>
                           )}
+                          
+                          {/* Retry button for bounced emails */}
+                          {email.status === 'bounced' && (
+                            <button 
+                              onClick={() => handleResendEmail(email)}
+                              className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                              title="Retry Delivery"
+                            >
+                              <ArrowPathIcon className="h-4 w-4" />
+                              <span className="sr-only">Retry</span>
+                            </button>
+                          )}
+                          
+                          {/* Test button for all emails */}
+                          <button 
+                            onClick={() => handleResendEmail(email)}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            title="Test Template"
+                          >
+                            <EnvelopeIcon className="h-4 w-4" />
+                            <span className="sr-only">Test</span>
+                          </button>
+                          
+                          {/* View details button for all emails */}
+                          <button 
+                            onClick={() => window.open(`/admin-tools/emails/details/${email.id}`, '_blank')}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            title="View Details"
+                          >
+                            <MagnifyingGlassIcon className="h-4 w-4" />
+                            <span className="sr-only">Details</span>
+                          </button>
                         </div>
                       </td>
                     </tr>

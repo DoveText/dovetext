@@ -7,7 +7,7 @@ import { apiClient } from '@/app/api/client';
 // Email template interfaces
 export interface EmailTemplate {
   id: number;
-  name: string;
+  type: string; // EmailType enum value: WELCOME, VERIFICATION, etc.
   description: string;
   subject: string;
   bodyText: string;
@@ -18,7 +18,7 @@ export interface EmailTemplate {
 }
 
 export interface EmailTemplateCreateRequest {
-  name: string;
+  type: string; // EmailType enum value
   description: string;
   subject: string;
   bodyText: string;
@@ -111,12 +111,17 @@ export const emailsApi = {
   },
 
   /**
-   * Test a template by sending a test email
+   * Test a template by sending a test email using the TestEmailRequest format
    */
   async testTemplate(id: number, recipient: string, testData: Record<string, string> = {}): Promise<{ success: boolean; message: string }> {
+    const requestBody = {
+      recipient: recipient,
+      testData: testData
+    };
+    
     const { data } = await apiClient.post<{ success: boolean; message: string }>(
-      `/api/v1/admin/emails/templates/${id}/test?recipient=${encodeURIComponent(recipient)}`, 
-      testData
+      `/api/v1/admin/emails/templates/${id}/test`, 
+      requestBody
     );
     return data;
   },
@@ -175,7 +180,7 @@ export const emailsApi = {
     if (params.endDate) queryParams.append('endDate', params.endDate);
     
     const queryString = queryParams.toString();
-    const url = `/api/v1/admin/emails/status${queryString ? `?${queryString}` : ''}`;
+    const url = `/api/v1/admin/emails${queryString ? `?${queryString}` : ''}`;
     
     const { data } = await apiClient.get<PaginatedResponse<EmailStatus>>(url);
     return data;
@@ -185,7 +190,7 @@ export const emailsApi = {
    * Get email status details by ID
    */
   async getEmailStatusById(id: number): Promise<EmailStatus> {
-    const { data } = await apiClient.get<EmailStatus>(`/api/v1/admin/emails/status/${id}`);
+    const { data } = await apiClient.get<EmailStatus>(`/api/v1/admin/emails/${id}`);
     return data;
   },
 
@@ -194,7 +199,7 @@ export const emailsApi = {
    */
   async resendEmail(id: number): Promise<{ success: boolean; message: string }> {
     const { data } = await apiClient.post<{ success: boolean; message: string }>(
-      `/api/v1/admin/emails/status/${id}/resend`
+      `/api/v1/admin/emails/${id}/resend`
     );
     return data;
   }
