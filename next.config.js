@@ -16,6 +16,10 @@ const nextConfig = {
           source: '/api/:path*',
           destination: 'http://api.dovetext.cn/api/:path*',
         },
+        {
+          source: '/public/assets/:path*',
+          destination: 'http://api.dovetext.cn/public/assets/:path*',
+        },
       ];
     },
   }),
@@ -37,6 +41,11 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'firebasestorage.googleapis.com',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.dovetext.com',
+        pathname: '/public/assets/**',
       }
     ],
     unoptimized: true, // Skip image optimization to avoid timeout issues
@@ -57,7 +66,7 @@ const nextConfig = {
       const baseDirectives = [
         "default-src 'self'",
         "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data: blob: https: https://lh3.googleusercontent.com https://firebasestorage.googleapis.com",
+        "img-src 'self' data: blob: https: http://api.dovetext.cn https://api.dovetext.com https://lh3.googleusercontent.com https://firebasestorage.googleapis.com",
         "font-src 'self'",
         `connect-src 'self' https://*.googleapis.com https://*.google.com ${allowedDomains.join(' ')}`,
         "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com",

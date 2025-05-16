@@ -7,6 +7,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { toast } from 'react-hot-toast';
 import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { apiConfig } from '@/config/api';
 
 // This function centers and creates an aspect crop
 function centerAspectCrop(
@@ -30,12 +31,17 @@ function centerAspectCrop(
 }
 
 export default function ProfilePage() {
+  // Maximum file size in bytes (2MB)
+  const MAX_FILE_SIZE = 2 * 1024 * 1024;
+  
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [isSaving, setIsSaving] = useState(false);
   const [profileData, setProfileData] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // We'll use the apiConfig.getPublicAssetsUrl utility function instead of a local one
+  
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.photoURL || null);
   const [isUploading, setIsUploading] = useState(false);
   
@@ -136,20 +142,24 @@ export default function ProfilePage() {
   };
   
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    setSelectedFile(file);
-    
-    const reader = new FileReader();
-    reader.addEventListener('load', () => {
-      setImgSrc(reader.result?.toString() || '');
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      
+      // Check file size
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`File size exceeds the maximum allowed size of 2MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`);
+        return;
+      }
+      
+      setSelectedFile(file);
       setShowCropModal(true);
-    });
-    reader.readAsDataURL(file);
-    
-    // Reset the input so the same file can be selected again
-    e.target.value = '';
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImgSrc(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
   
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -234,6 +244,7 @@ export default function ProfilePage() {
       
       if (response.ok) {
         const data = await response.json();
+        // Use the avatar URL directly from the response
         setAvatarUrl(data.avatarUrl);
         toast.success('Profile photo updated');
         
@@ -337,10 +348,11 @@ export default function ProfilePage() {
                 <div className="mt-2 flex items-center space-x-5">
                   <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-100">
                     <Image
-                      src={avatarUrl || user.photoURL || `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`}
+                      src={apiConfig.getPublicAssetsUrl(avatarUrl || user.photoURL) || `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`}
                       alt="Profile"
                       width={64}
                       height={64}
+                      priority
                       className="h-full w-full object-cover"
                       onError={(e) => {
                         const img = e.target as HTMLImageElement;

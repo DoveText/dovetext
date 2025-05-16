@@ -36,6 +36,30 @@ export const apiConfig = {
     const cleanPath = path.startsWith('/') ? path.substring(1) : path;
     return `${baseApiUrl}/${cleanPath}`;
   },
+  
+  // Helper function to get a full public asset URL
+  getPublicAssetsUrl: (path: string | null): string | null => {
+    if (!path) return null;
+    
+    // If the URL is already absolute (starts with http), return it as is
+    if (path.startsWith('http')) return path;
+    
+    // Remove leading slash if present to avoid double slashes
+    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    
+    // In development mode, use the local proxy to avoid CORS issues
+    if (process.env.NODE_ENV !== 'production') {
+      // If the path already contains /public/assets, use it directly
+      if (cleanPath.includes('public/assets')) {
+        return `/${cleanPath}`;
+      }
+      // Otherwise, assume it's an avatar path and format accordingly
+      return `/public/assets/${cleanPath}`;
+    }
+    
+    // In production, use the API base URL
+    return `${baseApiUrl}/${cleanPath}`;
+  },
 
   // Common headers
   headers: {
