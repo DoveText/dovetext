@@ -232,12 +232,25 @@ export function EmailTemplates() {
       .map(v => v.trim())
       .filter(v => v !== '');
 
+    // Fix URL-encoded placeholders in HTML content
+    let processedHtml = formData.bodyHtml;
+    if (processedHtml) {
+      // Replace URL-encoded braces with actual braces for all variables
+      variables.forEach(variable => {
+        const encodedPattern = new RegExp(`%7B%7B${variable}%7D%7D`, 'g');
+        processedHtml = processedHtml.replace(encodedPattern, `{{${variable}}}`);
+      });
+      
+      // Also replace any remaining generic encoded braces
+      processedHtml = processedHtml.replace(/%7B%7B/g, '{{').replace(/%7D%7D/g, '}}');
+    }
+
     const templateData = {
       type: formData.type,
       description: formData.description,
       subject: formData.subject,
       bodyText: formData.bodyText,
-      bodyHtml: formData.bodyHtml,
+      bodyHtml: processedHtml, // Use the processed HTML with fixed placeholders
       bodyMarkdown: formData.bodyMarkdown, // Save the markdown content for future editing
       variables
     };
