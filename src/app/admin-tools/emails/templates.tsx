@@ -112,7 +112,7 @@ export function EmailTemplates() {
       plainText = plainText.replace(/[*_]{2}([^*_]+)[*_]{2}/g, '$1');  // Bold
       plainText = plainText.replace(/[*_]([^*_]+)[*_]/g, '$1');        // Italic
       
-      // Replace HTML line breaks with newlines
+      // Replace HTML line breaks with newlines (handles <br>, <br/>, and <br />)
       plainText = plainText.replace(/<br\s*\/?>/gi, '\n');
       
       // Replace list items with dashes
@@ -445,46 +445,41 @@ export function EmailTemplates() {
                         </div>
                         
                         <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">Email Body</label>
-                          <div className="mb-4">
-                            <div className="flex items-center justify-between">
-                              <label className="block text-sm font-medium text-gray-700">
-                                {previewMode === 'editor' ? 'Markdown Editor' : previewMode === 'html' ? 'HTML Preview' : 'Plain Text Preview'}
-                              </label>
-                              <div className="flex items-center space-x-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handlePreviewModeChange('editor')}
-                                  className={`px-3 py-1.5 text-xs font-medium rounded-md ${previewMode === 'editor' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                                >
-                                  <span className="flex items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                    </svg>
-                                    Edit
-                                  </span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handlePreviewModeChange('html')}
-                                  className={`px-3 py-1.5 text-xs font-medium rounded-md ${previewMode === 'html' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                                >
-                                  <span className="flex items-center">
-                                    <CodeBracketIcon className="h-4 w-4 mr-1" />
-                                    HTML
-                                  </span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handlePreviewModeChange('text')}
-                                  className={`px-3 py-1.5 text-xs font-medium rounded-md ${previewMode === 'text' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                                >
-                                  <span className="flex items-center">
-                                    <DocumentTextIcon className="h-4 w-4 mr-1" />
-                                    Text
-                                  </span>
-                                </button>
-                              </div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-gray-700">Email Body</label>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => handlePreviewModeChange('editor')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md ${previewMode === 'editor' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                              >
+                                <span className="flex items-center">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                  </svg>
+                                  Edit
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handlePreviewModeChange('html')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md ${previewMode === 'html' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                              >
+                                <span className="flex items-center">
+                                  <CodeBracketIcon className="h-4 w-4 mr-1" />
+                                  HTML
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handlePreviewModeChange('text')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md ${previewMode === 'text' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                              >
+                                <span className="flex items-center">
+                                  <DocumentTextIcon className="h-4 w-4 mr-1" />
+                                  Text
+                                </span>
+                              </button>
                             </div>
                           </div>
                           
