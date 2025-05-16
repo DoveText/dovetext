@@ -25,13 +25,40 @@ function DashboardContent() {
     }
   }, [actionContext, router]);
 
-  // Mock user stats - in a real app, these would come from the backend
-  const userStats = {
-    scheduledEvents: 3,
-    completedTasks: 8,
-    pendingTasks: 5,
-    upcomingDeadlines: 2
+  // Time range options for stats
+  const timeRanges = [
+    { id: 'today', label: 'Today' },
+    { id: 'week', label: 'This Week' },
+    { id: 'month', label: 'This Month' }
+  ];
+  
+  // Selected time range state
+  const [selectedTimeRange, setSelectedTimeRange] = useState<'today' | 'week' | 'month'>('week');
+  
+  // Mock user stats based on selected time range - in a real app, these would come from the backend
+  const userStatsByRange = {
+    today: {
+      completedTasks: 2,
+      pendingTasks: 3,
+      upcomingDeadlines: 1,
+      scheduledEvents: 1
+    },
+    week: {
+      completedTasks: 8,
+      pendingTasks: 5,
+      upcomingDeadlines: 2,
+      scheduledEvents: 3
+    },
+    month: {
+      completedTasks: 24,
+      pendingTasks: 7,
+      upcomingDeadlines: 4,
+      scheduledEvents: 12
+    }
   };
+  
+  // Get stats for the selected time range
+  const userStats = userStatsByRange[selectedTimeRange];
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -43,27 +70,48 @@ function DashboardContent() {
             <h1 className="text-2xl font-bold text-gray-900">Welcome, {user?.displayName || user?.email?.split('@')[0] || 'User'}</h1>
             <p className="text-gray-600 mt-1">Here&apos;s your current status and activities</p>
           </div>
-          <div className="mt-4 md:mt-0 bg-blue-50 p-3 rounded-lg">
-            <p className="text-sm font-medium text-blue-800">Last login: {new Date().toLocaleDateString()}</p>
+          <div className="mt-4 md:mt-0 flex flex-col items-end">
+            <div className="bg-blue-50 p-3 rounded-lg mb-2">
+              <p className="text-sm font-medium text-blue-800">Last login: {new Date().toLocaleDateString()}</p>
+            </div>
+            <div className="flex space-x-2 text-sm">
+              {timeRanges.map(range => (
+                <button
+                  key={range.id}
+                  onClick={() => setSelectedTimeRange(range.id as 'today' | 'week' | 'month')}
+                  className={`px-3 py-1 rounded-md ${
+                    selectedTimeRange === range.id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {range.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-4 sm:mt-6">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-sm font-medium text-gray-500">Scheduled Events</p>
-            <p className="text-2xl font-bold text-blue-600">{userStats.scheduledEvents}</p>
-          </div>
           <div className="bg-green-50 p-4 rounded-lg">
             <p className="text-sm font-medium text-gray-500">Completed Tasks</p>
             <p className="text-2xl font-bold text-green-600">{userStats.completedTasks}</p>
+            <p className="text-xs text-gray-500 mt-1">Tasks marked as done</p>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg">
             <p className="text-sm font-medium text-gray-500">Pending Tasks</p>
             <p className="text-2xl font-bold text-yellow-600">{userStats.pendingTasks}</p>
+            <p className="text-xs text-gray-500 mt-1">Started but not completed</p>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg">
             <p className="text-sm font-medium text-gray-500">Upcoming Deadlines</p>
             <p className="text-2xl font-bold text-purple-600">{userStats.upcomingDeadlines}</p>
+            <p className="text-xs text-gray-500 mt-1">Milestones due soon</p>
+          </div>
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <p className="text-sm font-medium text-gray-500">Scheduled Events</p>
+            <p className="text-2xl font-bold text-blue-600">{userStats.scheduledEvents}</p>
+            <p className="text-xs text-gray-500 mt-1">Future planned events</p>
           </div>
         </div>
         

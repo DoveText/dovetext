@@ -617,7 +617,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         document.body
       )}
       {/* Week header */}
-      <div className="flex border-b pr-[10px]">
+      <div className="flex border-b">
         <div className="w-16 shrink-0"></div>
         <div className="flex-1 flex">
           {daysOfWeek.map((day, index) => (
