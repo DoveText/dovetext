@@ -37,8 +37,7 @@ export function EmailTemplates() {
   });
   const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
   const [testTemplateId, setTestTemplateId] = useState<number | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState(0);
-  const [htmlViewMode, setHtmlViewMode] = useState('editor'); // 'editor' or 'preview' // For managing tabs
+  const [previewMode, setPreviewMode] = useState('editor'); // 'editor', 'html', or 'text'
 
   // Fetch templates on component mount
   useEffect(() => {
@@ -83,18 +82,50 @@ export function EmailTemplates() {
     const { name, value } = e.target;
     
     if (name === 'bodyMarkdown') {
-      // When markdown changes, update both the markdown field and convert to HTML
+      // When markdown changes, update both the markdown field and convert to HTML and plain text
       const htmlContent = convertMarkdownToHtml(value);
+      const plainTextContent = convertMarkdownToPlainText(value);
       setFormData(prev => ({ 
         ...prev, 
         bodyMarkdown: value,
-        bodyHtml: htmlContent
+        bodyHtml: htmlContent,
+        bodyText: plainTextContent
       }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
   
+  // Convert markdown to plain text
+  const convertMarkdownToPlainText = (markdown: string): string => {
+    try {
+      // Replace headings with uppercase text
+      let plainText = markdown.replace(/^#{1,6}\s+(.+)$/gm, (_, text) => text.toUpperCase());
+      
+      // Replace links with text and URL - always use format: text (url)
+      plainText = plainText.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
+        // For all URLs, format as text (url)
+        return `${text} (${url})`;
+      });
+      
+      // Replace bold/italic with plain text
+      plainText = plainText.replace(/[*_]{2}([^*_]+)[*_]{2}/g, '$1');  // Bold
+      plainText = plainText.replace(/[*_]([^*_]+)[*_]/g, '$1');        // Italic
+      
+      // Replace HTML line breaks with newlines
+      plainText = plainText.replace(/<br\s*\/?>/gi, '\n');
+      
+      // Replace list items with dashes
+      plainText = plainText.replace(/^\s*[\*\-]\s+(.+)$/gm, '- $1');
+      plainText = plainText.replace(/^\s*\d+\.\s+(.+)$/gm, '- $1');
+      
+      return plainText;
+    } catch (error) {
+      console.error('Error converting markdown to plain text:', error);
+      return markdown;
+    }
+  };
+
   // Convert markdown to HTML with proper styling
   const convertMarkdownToHtml = (markdown: string): string => {
     try {
@@ -147,9 +178,9 @@ export function EmailTemplates() {
     }
   };
   
-  // Handle tab change
-  const handleTabChange = (index: number) => {
-    setActiveTab(index);
+  // Handle preview mode change
+  const handlePreviewModeChange = (mode: string) => {
+    setPreviewMode(mode);
   };
 
   const resetForm = () => {
@@ -163,7 +194,7 @@ export function EmailTemplates() {
       variables: ''
     });
     setCurrentTemplate(null);
-    setActiveTab(0);
+    setPreviewMode('editor');
   };
 
   const openCreateDialog = () => {
@@ -185,7 +216,7 @@ export function EmailTemplates() {
       variables: template.variables.join(', ')
     });
     setIsDialogOpen(true);
-    setActiveTab(0);
+    setPreviewMode('editor');
   };
 
   const openDeleteDialog = (template: EmailTemplate) => {
@@ -415,90 +446,56 @@ export function EmailTemplates() {
                         
                         <div className="space-y-2">
                           <label className="block text-sm font-medium text-gray-700">Email Body</label>
-                          <Tabs selectedIndex={activeTab} onSelect={handleTabChange} className="mt-2">
-                            <TabList className="flex border-b border-gray-200 mb-4">
-                              <Tab className="px-4 py-2 font-medium text-sm text-gray-500 cursor-pointer border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300 focus:outline-none">
-                                <div className="flex items-center">
-                                  <DocumentTextIcon className="h-4 w-4 mr-2" />
-                                  Plain Text
-                                </div>
-                              </Tab>
-                              <Tab className="px-4 py-2 font-medium text-sm text-gray-500 cursor-pointer border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300 focus:outline-none">
-                                <div className="flex items-center">
-                                  <CodeBracketIcon className="h-4 w-4 mr-2" />
-                                  HTML (Markdown Editor)
-                                </div>
-                              </Tab>
-                            </TabList>
-                            
-                            {/* Plain Text Tab */}
-                            <TabPanel>
-                              <textarea
-                                id="bodyText"
-                                name="bodyText"
-                                value={formData.bodyText}
-                                onChange={handleInputChange}
-                                rows={10}
-                                className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                placeholder="Hello {'{name}'},
-
-Welcome to our service! We're excited to have you on board.
-
-Get started by visiting your dashboard: {'{dashboard_url}'}
-
-If you have any questions, please don't hesitate to contact our support team.
-
-Thank you,
-The Team"
-                              ></textarea>
-                              <p className="mt-1 text-xs text-gray-500">Plain text version of the email for clients that don't support HTML. Use <span className="font-mono">{'{variableName}'}</span> for variables.</p>
-                            </TabPanel>
-                            
-                            {/* HTML (Markdown) Tab */}
-                            <TabPanel>
-                              <div className="mb-4">
-                                <div className="flex items-center justify-between">
-                                  <label className="block text-sm font-medium text-gray-700">
-                                    {htmlViewMode === 'editor' ? 'Markdown Editor' : 'Email Preview'}
-                                  </label>
-                                  <div className="flex items-center space-x-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => setHtmlViewMode('editor')}
-                                      className={`px-3 py-1.5 text-xs font-medium rounded-md ${htmlViewMode === 'editor' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                                    >
-                                      <span className="flex items-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                        </svg>
-                                        Edit
-                                      </span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setHtmlViewMode('preview')}
-                                      className={`px-3 py-1.5 text-xs font-medium rounded-md ${htmlViewMode === 'preview' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                                    >
-                                      <span className="flex items-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                                        </svg>
-                                        Preview
-                                      </span>
-                                    </button>
-                                  </div>
-                                </div>
+                          <div className="mb-4">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-sm font-medium text-gray-700">
+                                {previewMode === 'editor' ? 'Markdown Editor' : previewMode === 'html' ? 'HTML Preview' : 'Plain Text Preview'}
+                              </label>
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handlePreviewModeChange('editor')}
+                                  className={`px-3 py-1.5 text-xs font-medium rounded-md ${previewMode === 'editor' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                >
+                                  <span className="flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                    </svg>
+                                    Edit
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePreviewModeChange('html')}
+                                  className={`px-3 py-1.5 text-xs font-medium rounded-md ${previewMode === 'html' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                >
+                                  <span className="flex items-center">
+                                    <CodeBracketIcon className="h-4 w-4 mr-1" />
+                                    HTML
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePreviewModeChange('text')}
+                                  className={`px-3 py-1.5 text-xs font-medium rounded-md ${previewMode === 'text' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                >
+                                  <span className="flex items-center">
+                                    <DocumentTextIcon className="h-4 w-4 mr-1" />
+                                    Text
+                                  </span>
+                                </button>
                               </div>
-                              
-                              {htmlViewMode === 'editor' ? (
-                                <div>
-                                  <textarea
-                                    id="bodyMarkdown"
-                                    name="bodyMarkdown"
-                                    value={formData.bodyMarkdown}
-                                    onChange={handleInputChange}
-                                    rows={18}
+                            </div>
+                          </div>
+                          
+                          {previewMode === 'editor' ? (
+                            <div>
+                              <textarea
+                                id="bodyMarkdown"
+                                name="bodyMarkdown"
+                                value={formData.bodyMarkdown}
+                                onChange={handleInputChange}
+                                rows={18}
                                     className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono"
                                     placeholder="## Welcome to DoveText!
 
@@ -512,21 +509,20 @@ If you have any questions, please don't hesitate to contact our support team.
 
 Thank you,<br>
 The DoveText Team"
-                                  ></textarea>
-                                  <p className="mt-1 text-xs text-gray-500">Write in Markdown format. It will be automatically converted to HTML.</p>
-                                </div>
-                              ) : (
-                                <div>
-                                  <div className="border border-gray-300 rounded-md p-6 min-h-[400px] overflow-auto bg-white email-preview">
-                                    <div dangerouslySetInnerHTML={{ __html: formData.bodyHtml }} />
-                                  </div>
-                                  <p className="mt-1 text-xs text-gray-500">Preview of how the email will appear.</p>
-                                </div>
-                              )}
-                              
-                              {/* We'll use a different approach for styling the preview */}
-                            </TabPanel>
-                          </Tabs>
+                              ></textarea>
+                              <p className="mt-1 text-xs text-gray-500">Use <span className="font-mono">{'{{'}</span>variableName<span className="font-mono">{'}}'}</span> for variables. Markdown formatting is supported.</p>
+                            </div>
+                          ) : previewMode === 'html' ? (
+                            <div className="bg-white border rounded-md p-4">
+                              <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formData.bodyHtml }} />
+                              <p className="mt-4 text-xs text-gray-500">This is how the email will appear in HTML-capable email clients.</p>
+                            </div>
+                          ) : (
+                            <div className="bg-gray-50 border rounded-md p-4">
+                              <pre className="whitespace-pre-wrap font-mono text-sm text-gray-700">{formData.bodyText}</pre>
+                              <p className="mt-4 text-xs text-gray-500">This is how the email will appear in text-only email clients.</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                       
