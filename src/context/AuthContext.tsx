@@ -46,6 +46,7 @@ interface AuthContextType {
   needsValidation: boolean;
   isActive: boolean;
   refreshUserStatus: () => Promise<any>;
+  refreshUser: () => Promise<void>; // New method to refresh user data
   // For backward compatibility with existing components
   auth: any; // Provider-specific auth instance
   onAuthStateChanged: (auth: any, nextOrObserver: any, error?: any, completed?: any) => () => void;
@@ -171,6 +172,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw error;
     }
   };
+  
+  // Method to refresh user data after profile changes
+  const refreshUser = async () => {
+    try {
+      if (!user) return;
+      
+      const token = await user.getIdToken(true); // Force token refresh
+      const response = await fetch('/api/v1/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        
+        // Update the user object with fresh data
+        if (user && userData) {
+          user.displayName = userData.displayName || user.displayName;
+          user.photoURL = userData.avatarUrl || userData.photoURL || user.photoURL;
+          user.email = userData.email || user.email;
+          
+          // Force a re-render by setting the user state
+          setUser({...user});
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  };
 
   // Determine if the user needs validation and is active
   const needsValidation = user ? !user.emailVerified || user.settings?.validated === false : false;
@@ -212,6 +243,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     needsValidation,
     isActive,
     refreshUserStatus,
+    refreshUser,
     // For backward compatibility with existing components
     auth,
     onAuthStateChanged: wrappedOnAuthStateChanged,

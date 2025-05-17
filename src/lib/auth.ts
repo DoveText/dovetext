@@ -99,27 +99,77 @@ class AuthState {
   init(): void {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('auth_token');
+      const currentPath = window.location.pathname;
       
       if (token) {
         this.authToken = token;
         
         // Fetch user data using the token
-        this.fetchUserData(token)
-          .then(() => {
-            // Explicitly notify listeners after successful fetch
-            this.listeners.forEach(listener => {
-              listener(this.currentUser);
-            });
+        this.validateSession(token)
+          .then(isValid => {
+            if (isValid) {
+              // Session is valid, check if we're on login page and should redirect
+              if (currentPath === '/' || currentPath === '/signin' || currentPath === '/login') {
+                // Check if there's a stored redirect URL
+                const redirectUrl = localStorage.getItem('auth_redirect_url');
+                if (redirectUrl) {
+                  // Clear the stored URL before redirecting
+                  localStorage.removeItem('auth_redirect_url');
+                  window.location.href = redirectUrl;
+                } else {
+                  // Redirect to dashboard if no stored URL
+                  window.location.href = '/dashboard';
+                }
+              }
+              
+              // Notify listeners of valid user
+              this.listeners.forEach(listener => {
+                listener(this.currentUser);
+              });
+            } else {
+              // Session is invalid, clear token
+              this.setToken(null);
+              this.setUser(null);
+              
+              // If on a protected page, redirect to login
+              if (currentPath !== '/' && currentPath !== '/signin' && currentPath !== '/login' && 
+                  !currentPath.startsWith('/public/') && !currentPath.startsWith('/auth/')) {
+                // Store the original URL before redirecting
+                localStorage.setItem('auth_redirect_url', currentPath);
+                window.location.href = '/signin';
+              }
+              
+              // Notify listeners that auth state is resolved (no user)
+              this.listeners.forEach(listener => listener(null));
+            }
           })
           .catch(error => {
             console.error('Error initializing auth state:', error);
             this.setToken(null);
-            // Notify listeners that auth state is resolved (but no user)
+            this.setUser(null);
+            
+            // On error, redirect to login if on protected page
+            if (currentPath !== '/' && currentPath !== '/signin' && currentPath !== '/login' && 
+                !currentPath.startsWith('/public/') && !currentPath.startsWith('/auth/')) {
+              // Store the original URL before redirecting
+              localStorage.setItem('auth_redirect_url', currentPath);
+              window.location.href = '/signin';
+            }
+            
+            // Notify listeners that auth state is resolved (no user)
             this.listeners.forEach(listener => listener(null));
           });
       } else {
         // No token found, notify listeners that auth state is resolved (no user)
         this.listeners.forEach(listener => listener(null));
+        
+        // If on a protected page without a token, redirect to login
+        if (currentPath !== '/' && currentPath !== '/signin' && currentPath !== '/login' && 
+            !currentPath.startsWith('/public/') && !currentPath.startsWith('/auth/')) {
+          // Store the original URL before redirecting
+          localStorage.setItem('auth_redirect_url', currentPath);
+          window.location.href = '/signin';
+        }
       }
     } else {
       // Not in browser environment, notify listeners that auth state is resolved (no user)
@@ -127,18 +177,35 @@ class AuthState {
     }
   }
 
-  // Fetch user data from the backend
-  async fetchUserData(token: string): Promise<void> {
+  // Validate session by fetching user profile
+  async validateSession(token: string): Promise<boolean> {
     try {
-      const { data, error, status } = await api.get('api/v1/profile', {
-        token
+      // Make a direct fetch call to the profile endpoint to validate the token
+      const response = await fetch('/api/v1/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       
-      if (error || !data) {
-        throw new Error(error || 'Failed to fetch user data');
+      // If we get a 401 Unauthorized, the token is invalid
+      if (response.status === 401) {
+        console.error('Token expired or invalid (401 Unauthorized)');
+        return false;
       }
       
-      const userData = data;
+      // If we get any other error, consider the token invalid
+      if (!response.ok) {
+        console.error(`Failed to validate token: ${response.statusText}`);
+        return false;
+      }
+      
+      // Token is valid, parse the user data
+      const userData = await response.json();
+      
+      if (!userData) {
+        console.error('No user data returned from profile API');
+        return false;
+      }
       
       // Create a properly typed User object
       const user: User = {
@@ -160,7 +227,24 @@ class AuthState {
         getIdToken: () => Promise.resolve(token)
       };
       
+      // Set the user in the auth state
       this.setUser(user);
+      
+      // Session is valid
+      return true;
+    } catch (error) {
+      console.error('Error validating session:', error);
+      return false;
+    }
+  }
+  
+  // Fetch user data from the backend - kept for backward compatibility
+  async fetchUserData(token: string): Promise<void> {
+    try {
+      const isValid = await this.validateSession(token);
+      if (!isValid) {
+        throw new Error('Failed to fetch user data: Invalid token');
+      }
     } catch (error) {
       console.error('Error fetching user data:', error);
       throw error;

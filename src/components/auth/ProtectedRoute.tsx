@@ -33,17 +33,33 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       if (!user) {
         // Only redirect if not already on the signin page
         if (pathname !== '/' && pathname !== '/signin') {
-          router.push('/');
+          // Store the current path for redirection after login
+          if (typeof window !== 'undefined' && pathname) {
+            localStorage.setItem('auth_redirect_url', pathname);
+          }
+          router.push('/signin');
         }
-      } else if (needsValidation) {
-        // Only redirect if not already on the validation page
-        if (pathname !== '/auth/validate-email') {
-          router.push('/auth/validate-email');
+      } else {
+        // Check if there's a stored redirect URL when user is authenticated
+        if (typeof window !== 'undefined' && !needsValidation && isActive) {
+          const redirectUrl = localStorage.getItem('auth_redirect_url');
+          if (redirectUrl) {
+            localStorage.removeItem('auth_redirect_url');
+            router.push(redirectUrl);
+            return;
+          }
         }
-      } else if (!isActive) {
-        // Only redirect if not already on the activation page
-        if (pathname !== '/auth/activate') {
-          router.push('/auth/activate');
+        
+        if (needsValidation) {
+          // Only redirect if not already on the validation page
+          if (pathname !== '/auth/validate-email') {
+            router.push('/auth/validate-email');
+          }
+        } else if (!isActive) {
+          // Only redirect if not already on the activation page
+          if (pathname !== '/auth/activate') {
+            router.push('/auth/activate');
+          }
         }
       }
     }

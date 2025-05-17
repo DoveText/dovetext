@@ -35,7 +35,7 @@ export default function ProfilePage() {
   // Maximum file size in bytes (2MB)
   const MAX_FILE_SIZE = 2 * 1024 * 1024;
   
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -45,6 +45,7 @@ export default function ProfilePage() {
   
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.photoURL || null);
   const [isUploading, setIsUploading] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(false);
   
   // Timezone state
   const [timezone, setTimezone] = useState<string>('');
@@ -198,6 +199,9 @@ export default function ProfilePage() {
               displayName: displayName
             });
           }
+          
+          // Refresh user data in AuthContext to update the navigation bar
+          await refreshUser();
         }
       } else {
         const errorData = await response.json();
@@ -255,6 +259,7 @@ export default function ProfilePage() {
     
     setShowCropModal(false);
     setIsUploading(true);
+    setAvatarLoading(true); // Set avatar as loading before starting the upload
     
     try {
       // Create a canvas to draw the cropped image
@@ -335,6 +340,9 @@ export default function ProfilePage() {
               avatarUrl: data.avatarUrl
             });
           }
+          
+          // Refresh user data in AuthContext to update the navigation bar
+          await refreshUser();
         }
       } else {
         const errorData = await response.json();
@@ -347,6 +355,10 @@ export default function ProfilePage() {
       setIsUploading(false);
       setImgSrc('');
       setSelectedFile(null);
+      // Add a small delay before setting avatar loading to false to ensure the new image is loaded
+      setTimeout(() => {
+        setAvatarLoading(false);
+      }, 500);
     }
   };
 
@@ -421,19 +433,25 @@ export default function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Photo</label>
                 <div className="mt-2 flex items-center space-x-5">
-                  <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-100">
-                    <Image
-                      src={apiConfig.getPublicAssetsUrl(avatarUrl || user.photoURL) || `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`}
-                      alt="Profile"
-                      width={64}
-                      height={64}
-                      priority
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        img.src = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`;
-                      }}
-                    />
+                  <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-100 relative">
+                    {avatarLoading ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    ) : (
+                      <Image
+                        src={apiConfig.getPublicAssetsUrl(avatarUrl || user.photoURL) || `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`}
+                        alt="Profile"
+                        width={64}
+                        height={64}
+                        priority
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement;
+                          img.src = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`;
+                        }}
+                      />
+                    )}
                   </div>
                   <input
                     type="file"
