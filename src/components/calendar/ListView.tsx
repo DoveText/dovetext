@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { ScheduleEvent } from './Calendar';
 import { format, isToday, isTomorrow, isThisWeek, isThisMonth } from 'date-fns';
-import { MagnifyingGlassIcon, FunnelIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, XMarkIcon, CalendarDaysIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 interface ListViewProps {
   events: ScheduleEvent[];
@@ -17,7 +17,6 @@ type FilterType = 'all' | 'event' | 'reminder' | 'all-day';
 export default function ListView({ events, date, viewType, onEventClick }: ListViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('all');
-  const [showFilters, setShowFilters] = useState(false);
 
   // Filter events based on the current view (day, week, month)
   const filteredEvents = useMemo(() => {
@@ -78,72 +77,77 @@ export default function ListView({ events, date, viewType, onEventClick }: ListV
     <div className="h-full flex flex-col overflow-hidden">
       {/* Search and Filter Bar */}
       <div className="p-4 border-b">
-        <div className="flex items-center">
-          <div className="relative flex-1">
+        <div className="flex items-center space-x-2">
+          {/* Search Box */}
+          <div className="relative w-1/2">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
             </div>
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search events..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="block w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                className="absolute inset-y-0 right-0 pr-2 flex items-center"
               >
-                <XMarkIcon className="h-5 w-5 text-gray-400" />
+                <XMarkIcon className="h-4 w-4 text-gray-400" />
               </button>
             )}
           </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`ml-2 p-2 rounded-md ${showFilters ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-          >
-            <FunnelIcon className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Filter Options */}
-        {showFilters && (
-          <div className="mt-2 flex space-x-2">
+          
+          {/* Filter Buttons */}
+          <div className="flex space-x-1 flex-1 justify-end">
             <button
               onClick={() => setFilterType('all')}
-              className={`px-3 py-1 text-sm rounded-md ${filterType === 'all' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              className={`px-2.5 py-1 text-xs rounded-md ${filterType === 'all' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
               All Types
             </button>
             <button
               onClick={() => setFilterType('event')}
-              className={`px-3 py-1 text-sm rounded-md ${filterType === 'event' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              className={`px-2.5 py-1 text-xs rounded-md ${filterType === 'event' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
               Events
             </button>
             <button
               onClick={() => setFilterType('reminder')}
-              className={`px-3 py-1 text-sm rounded-md ${filterType === 'reminder' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              className={`px-2.5 py-1 text-xs rounded-md ${filterType === 'reminder' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
               Reminders
             </button>
             <button
               onClick={() => setFilterType('all-day')}
-              className={`px-3 py-1 text-sm rounded-md ${filterType === 'all-day' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              className={`px-2.5 py-1 text-xs rounded-md ${filterType === 'all-day' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
               All-Day
             </button>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Events List */}
       <div className="flex-1 overflow-auto">
         {sortedEvents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <p>No events found</p>
-            <p className="text-sm mt-1">Try adjusting your filters</p>
+          <div className="flex flex-col items-center justify-center h-full py-12">
+            <div className="bg-gray-100 rounded-full p-4 mb-4">
+              <CalendarDaysIcon className="h-10 w-10 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900">No events found</h3>
+            <p className="text-sm text-gray-500 mt-1">Try adjusting your search or filters</p>
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setFilterType('all');
+              }}
+              className="mt-4 text-sm text-blue-600 hover:text-blue-800"
+            >
+              Clear all filters
+            </button>
           </div>
         ) : (
           <ul className="divide-y divide-gray-200">
@@ -153,11 +157,14 @@ export default function ListView({ events, date, viewType, onEventClick }: ListV
                 onClick={() => onEventClick?.(event)}
                 className="hover:bg-gray-50 cursor-pointer"
               >
-                <div className="px-4 py-4 sm:px-6">
+                <div className="px-4 py-3 sm:px-6">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center">
+                    <div className="flex items-center max-w-[70%]">
                       <div
-                        className={`w-3 h-3 rounded-full mr-3 ${event.type === 'event' ? 'bg-blue-500' : event.type === 'reminder' ? 'bg-yellow-500' : 'bg-green-500'}`}
+                        className={`w-3 h-3 rounded-full mr-3 flex-shrink-0 ${
+                          event.type === 'event' ? 'bg-blue-500' : 
+                          event.type === 'reminder' ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}
                       />
                       <p className="text-sm font-medium text-blue-600 truncate">{event.title}</p>
                     </div>
@@ -167,20 +174,23 @@ export default function ListView({ events, date, viewType, onEventClick }: ListV
                       </p>
                     </div>
                   </div>
-                  <div className="mt-2 sm:flex sm:justify-between">
-                    <div className="sm:flex">
+                  <div className="mt-2 sm:flex sm:justify-between text-xs">
+                    <div className="sm:flex items-center">
                       {event.location && (
-                        <p className="flex items-center text-sm text-gray-500">
+                        <p className="flex items-center text-gray-500">
+                          <MapPinIcon className="h-3 w-3 mr-1 text-gray-400" />
                           <span>{event.location}</span>
                         </p>
                       )}
                     </div>
-                    <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                    <div className="mt-2 flex items-center text-gray-500 sm:mt-0">
+                      <ClockIcon className="h-3 w-3 mr-1 text-gray-400" />
                       <p>
                         {getRelativeDateDisplay(event.start)}{' '}
                         {!event.isAllDay && (
                           <span>
-                            {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
+                            {format(event.start, 'h:mm a')}
+                            {event.type !== 'reminder' && ` - ${format(event.end, 'h:mm a')}`}
                           </span>
                         )}
                       </p>
