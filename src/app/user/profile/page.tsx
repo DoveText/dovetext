@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { apiConfig } from '@/config/api';
+import TimezoneSelector from '@/components/common/TimezoneSelector';
 
 // This function centers and creates an aspect crop
 function centerAspectCrop(
@@ -45,6 +46,10 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.photoURL || null);
   const [isUploading, setIsUploading] = useState(false);
   
+  // Timezone state
+  const [timezone, setTimezone] = useState<string>('');
+  const [isSavingTimezone, setIsSavingTimezone] = useState(false);
+  
   // Image cropping state
   const [showCropModal, setShowCropModal] = useState(false);
   const [imgSrc, setImgSrc] = useState('');
@@ -68,6 +73,25 @@ export default function ProfilePage() {
         if (response.ok) {
           const data = await response.json();
           setProfileData(data);
+          
+          // Fetch user settings to get timezone
+          const settingsResponse = await fetch('/api/v1/profile/settings', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (settingsResponse.ok) {
+            const settings = await settingsResponse.json();
+            // Set timezone from settings or use browser timezone as fallback
+            if (settings && settings.timezone) {
+              setTimezone(settings.timezone);
+            } else {
+              // Use browser timezone as default
+              const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+              setTimezone(browserTimezone);
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching profile data:', error);
@@ -78,6 +102,57 @@ export default function ProfilePage() {
       fetchProfileData();
     }
   }, [user]);
+  
+  // Save timezone setting
+  const handleSaveTimezone = async (newTimezone: string) => {
+    if (!user || isSavingTimezone) return;
+    
+    setIsSavingTimezone(true);
+    try {
+      const token = await user.getIdToken();
+      
+      // Get current settings first
+      const settingsResponse = await fetch('/api/v1/profile/settings', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      let currentSettings = {};
+      if (settingsResponse.ok) {
+        currentSettings = await settingsResponse.json() || {};
+      }
+      
+      // Update settings with new timezone
+      const updatedSettings = {
+        ...currentSettings,
+        timezone: newTimezone
+      };
+      
+      // Save updated settings
+      const response = await fetch('/api/v1/profile/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updatedSettings)
+      });
+      
+      if (response.ok) {
+        setTimezone(newTimezone);
+        toast.success('Timezone updated successfully');
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to update timezone');
+      }
+    } catch (error) {
+      console.error('Error updating timezone:', error);
+      toast.error('An error occurred while updating your timezone');
+    } finally {
+      setIsSavingTimezone(false);
+    }
+  };
 
   const handleCancel = () => {
     // Reset to original display name and exit edit mode
@@ -428,6 +503,30 @@ export default function ProfilePage() {
                   <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     Verified
                   </span>
+                </div>
+              </div>
+
+              {/* Timezone Setting */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Timezone
+                </label>
+                <div className="mt-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-1">
+                      <TimezoneSelector
+                        value={timezone}
+                        onChange={handleSaveTimezone}
+                        className="w-full"
+                      />
+                    </div>
+                    {isSavingTimezone && (
+                      <span className="text-sm text-gray-500">Saving...</span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    This timezone will be used for all dates and times across the application.
+                  </p>
                 </div>
               </div>
 

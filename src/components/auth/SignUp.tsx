@@ -41,6 +41,9 @@ export default function SignUp() {
 
   const completeSignup = async (email: string, firebaseUid: string, password: string | null, provider: 'email' | 'google') => {
     try {
+      // Get browser timezone
+      const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      
       const response = await fetch('/public/auth/signup', {
         method: 'POST',
         headers: {
@@ -50,7 +53,8 @@ export default function SignUp() {
           email,
           firebaseUid,
           password,
-          provider
+          provider,
+          timezone: browserTimezone // Send browser timezone to backend
         })
       });
 
