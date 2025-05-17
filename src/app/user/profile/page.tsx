@@ -2,13 +2,17 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import Image from 'next/image';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { toast } from 'react-hot-toast';
-import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
+import { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
-import { apiConfig } from '@/config/api';
-import TimezoneSelector from '@/components/common/TimezoneSelector';
+import {
+  ProfileSection,
+  PersonalInfoSection,
+  PasswordSection,
+  TimezoneSection,
+  ImageCropModal
+} from './components';
 
 // This function centers and creates an aspect crop
 function centerAspectCrop(
@@ -36,13 +40,15 @@ export default function ProfilePage() {
   const MAX_FILE_SIZE = 2 * 1024 * 1024;
   
   const { user, refreshUser } = useAuth();
+  const [profileData, setProfileData] = useState<any>(null);
+  
+  // Basic profile state
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [isSaving, setIsSaving] = useState(false);
-  const [profileData, setProfileData] = useState<any>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  // We'll use the apiConfig.getPublicAssetsUrl utility function instead of a local one
   
+  // Avatar state
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.photoURL || null);
   const [isUploading, setIsUploading] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
@@ -50,6 +56,18 @@ export default function ProfilePage() {
   // Timezone state
   const [timezone, setTimezone] = useState<string>('');
   const [isSavingTimezone, setIsSavingTimezone] = useState(false);
+  
+  // Password change state
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordErrors, setPasswordErrors] = useState<{
+    currentPassword?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  }>({});
   
   // Image cropping state
   const [showCropModal, setShowCropModal] = useState(false);
@@ -59,6 +77,130 @@ export default function ProfilePage() {
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const aspect = 1; // Square crop for profile picture
+  
+  // Password validation functions
+  const validatePasswordStrength = (password: string): boolean => {
+    // Password must be at least 8 characters long
+    if (password.length < 8) {
+      setPasswordErrors(prev => ({ ...prev, newPassword: 'Password must be at least 8 characters long' }));
+      return false;
+    }
+    
+    // Password must contain at least one uppercase letter
+    if (!/[A-Z]/.test(password)) {
+      setPasswordErrors(prev => ({ ...prev, newPassword: 'Password must contain at least one uppercase letter' }));
+      return false;
+    }
+    
+    // Password must contain at least one lowercase letter
+    if (!/[a-z]/.test(password)) {
+      setPasswordErrors(prev => ({ ...prev, newPassword: 'Password must contain at least one lowercase letter' }));
+      return false;
+    }
+    
+    // Password must contain at least one number
+    if (!/\d/.test(password)) {
+      setPasswordErrors(prev => ({ ...prev, newPassword: 'Password must contain at least one number' }));
+      return false;
+    }
+    
+    // Password must contain at least one special character
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      setPasswordErrors(prev => ({ ...prev, newPassword: 'Password must contain at least one special character' }));
+      return false;
+    }
+    
+    return true;
+  };
+  
+  const validatePasswordMatch = (): boolean => {
+    if (newPassword !== confirmPassword) {
+      setPasswordErrors(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }));
+      return false;
+    }
+    return true;
+  };
+  
+  const validateNewPasswordDifferent = (): boolean => {
+    if (currentPassword === newPassword) {
+      setPasswordErrors(prev => ({ ...prev, newPassword: 'New password must be different from current password' }));
+      return false;
+    }
+    return true;
+  };
+  
+  // Handle password change
+  const handleChangePassword = async () => {
+    // Reset previous errors
+    setPasswordErrors({});
+    
+    // Validate all fields are filled
+    if (!currentPassword) {
+      setPasswordErrors(prev => ({ ...prev, currentPassword: 'Current password is required' }));
+      return;
+    }
+    
+    if (!newPassword) {
+      setPasswordErrors(prev => ({ ...prev, newPassword: 'New password is required' }));
+      return;
+    }
+    
+    if (!confirmPassword) {
+      setPasswordErrors(prev => ({ ...prev, confirmPassword: 'Please confirm your new password' }));
+      return;
+    }
+    
+    // Validate password strength, match, and difference
+    const isStrong = validatePasswordStrength(newPassword);
+    const isMatching = validatePasswordMatch();
+    const isDifferent = validateNewPasswordDifferent();
+    
+    if (!isStrong || !isMatching || !isDifferent) {
+      return;
+    }
+    
+    setIsChangingPassword(true);
+    
+    try {
+      const token = await user?.getIdToken();
+      
+      // Call the API to change the password
+      const response = await fetch('/api/v1/profile/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword
+        })
+      });
+      
+      if (response.ok) {
+        toast.success('Password changed successfully');
+        // Reset form
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setShowPasswordSection(false);
+      } else {
+        const errorData = await response.json();
+        
+        // Handle specific error cases
+        if (errorData.code === 'auth/wrong-password') {
+          setPasswordErrors(prev => ({ ...prev, currentPassword: 'Current password is incorrect' }));
+        } else {
+          toast.error(errorData.message || 'Failed to change password');
+        }
+      }
+    } catch (error) {
+      console.error('Error changing password:', error);
+      toast.error('An error occurred while changing your password');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   // Fetch profile data on component mount
   useEffect(() => {
@@ -368,208 +510,78 @@ export default function ProfilePage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
-        {/* Image Crop Modal */}
-        {showCropModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Crop Your Profile Picture</h3>
-              <div className="mb-4">
-                {imgSrc && (
-                  <ReactCrop
-                    crop={crop}
-                    onChange={(_, percentCrop) => setCrop(percentCrop)}
-                    onComplete={(c) => setCompletedCrop(c)}
-                    aspect={aspect}
-                    circularCrop
-                  >
-                    <img
-                      ref={imgRef}
-                      alt="Crop me"
-                      src={imgSrc}
-                      onLoad={onImageLoad}
-                      className="max-h-[400px] max-w-full"
-                    />
-                  </ReactCrop>
-                )}
-              </div>
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={handleCropCancel}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCropComplete}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700"
-                  disabled={!completedCrop}
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
+            <p className="text-gray-600 mt-1">Manage your account settings and preferences</p>
           </div>
-        )}
-        
-        {/* Main Content */}
-        <div className="py-8">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="bg-white shadow rounded-lg">
-              {/* Header */}
-              <div className="px-4 py-5 sm:px-6">
-                <h3 className="text-lg font-medium leading-6 text-gray-900">Profile</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Manage your profile information
-                </p>
-              </div>
-              
-              {/* Profile Content */}
-              <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-                <div className="space-y-6">
-              {/* Profile Picture */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Photo</label>
-                <div className="mt-2 flex items-center space-x-5">
-                  <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-100 relative">
-                    {avatarLoading ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    ) : (
-                      <Image
-                        src={apiConfig.getPublicAssetsUrl(avatarUrl || user.photoURL) || `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`}
-                        alt="Profile"
-                        width={64}
-                        height={64}
-                        priority
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          const img = e.target as HTMLImageElement;
-                          img.src = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/default-avatar.png`;
-                        }}
-                      />
-                    )}
-                  </div>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handlePhotoChange}
-                  />
-                  <button
-                    type="button"
-                    onClick={handlePhotoClick}
-                    disabled={isUploading}
-                    className="bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isUploading ? 'Uploading...' : 'Change'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Display Name */}
-              <div>
-                <label htmlFor="displayName" className="block text-sm font-medium text-gray-700">
-                  Display Name
-                </label>
-                <div className="mt-2 flex items-center">
-                  {isEditing ? (
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        id="displayName"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md px-3 py-2"
-                        placeholder="Enter your display name"
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        onClick={handleCancel}
-                        className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-gray-900">{user.displayName || 'No display name set'}</span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-                    disabled={isSaving}
-                    className="ml-3 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    {isEditing ? (isSaving ? 'Saving...' : 'Save') : 'Edit'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Email
-                </label>
-                <div className="mt-2 flex items-center">
-                  <span className="text-gray-900">{user.email}</span>
-                  <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    Verified
-                  </span>
-                </div>
-              </div>
-
-              {/* Timezone Setting */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Timezone
-                </label>
-                <div className="mt-2">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-1">
-                      <TimezoneSelector
-                        value={timezone}
-                        onChange={handleSaveTimezone}
-                        className="w-full"
-                      />
-                    </div>
-                    {isSavingTimezone && (
-                      <span className="text-sm text-gray-500">Saving...</span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    This timezone will be used for all dates and times across the application.
-                  </p>
-                </div>
-              </div>
-
-              {/* Account Info */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-700">Account Information</h4>
-                <dl className="mt-2 divide-y divide-gray-200">
-                  <div className="py-3 flex justify-between text-sm">
-                    <dt className="text-gray-500">Member since</dt>
-                    <dd className="text-gray-900">
-                      {profileData?.createdAt ? new Date(profileData.createdAt).toLocaleString() : 'N/A'}
-                    </dd>
-                  </div>
-                  <div className="py-3 flex justify-between text-sm">
-                    <dt className="text-gray-500">Last sign in</dt>
-                    <dd className="text-gray-900">
-                      {profileData?.lastLoginAt ? new Date(profileData.lastLoginAt).toLocaleString() : 'N/A'}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          
+          {/* Personal Information Section */}
+          <ProfileSection title="Personal Information" description="Your basic profile information">
+            <PersonalInfoSection 
+              user={user}
+              profileData={profileData}
+              displayName={displayName}
+              setDisplayName={setDisplayName}
+              isEditing={isEditing}
+              setIsEditing={setIsEditing}
+              isSaving={isSaving}
+              avatarLoading={avatarLoading}
+              avatarUrl={avatarUrl}
+              isUploading={isUploading}
+              fileInputRef={fileInputRef}
+              handlePhotoClick={handlePhotoClick}
+              handlePhotoChange={handlePhotoChange}
+              handleSave={handleSave}
+              handleCancel={handleCancel}
+              handleKeyDown={handleKeyDown}
+            />
+          </ProfileSection>
+          
+          {/* Password Section */}
+          <ProfileSection title="Password" description="Update your password">
+            <PasswordSection 
+              showPasswordSection={showPasswordSection}
+              setShowPasswordSection={setShowPasswordSection}
+              currentPassword={currentPassword}
+              setCurrentPassword={setCurrentPassword}
+              newPassword={newPassword}
+              setNewPassword={setNewPassword}
+              confirmPassword={confirmPassword}
+              setConfirmPassword={setConfirmPassword}
+              passwordErrors={passwordErrors}
+              setPasswordErrors={setPasswordErrors}
+              isChangingPassword={isChangingPassword}
+              handleChangePassword={handleChangePassword}
+            />
+          </ProfileSection>
+          
+          {/* Timezone Section */}
+          <ProfileSection title="Timezone" description="Set your preferred timezone">
+            <TimezoneSection 
+              timezone={timezone}
+              isSavingTimezone={isSavingTimezone}
+              handleSaveTimezone={handleSaveTimezone}
+            />
+          </ProfileSection>
+          
+          {/* Account Information has been merged into Personal Information section */}
+          
+          {/* Image Crop Modal */}
+          <ImageCropModal 
+            showCropModal={showCropModal}
+            imgSrc={imgSrc}
+            imgRef={imgRef}
+            crop={crop || { unit: '%', width: 90, height: 90, x: 5, y: 5 }}
+            setCrop={setCrop}
+            completedCrop={completedCrop || null}
+            setCompletedCrop={setCompletedCrop}
+            aspect={aspect}
+            onImageLoad={onImageLoad}
+            handleCropCancel={handleCropCancel}
+            handleCropComplete={handleCropComplete}
+          />
         </div>
       </div>
     </ProtectedRoute>
