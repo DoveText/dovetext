@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import DayView from './DayView';
 import WeekView from './WeekView';
 import MonthView from './MonthView';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import ListView from './ListView';
+import { ChevronLeftIcon, ChevronRightIcon, ListBulletIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
 export type CalendarViewType = 'day' | 'week' | 'month';
+export type DisplayMode = 'calendar' | 'list';
 
 export interface ScheduleEvent {
   id: string;
@@ -31,6 +33,7 @@ interface CalendarProps {
 export default function Calendar({ events, onEventClick, onDateClick, onAddEvent, onEventDrop }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>('week');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('calendar');
   const today = new Date();
 
   // Format date for display in header
@@ -152,43 +155,71 @@ export default function Calendar({ events, onEventClick, onDateClick, onAddEvent
           >
             Month
           </button>
+          <div className="border-l mx-2 h-6"></div>
+          <div className="flex rounded-md overflow-hidden border border-gray-200">
+            <button 
+              onClick={() => setDisplayMode('calendar')}
+              className={`px-3 py-1 text-sm flex items-center ${displayMode === 'calendar' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              <CalendarIcon className="h-4 w-4 mr-1" />
+              Calendar
+            </button>
+            <button 
+              onClick={() => setDisplayMode('list')}
+              className={`px-3 py-1 text-sm flex items-center ${displayMode === 'list' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              <ListBulletIcon className="h-4 w-4 mr-1" />
+              List
+            </button>
+          </div>
         </div>
       </div>
       
       {/* Calendar Content */}
       <div className="flex-1 overflow-auto">
-        {view === 'day' && (
-          <DayView 
-            date={currentDate} 
-            events={events} 
+        {displayMode === 'calendar' ? (
+          <>
+            {view === 'day' && (
+              <DayView 
+                date={currentDate} 
+                events={events} 
+                onEventClick={onEventClick}
+                onAddEvent={onAddEvent}
+                currentTime={today}
+                onEventDrop={onEventDrop}
+              />
+            )}
+            {view === 'week' && (
+              <WeekView 
+                date={currentDate} 
+                events={events} 
+                onEventClick={onEventClick}
+                onDateClick={onDateClick}
+                onAddEvent={onAddEvent}
+                currentTime={today}
+                onEventDrop={onEventDrop}
+                onViewChange={handleViewChange}
+              />
+            )}
+            {view === 'month' && (
+              <MonthView 
+                date={currentDate} 
+                events={events} 
+                onEventClick={onEventClick}
+                onDateClick={onDateClick}
+                onAddEvent={onAddEvent}
+                currentTime={today}
+                onEventDrop={onEventDrop}
+                onViewChange={handleViewChange}
+              />
+            )}
+          </>
+        ) : (
+          <ListView
+            date={currentDate}
+            events={events}
+            viewType={view}
             onEventClick={onEventClick}
-            onAddEvent={onAddEvent}
-            currentTime={today}
-            onEventDrop={onEventDrop}
-          />
-        )}
-        {view === 'week' && (
-          <WeekView 
-            date={currentDate} 
-            events={events} 
-            onEventClick={onEventClick}
-            onDateClick={onDateClick}
-            onAddEvent={onAddEvent}
-            currentTime={today}
-            onEventDrop={onEventDrop}
-            onViewChange={handleViewChange}
-          />
-        )}
-        {view === 'month' && (
-          <MonthView 
-            date={currentDate} 
-            events={events} 
-            onEventClick={onEventClick}
-            onDateClick={onDateClick}
-            onAddEvent={onAddEvent}
-            currentTime={today}
-            onEventDrop={onEventDrop}
-            onViewChange={handleViewChange}
           />
         )}
       </div>
