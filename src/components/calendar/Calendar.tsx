@@ -21,6 +21,12 @@ export interface ScheduleEvent {
   description?: string;
   color?: string;
   isRecurring?: boolean;
+  // Properties added for calendar display
+  width?: number;
+  left?: number;
+  column?: number;
+  maxColumns?: number;
+  inFirstQuarter?: boolean;
   recurrenceRule?: {
     type: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
     interval: number;
