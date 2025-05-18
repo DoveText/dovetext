@@ -5,6 +5,7 @@ import { ScheduleEvent } from './Calendar';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { createPortal } from 'react-dom';
 import Tooltip from '../common/Tooltip';
+import RecurrenceIndicator from './RecurrenceIndicator';
 
 interface WeekViewProps {
   date: Date;
@@ -501,6 +502,71 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
     }
   };
   
+  // Generate human-readable description of recurrence pattern
+  const getRecurrenceDescription = (recurrenceRule: any): string => {
+    const { type, interval, pattern, count, until } = recurrenceRule;
+    
+    let description = '';
+    
+    // Frequency description
+    switch (type) {
+      case 'DAILY':
+        description = interval === 1 ? 'Daily' : `Every ${interval} days`;
+        break;
+      case 'WEEKLY':
+        if (interval === 1) {
+          if (pattern?.daysOfWeek && pattern.daysOfWeek.length > 0) {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const selectedDays = pattern.daysOfWeek.map((day: number) => days[day]).join(', ');
+            description = `Weekly on ${selectedDays}`;
+          } else {
+            description = 'Weekly';
+          }
+        } else {
+          description = `Every ${interval} weeks`;
+        }
+        break;
+      case 'MONTHLY':
+        if (pattern?.dayOfMonth) {
+          description = interval === 1 
+            ? `Monthly on day ${pattern.dayOfMonth}` 
+            : `Every ${interval} months on day ${pattern.dayOfMonth}`;
+        } else if (pattern?.dayOfWeek !== undefined && pattern?.weekOfMonth !== undefined) {
+          const weeks = ['first', 'second', 'third', 'fourth', 'last'];
+          const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          description = interval === 1 
+            ? `Monthly on the ${weeks[pattern.weekOfMonth - 1]} ${days[pattern.dayOfWeek]}` 
+            : `Every ${interval} months on the ${weeks[pattern.weekOfMonth - 1]} ${days[pattern.dayOfWeek]}`;
+        } else {
+          description = interval === 1 ? 'Monthly' : `Every ${interval} months`;
+        }
+        break;
+      case 'YEARLY':
+        const months = [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        if (pattern?.month !== undefined && pattern?.day !== undefined) {
+          description = interval === 1 
+            ? `Yearly on ${months[pattern.month]} ${pattern.day}` 
+            : `Every ${interval} years on ${months[pattern.month]} ${pattern.day}`;
+        } else {
+          description = interval === 1 ? 'Yearly' : `Every ${interval} years`;
+        }
+        break;
+    }
+    
+    // End description
+    if (count) {
+      description += `, ${count} times`;
+    } else if (until) {
+      const untilDate = new Date(until);
+      description += `, until ${untilDate.toLocaleDateString()}`;
+    }
+    
+    return description;
+  };
+  
   // Get border color based on event type
   const getEventBorderColor = (type: string, isAllDay: boolean = false) => {
     if (isAllDay) {
@@ -660,6 +726,11 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                               <div className="font-medium">{event.title}</div>
                               {event.description && <div className="mt-1">{event.description}</div>}
                               <div className="mt-1 text-gray-300">All day: {formatEventDate(event.start)}</div>
+                              {event.isRecurring && event.recurrenceRule && (
+                                <div className="mt-1 text-blue-300">
+                                  {getRecurrenceDescription(event.recurrenceRule)}
+                                </div>
+                              )}
                             </>,
                             e
                           );
@@ -671,10 +742,12 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                           }
                         }}
                       >
-                        <div className="flex items-center">
-                          <span className="mr-1 text-green-500 flex-shrink-0 text-xs">📆</span>
-                          <span className="truncate">{event.title}</span>
-                        </div>
+                        <RecurrenceIndicator event={event}>
+                          <div className="flex items-center">
+                            <span className="mr-1 text-green-500 flex-shrink-0 text-xs">📆</span>
+                            <span className="truncate">{event.title}</span>
+                          </div>
+                        </RecurrenceIndicator>
                       </div>
                     ))}
                   </div>
@@ -1038,6 +1111,11 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                                 <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
                                 {event.description && <div className="mt-1">{event.description}</div>}
                                 {event.location && <div className="mt-1">{event.location}</div>}
+                                {event.isRecurring && event.recurrenceRule && (
+                                  <div className="mt-1 text-blue-300">
+                                    {getRecurrenceDescription(event.recurrenceRule)}
+                                  </div>
+                                )}
                               </>,
                               e
                             );
@@ -1049,23 +1127,25 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                             }
                           }}
                         >
-                          {/* Icon */}
-                          {event.type === 'reminder' ? 
-                            <span className="text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
-                            event.isAllDay ?
-                            <span className="text-green-500 flex-shrink-0 text-xs">📆</span> :
-                            <span className="text-blue-500 flex-shrink-0 text-xs">📅</span>
-                          }
-                          
-                          {/* Title with ellipsis */}
-                          <div className="font-medium text-xs truncate ml-1">{event.title}</div>
-                          
-                          {/* Show time if there's only one event in this slot */}
-                          {event.maxColumns === 1 && (
-                            <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
-                              {formatEventTime(event.start)}
-                            </div>
-                          )}
+                          <RecurrenceIndicator event={event}>
+                            {/* Icon */}
+                            {event.type === 'reminder' ? 
+                              <span className="text-amber-500 flex-shrink-0 text-xs">⏰</span> : 
+                              event.isAllDay ?
+                              <span className="text-green-500 flex-shrink-0 text-xs">📆</span> :
+                              <span className="text-blue-500 flex-shrink-0 text-xs">📅</span>
+                            }
+                            
+                            {/* Title with ellipsis */}
+                            <div className="font-medium text-xs truncate ml-1">{event.title}</div>
+                            
+                            {/* Show time if there's only one event in this slot */}
+                            {event.maxColumns === 1 && (
+                              <div className="text-xs text-gray-600 ml-1 flex-shrink-0">
+                                {formatEventTime(event.start)}
+                              </div>
+                            )}
+                          </RecurrenceIndicator>
                         </div>
                       </div>
                     </div>

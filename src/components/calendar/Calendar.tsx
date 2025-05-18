@@ -20,6 +20,21 @@ export interface ScheduleEvent {
   location?: string;
   description?: string;
   color?: string;
+  isRecurring?: boolean;
+  recurrenceRule?: {
+    type: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+    interval: number;
+    pattern?: {
+      daysOfWeek?: number[];  // For weekly (0-6, where 0 is Sunday)
+      dayOfMonth?: number;    // For monthly (1-31)
+      dayOfWeek?: number;     // For monthly (0-6)
+      weekOfMonth?: number;   // For monthly (1-5, where 5 means "last")
+      month?: number;         // For yearly (0-11)
+      day?: number;           // For yearly (1-31)
+    };
+    count?: number;
+    until?: Date | null;
+  };
 }
 
 interface CalendarProps {

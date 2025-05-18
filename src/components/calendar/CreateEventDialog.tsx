@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CalendarIcon, MapPinIcon, DocumentTextIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { ScheduleEvent } from './Calendar';
+import RecurrenceSettings, { RecurrenceRule } from './RecurrenceSettings';
+import FormField from '../common/form/FormField';
+import FormInput from '../common/form/FormInput';
+import FormTextArea from '../common/form/FormTextArea';
 
 interface CreateEventDialogProps {
   isOpen: boolean;
@@ -23,6 +27,28 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
   const [description, setDescription] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
+  const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule | null>(null);
+  
+  // Tab state for the dialog
+  const [activeTab, setActiveTab] = useState<'details' | 'recurrence'>('details');
+  
+  // Form validation state
+  const [formErrors, setFormErrors] = useState<{
+    title?: string;
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+  }>({});
+  
+  // Check if a tab has errors
+  const hasTabErrors = (tab: 'details' | 'location' | 'description' | 'recurrence'): boolean => {
+    switch (tab) {
+      case 'details':
+        return !!formErrors.date || !!formErrors.startTime || !!formErrors.endTime;
+      default:
+        return false;
+    }
+  };
 
   // Update form when initialDate changes (for new events)
   useEffect(() => {
@@ -53,6 +79,48 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form
+    const errors: {[key: string]: string} = {};
+    
+    if (!title.trim()) {
+      errors.title = 'Title is required';
+    }
+    
+    if (!date) {
+      errors.date = 'Date is required';
+    }
+    
+    if (!isAllDay) {
+      if (!startTime) {
+        errors.startTime = 'Start time is required';
+      }
+      
+      if (!endTime && eventType !== 'reminder') {
+        errors.endTime = 'End time is required';
+      }
+      
+      // Validate that end time is after start time
+      if (startTime && endTime && eventType !== 'reminder') {
+        const [startHours, startMinutes] = startTime.split(':').map(Number);
+        const [endHours, endMinutes] = endTime.split(':').map(Number);
+        
+        if (endHours < startHours || (endHours === startHours && endMinutes <= startMinutes)) {
+          errors.endTime = 'End time must be after start time';
+        }
+      }
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      
+      // Switch to the tab with errors
+      if (errors.date || errors.startTime || errors.endTime) {
+        setActiveTab('details');
+      }
+      
+      return;
+    }
     
     // Create start and end date objects
     const startDate = new Date(date);
@@ -86,7 +154,9 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
       isAllDay,
       type: eventType,
       location,
-      description
+      description,
+      isRecurring: !!recurrenceRule,
+      recurrenceRule: recurrenceRule || undefined
     };
     
     onSave(eventData);
@@ -105,16 +175,25 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
     setIsAllDay(false);
     setIsEditing(false);
     setEventId(null);
+    setRecurrenceRule(null);
+    setFormErrors({});
+    setActiveTab('details');
   };
   
   // Handle event type change
-  useEffect(() => {
+  const handleEventTypeChange = (type: 'event' | 'reminder') => {
+    setEventType(type);
+    
     // When switching to reminder type, clear location
-    if (eventType !== 'event') {
+    if (type === 'reminder') {
       setLocation('');
+      // Also switch to details tab if we're on recurrence tab
+      if (activeTab === 'recurrence') {
+        setActiveTab('details');
+      }
     }
-  }, [eventType]);
-
+  };
+  
   // Load event data when initialEvent changes
   useEffect(() => {
     if (initialEvent && isOpen) {
@@ -124,7 +203,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
       setIsEditing(!!initialEvent.id && initialEvent.id !== '');
       setEventId(initialEvent.id);
       setTitle(initialEvent.title);
-      setEventType(initialEvent.type);
+      setEventType(initialEvent.type as 'event' | 'reminder');
       setDate(formatDateForInput(initialEvent.start));
       
       if (!initialEvent.isAllDay) {
@@ -138,175 +217,274 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
       setIsAllDay(initialEvent.isAllDay);
       
       // Only set location for ordinary events
-      if (initialEvent.type !== 'event') {
+      if (initialEvent.type === 'event') {
         setLocation(initialEvent.location || '');
       } else {
         setLocation('');
       }
       
       setDescription(initialEvent.description || '');
+      
+      // Set recurrence rule if present
+      if (initialEvent.recurrenceRule) {
+        setRecurrenceRule(initialEvent.recurrenceRule);
+      } else {
+        setRecurrenceRule(null);
+      }
     } else if (!initialEvent && isOpen) {
       // Reset form when opening for a new event
       resetForm();
     }
   }, [initialEvent, isOpen]);
-
+  
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">
-            {eventType === 'reminder' 
-              ? (isEditing ? 'Edit Reminder' : 'Create New Reminder')
-              : (isEditing ? 'Edit Event' : 'Create New Event')
-            }
-          </h2>
-          <button 
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-            aria-label="Close"
-          >
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
+      
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-xl mx-4 z-10 overflow-hidden">
+        {/* Dialog Header */}
+        <div className="bg-blue-600 text-white px-4 py-3 flex justify-between items-center">
+          <h2 className="text-xl font-semibold">{isEditing ? 'Edit Event' : 'Create Event'}</h2>
+          <button onClick={onClose} className="text-white hover:text-gray-200">
             <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Event Type Selection and All Day checkbox */}
-          <div className="flex justify-between items-center">
-            <div className="flex space-x-4">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="eventType"
-                  checked={eventType === 'event'}
-                  onChange={() => setEventType('event')}
-                  className="mr-2"
-                />
-                <span className="text-sm font-medium text-gray-700">Event</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="eventType"
-                  checked={eventType === 'reminder'}
-                  onChange={() => setEventType('reminder')}
-                  className="mr-2"
-                />
-                <span className="text-sm font-medium text-gray-700">Reminder</span>
-              </label>
-            </div>
+        {/* Dialog Content */}
+        <form onSubmit={handleSubmit}>
+          {/* Title Field and Event Type Selection - Always visible at the top */}
+          <div className="p-4 pb-2">
+            <FormField label="Title" htmlFor="event-title" error={formErrors.title}>
+              <FormInput
+                id="event-title"
+                type="text"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (formErrors.title) {
+                    setFormErrors({...formErrors, title: undefined});
+                  }
+                }}
+                placeholder="Add title"
+                required
+                error={formErrors.title}
+              />
+            </FormField>
             
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="all-day-checkbox"
-                checked={isAllDay}
-                onChange={() => setIsAllDay(!isAllDay)}
-                className="mr-2"
-              />
-              <label htmlFor="all-day-checkbox" className="text-sm font-medium text-gray-700">All Day</label>
-            </div>
-          </div>
-          
-          {/* Event/Reminder Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              {eventType === 'reminder' ? 'Reminder Title' : 'Event Title'}
-            </label>
-            <input 
-              type="text" 
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              required
-            />
-          </div>
-          
-          {/* Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Date</label>
-            <input 
-              type="date" 
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              required
-            />
-          </div>
-          
-          {/* Time (only for non-all-day events) */}
-          {!isAllDay && (
-            <div className={eventType === 'reminder' ? '' : 'grid grid-cols-2 gap-4'}>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  {eventType === 'reminder' ? 'Reminder Time' : 'Start Time'}
-                </label>
-                <input 
-                  type="time" 
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                  required
-                />
-              </div>
-              {eventType !== 'reminder' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">End Time</label>
-                  <input 
-                    type="time" 
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                    required
+            <div className="flex items-center mt-3 justify-between">
+              <div className="flex space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="eventType"
+                    value="event"
+                    checked={eventType === 'event'}
+                    onChange={() => handleEventTypeChange('event')}
+                    className="mr-2"
                   />
+                  <span>Event</span>
+                </label>
+                
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="eventType"
+                    value="reminder"
+                    checked={eventType === 'reminder'}
+                    onChange={() => handleEventTypeChange('reminder')}
+                    className="mr-2"
+                  />
+                  <span>Reminder</span>
+                </label>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={isAllDay}
+                    onChange={(e) => setIsAllDay(e.target.checked)}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">All day</span>
+                </label>
+                
+                <label className="flex items-center">
+                  <span className="text-sm mr-2">Recurring</span>
+                  <div className="relative inline-block w-10 align-middle select-none">
+                    <input
+                      type="checkbox"
+                      checked={!!recurrenceRule}
+                      onChange={() => setRecurrenceRule(recurrenceRule ? null : {
+                        type: 'DAILY',
+                        interval: 1
+                      })}
+                      className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                      style={{ 
+                        right: recurrenceRule ? '0' : 'auto', 
+                        backgroundColor: recurrenceRule ? '#3b82f6' : 'white',
+                        borderColor: recurrenceRule ? '#3b82f6' : '#d1d5db'
+                      }}
+                    />
+                    <label 
+                      className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"
+                      style={{ backgroundColor: recurrenceRule ? '#bfdbfe' : '#d1d5db' }}
+                    ></label>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          {/* Tabs Navigation */}
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex" aria-label="Tabs">
+              <button
+                type="button"
+                onClick={() => setActiveTab('details')}
+                className={`w-1/2 py-2 px-1 text-center border-b-2 text-xs font-medium ${
+                  activeTab === 'details' 
+                    ? 'border-blue-500 text-blue-600' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } ${hasTabErrors('details') ? 'text-red-500' : ''}`}
+              >
+                <CalendarIcon className="h-4 w-4 mx-auto mb-1" />
+                <span>Event Details</span>
+                {hasTabErrors('details') && <span className="absolute top-1 right-2 h-2 w-2 bg-red-500 rounded-full"></span>}
+              </button>
+              <button
+                type="button"
+                onClick={() => recurrenceRule && setActiveTab('recurrence')}
+                className={`w-1/2 py-2 px-1 text-center border-b-2 text-xs font-medium ${
+                  activeTab === 'recurrence' 
+                    ? 'border-blue-500 text-blue-600' 
+                    : recurrenceRule 
+                      ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      : 'border-transparent text-gray-300 cursor-not-allowed'
+                }`}
+                disabled={!recurrenceRule}
+              >
+                <ArrowPathIcon className="h-4 w-4 mx-auto mb-1" />
+                <span>Recurring Settings</span>
+                {recurrenceRule && <span className="absolute top-1 right-2 h-2 w-2 bg-blue-500 rounded-full"></span>}
+              </button>
+            </nav>
+          </div>
+          
+          {/* Tab Content */}
+          <div className="p-4">
+            {/* Details Tab */}
+            {activeTab === 'details' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField label="Date" htmlFor="event-date" error={formErrors.date}>
+                    <FormInput
+                      id="event-date"
+                      type="date"
+                      value={date}
+                      onChange={(e) => {
+                        setDate(e.target.value);
+                        if (formErrors.date) {
+                          setFormErrors({...formErrors, date: undefined});
+                        }
+                      }}
+                      required
+                      error={formErrors.date}
+                    />
+                  </FormField>
+                  
+                  {!isAllDay && (
+                    <FormField label="Start Time" htmlFor="event-start-time" error={formErrors.startTime}>
+                      <FormInput
+                        id="event-start-time"
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => {
+                          setStartTime(e.target.value);
+                          if (formErrors.startTime) {
+                            setFormErrors({...formErrors, startTime: undefined});
+                          }
+                        }}
+                        required
+                        error={formErrors.startTime}
+                      />
+                    </FormField>
+                  )}
+                  
+                  {!isAllDay && eventType !== 'reminder' && (
+                    <div className={isAllDay ? "col-span-2" : "col-start-2"}>
+                      <FormField label="End Time" htmlFor="event-end-time" error={formErrors.endTime}>
+                        <FormInput
+                          id="event-end-time"
+                          type="time"
+                          value={endTime}
+                          onChange={(e) => {
+                            setEndTime(e.target.value);
+                            if (formErrors.endTime) {
+                              setFormErrors({...formErrors, endTime: undefined});
+                            }
+                          }}
+                          required
+                          error={formErrors.endTime}
+                        />
+                      </FormField>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
-          
-          {/* Location - only for events, not for reminders */}
-          {eventType === 'event' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Location</label>
-              <input 
-                type="text" 
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                
+                {/* Location field */}
+                {eventType !== 'reminder' && (
+                  <FormField label="Location" htmlFor="event-location">
+                    <FormInput
+                      id="event-location"
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="Add location"
+                    />
+                  </FormField>
+                )}
+                
+                {/* Description field */}
+                <FormField label="Description" htmlFor="event-description">
+                  <FormTextArea
+                    id="event-description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={4}
+                    placeholder="Add description or notes"
+                  />
+                </FormField>
+              </div>
+            )}
+            
+            {/* Recurrence Tab */}
+            {activeTab === 'recurrence' && recurrenceRule && (
+              <RecurrenceSettings 
+                initialDate={new Date(date)}
+                value={recurrenceRule}
+                onChange={setRecurrenceRule}
               />
-            </div>
-          )}
-          
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Description</label>
-            <textarea 
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" 
-              rows={3}
-            ></textarea>
+            )}
           </div>
           
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end space-x-2 p-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
             >
               Cancel
             </button>
+            
             <button
               type="submit"
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              {eventType === 'reminder'
-                ? (isEditing ? 'Update Reminder' : 'Create Reminder')
-                : (isEditing ? 'Update Event' : 'Create Event')
-              }
+              {isEditing ? 'Update' : 'Create'}
             </button>
           </div>
         </form>
