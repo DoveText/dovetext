@@ -36,37 +36,10 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
 
   return (
     <div className="day-view h-full flex flex-col">
-      {/* Day header with navigation */}
-      <div className="day-header flex items-center justify-between p-4 border-b">
-        <div className="flex items-center">
-          <button 
-            className="mr-4 p-1 rounded-full hover:bg-gray-100"
-            onClick={goToPreviousDay}
-          >
-            <ChevronLeftIcon className="h-5 w-5 text-gray-600" />
-          </button>
-          
-          <h2 className="text-xl font-semibold">
-            {date.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </h2>
-          
-          <button 
-            className="ml-4 p-1 rounded-full hover:bg-gray-100"
-            onClick={goToNextDay}
-          >
-            <ChevronRightIcon className="h-5 w-5 text-gray-600" />
-          </button>
-        </div>
-      </div>
-      
       {/* Calendar container with time labels and day slot */}
       <div className="flex-grow overflow-hidden flex">
         {/* Time labels column */}
-        <div className="time-labels-column" style={{ width: '60px', minWidth: '60px' }}>
+        <div className="time-labels-column" style={{ width: '70px', minWidth: '70px', flexShrink: 0 }}>
           {/* All day label */}
           <div className="all-day-label border-b">
             <div className="text-xs text-gray-500 h-8 flex items-center justify-end pr-2">All day</div>
@@ -80,7 +53,7 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
                 className="time-label flex items-start justify-end pr-2"
                 style={{ height: '60px' }}
               >
-                <div className="text-xs text-gray-500 -mt-2">{slot.label}</div>
+                <div className="text-xs text-gray-500 -mt-2 whitespace-nowrap">{slot.label}</div>
               </div>
             ))}
           </div>

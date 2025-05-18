@@ -91,34 +91,11 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
 
   return (
     <div className="flex flex-col h-full">
-      {/* Week header with navigation */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center">
-          <button 
-            className="mr-4 p-1 rounded-full hover:bg-gray-100"
-            onClick={goToPreviousWeek}
-          >
-            <ChevronLeftIcon className="h-5 w-5 text-gray-600" />
-          </button>
-          
-          <h2 className="text-xl font-semibold">
-            {date.toLocaleDateString('en-US', { 
-              month: 'long', 
-              year: 'numeric'
-            })}
-          </h2>
-          
-          <button 
-            className="ml-4 p-1 rounded-full hover:bg-gray-100"
-            onClick={goToNextWeek}
-          >
-            <ChevronRightIcon className="h-5 w-5 text-gray-600" />
-          </button>
-        </div>
-      </div>
-      
       {/* Week day headers */}
       <div className="flex border-b">
+        {/* Empty space for time labels column alignment */}
+        <div style={{ width: '70px', minWidth: '70px', flexShrink: 0 }}></div>
+        
         {daysOfWeek.map((day, index) => (
           <div 
             key={index} 
@@ -136,7 +113,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
       {/* Calendar with time labels and days */}
       <div className="flex-grow overflow-hidden flex" ref={scrollContainerRef}>
         {/* Time labels column */}
-        <div className="time-labels-column" style={{ width: '60px', minWidth: '60px', flexShrink: 0 }}>
+        <div className="time-labels-column" style={{ width: '70px', minWidth: '70px', flexShrink: 0 }}>
           {/* All day label */}
           <div className="all-day-label border-b">
             <div className="text-xs text-gray-500 h-8 flex items-center justify-end pr-2">All day</div>
@@ -150,7 +127,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                 className="time-label flex items-start justify-end pr-2"
                 style={{ height: '60px' }}
               >
-                <div className="text-xs text-gray-500 -mt-2">{slot.label}</div>
+                <div className="text-xs text-gray-500 -mt-2 whitespace-nowrap">{slot.label}</div>
               </div>
             ))}
           </div>
