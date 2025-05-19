@@ -100,27 +100,37 @@ export default function RecurrenceIndicator({ event, children, showDetails = fal
     return <>{children}</>;
   }
   
-  // Return a more prominent but still transparent icon
+  // Return a much more distinctive icon that's impossible to miss
+  // Use amber/yellow for events (which have blue backgrounds) and blue for reminders
+  const isReminder = event.type === 'reminder';
+  const bgGlow = isReminder ? 'bg-blue-600' : 'bg-amber-500';
+  const gradientFrom = isReminder ? 'from-blue-500' : 'from-amber-400';
+  const gradientTo = isReminder ? 'to-blue-700' : 'to-amber-500';
+  
   return (
-    <div className="bg-blue-500 bg-opacity-30 rounded-full p-0.5">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-blue-600">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeOpacity="0.9" fill="currentColor" fillOpacity="0.2" />
-        <path 
-          d="M20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 7.58172 7.58172 4 12 4" 
-          stroke="white" 
-          strokeWidth="2.5" 
-          strokeLinecap="round"
-          strokeOpacity="0.9"
-        />
-        <path 
-          d="M16 4L12 8L8 4" 
-          stroke="white" 
-          strokeWidth="2.5" 
-          strokeLinecap="round" 
-          strokeLinejoin="round"
-          strokeOpacity="0.9"
-        />
-      </svg>
+    <div className="relative">
+      {/* Colorful badge with shadow for emphasis */}
+      <div className={`absolute inset-0 ${bgGlow} rounded-full shadow-md blur-[1px] opacity-70`}></div>
+      
+      {/* Main badge */}
+      <div className={`relative bg-gradient-to-br ${gradientFrom} ${gradientTo} rounded-full p-0.5 shadow-sm`}>
+        {/* Recurrence symbol */}
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path 
+            d="M20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 7.58172 7.58172 4 12 4" 
+            stroke="white" 
+            strokeWidth="3" 
+            strokeLinecap="round"
+          />
+          <path 
+            d="M16 4L12 8L8 4" 
+            stroke="white" 
+            strokeWidth="3" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
     </div>
   );
 }

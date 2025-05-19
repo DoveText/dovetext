@@ -203,7 +203,7 @@ export default function CalendarDaySlot({
                                 <div className="relative mr-1 flex-shrink-0">
                                     <span className="text-green-500 text-xs">📆</span>
                                     {event.isRecurring && event.recurrenceRule && (
-                                        <div className="absolute -bottom-1 -right-1">
+                                        <div className="absolute -bottom-1 -right-1 z-10">
                                             <RecurrenceIndicator event={event} />
                                         </div>
                                     )}
@@ -417,7 +417,7 @@ export default function CalendarDaySlot({
                                                 <span className="text-blue-500 text-xs">📅</span>
                                         }
                                         {event.isRecurring && event.recurrenceRule && (
-                                            <div className="absolute -bottom-1 -right-1">
+                                            <div className="absolute -bottom-1 -right-1 z-10">
                                                 <RecurrenceIndicator event={event} />
                                             </div>
                                         )}
