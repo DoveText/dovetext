@@ -307,8 +307,8 @@ export const useTooltip = () => {
   const hideTooltip = React.useCallback((e?: React.MouseEvent) => {
     // Only hide if we're not moving from the event to the tooltip
     if (e && e.relatedTarget && 
-        ((e.relatedTarget as HTMLElement).classList.contains('tooltip') || 
-         (e.relatedTarget as HTMLElement).closest('.tooltip'))) {
+        ((e.relatedTarget as HTMLElement)?.classList?.contains('tooltip') || 
+         (e.relatedTarget as HTMLElement)?.closest?.('.tooltip'))) {
       return;
     }
     

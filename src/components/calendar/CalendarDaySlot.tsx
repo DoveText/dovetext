@@ -200,15 +200,15 @@ export default function CalendarDaySlot({
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, event)}
                             >
-                                <span className="mr-1 text-green-500 flex-shrink-0 text-xs">📆</span>
+                                <div className="relative mr-1 flex-shrink-0">
+                                    <span className="text-green-500 text-xs">📆</span>
+                                    {event.isRecurring && event.recurrenceRule && (
+                                        <div className="absolute -bottom-1 -right-1">
+                                            <RecurrenceIndicator event={event} />
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="text-xs font-medium truncate flex-grow">{event.title}</div>
-                                {event.isRecurring && event.recurrenceRule && (
-                                    <div className="ml-1">
-                                        <RecurrenceIndicator
-                                            event={event}
-                                        />
-                                    </div>
-                                )}
                             </div>
                         ))}
                     </div>
@@ -409,12 +409,19 @@ export default function CalendarDaySlot({
                                     }}
                                 >
                                     {/* Icon */}
-                                    {event.type === 'reminder' ?
-                                        <span className="mr-1 text-amber-500 flex-shrink-0 text-xs">⏰</span> :
-                                        event.isAllDay ?
-                                            <span className="mr-1 text-green-500 flex-shrink-0 text-xs">📆</span> :
-                                            <span className="mr-1 text-blue-500 flex-shrink-0 text-xs">📅</span>
-                                    }
+                                    <div className="relative mr-1 flex-shrink-0">
+                                        {event.type === 'reminder' ? 
+                                            <span className="text-amber-500 text-xs">⏰</span> :
+                                            event.isAllDay ? 
+                                                <span className="text-purple-500 text-xs">📌</span> :
+                                                <span className="text-blue-500 text-xs">📅</span>
+                                        }
+                                        {event.isRecurring && event.recurrenceRule && (
+                                            <div className="absolute -bottom-1 -right-1">
+                                                <RecurrenceIndicator event={event} />
+                                            </div>
+                                        )}
+                                    </div>
 
                                     {/* Title */}
                                     <div className="font-medium text-xs truncate">{event.title}</div>
@@ -426,13 +433,7 @@ export default function CalendarDaySlot({
                                         </div>
                                     )}
 
-                                    {/* Recurrence indicator */}
-                                    {event.isRecurring && event.recurrenceRule && (
-                                        <RecurrenceIndicator
-                                            event={event}
-                                            showDetails={false}
-                                        />
-                                    )}
+                                    {/* Recurrence indicator moved to the event icon */}
                                 </div>
                             </div>
                         </div>
