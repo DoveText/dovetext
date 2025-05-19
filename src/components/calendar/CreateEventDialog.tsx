@@ -159,8 +159,17 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
       recurrenceRule: recurrenceRule || undefined
     };
     
+    // First save the event data
     onSave(eventData);
-    resetForm();
+    
+    // Close the dialog first, then reset the form
+    // This prevents the form from visibly changing before the dialog closes
+    onClose();
+    
+    // Reset form after a short delay to ensure it happens after the dialog is closed
+    setTimeout(() => {
+      resetForm();
+    }, 100);
   };
   
   // Reset form fields
