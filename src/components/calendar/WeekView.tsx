@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import { ScheduleEvent } from './Calendar';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import CalendarDaySlot, { generateTimeSlots } from './CalendarDaySlot';
+import CalendarDaySlot from './CalendarDaySlot';
+import { generateTimeSlots } from './CalendarUtils';
 
 export interface WeekViewProps {
   date: Date;
@@ -137,7 +137,7 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
         <div className="flex-grow">
           <div className="flex h-full">
             {daysOfWeek.map((day, index) => (
-              <div key={index} className="flex-1">
+              <div key={index} className="flex-1 border-l first:border-l-0">
                 <CalendarDaySlot
                   date={day}
                   events={events}
@@ -145,7 +145,6 @@ export default function WeekView({ date, events, onEventClick, onDateClick, onAd
                   onAddEvent={onAddEvent}
                   currentTime={currentTime}
                   onEventDrop={onEventDrop}
-                  showHeader={false}
                   onDateClick={() => handleViewChange(day)}
                   width="100%"
                   dayIndex={index}

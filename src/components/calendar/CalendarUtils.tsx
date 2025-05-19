@@ -144,14 +144,24 @@ export const getEventStyle = (event: ScheduleEvent) => {
   const top = (startHour + startMinute / 60) * 60;
   
   // Calculate height (60px per hour)
-  const durationHours = (endHour - startHour) + (endMinute - startMinute) / 60;
-  const height = Math.max(durationHours * 60, 20); // Minimum height of 20px
+  // For reminders, use a fixed height
+  let height;
+  if (event.type === 'reminder') {
+    height = '22px'; // Fixed height for reminders
+  } else {
+    const durationHours = (endHour - startHour) + (endMinute - startMinute) / 60;
+    height = `${Math.max(durationHours * 60, 20)}px`; // Minimum height of 20px for regular events
+  }
+  
+  // Calculate if event starts in the first quarter of an hour
+  const inFirstQuarter = startMinute < 15;
   
   return {
     top: `${top}px`,
-    height: `${height}px`,
+    height: height,
     width: event.width ? `${event.width}%` : '100%',
     left: event.left ? `${event.left}%` : '0',
+    inFirstQuarter
   };
 };
 
@@ -238,13 +248,14 @@ export const processEvents = (events: ScheduleEvent[]) => {
     // Safely access column and maxColumns with default values if undefined
     const column = event.column ?? 0;
     const maxColumns = columns.length;
-    const width = 1 / maxColumns;
-    const left = (column / maxColumns) * 100;
+    const width = 100 / maxColumns;
+    const left = column * (100 / maxColumns);
     
     return {
       ...event,
       width,
-      left
+      left,
+      maxColumns
     };
   });
   

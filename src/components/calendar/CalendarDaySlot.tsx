@@ -1,363 +1,29 @@
 'use client';
 
 import React, {useEffect, useState, useRef, useCallback} from 'react';
-import {createPortal} from 'react-dom';
 import {ScheduleEvent} from './Calendar';
 import {PlusIcon} from '@heroicons/react/24/outline';
 import RecurrenceIndicator from './RecurrenceIndicator';
-
-// Utility functions for calendar operations
-const generateTimeSlots = () => {
-    const slots = [];
-    for (let i = 0; i < 24; i++) {
-        slots.push({
-            hour: i,
-            label: `${i === 0 ? '12' : i > 12 ? i - 12 : i}:00 ${i >= 12 ? 'PM' : 'AM'}`
-        });
-    }
-    return slots;
-};
-
-const formatTimeSlot = (hour: number, minute: number) => {
-    const hourDisplay = hour % 12 === 0 ? 12 : hour % 12;
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const minuteDisplay = minute.toString().padStart(2, '0');
-    return `${hourDisplay}:${minuteDisplay} ${ampm}`;
-};
-
-const formatEventTime = (date: Date) => {
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const hour = hours % 12 || 12;
-    const minuteStr = minutes < 10 ? `0${minutes}` : minutes;
-    return `${hour}:${minuteStr} ${ampm}`;
-};
-
-const formatEventDate = (date: Date) => {
-    const options: Intl.DateTimeFormatOptions = {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric'
-    };
-    return date.toLocaleDateString('en-US', options);
-};
-
-const getEventDurationMinutes = (event: ScheduleEvent) => {
-    const start = new Date(event.start);
-    const end = new Date(event.end);
-    return (end.getTime() - start.getTime()) / (1000 * 60);
-};
-
-const getEventColor = (type: string) => {
-    switch (type) {
-        case 'reminder':
-            return 'bg-amber-100 text-amber-800';
-        case 'task':
-            return 'bg-purple-100 text-purple-800';
-        case 'meeting':
-            return 'bg-blue-100 text-blue-800';
-        case 'appointment':
-            return 'bg-green-100 text-green-800';
-        default:
-            return 'bg-blue-100 text-blue-800';
-    }
-};
-
-const getEventBorderColor = (type: string, isAllDay: boolean = false) => {
-    if (isAllDay) {
-        return 'border-green-500';
-    }
-
-    switch (type) {
-        case 'reminder':
-            return 'border-amber-500';
-        case 'task':
-            return 'border-purple-500';
-        case 'meeting':
-            return 'border-blue-500';
-        case 'appointment':
-            return 'border-green-500';
-        default:
-            return 'border-blue-500';
-    }
-};
+import {
+  generateTimeSlots,
+  formatTimeSlot,
+  formatEventTime,
+  formatEventDate,
+  getEventDurationMinutes,
+  getEventColor,
+  getEventBorderColor,
+  getEventStyle,
+  getTimeSlotFromMouseEvent,
+  useTooltip,
+  useDragAndDrop,
+  processEvents
+} from './CalendarUtils';
+import {createPortal} from 'react-dom';
 
 // Process timed events to handle overlaps
 const processTimedEvents = (events: ScheduleEvent[]) => {
-    if (!events || events.length === 0) return [];
-
-    // Sort events by start time and then by duration (longest first)
-    const sortedEvents = [...events].sort((a, b) => {
-        const aStart = new Date(a.start).getTime();
-        const bStart = new Date(b.start).getTime();
-
-        if (aStart === bStart) {
-            const aDuration = getEventDurationMinutes(a);
-            const bDuration = getEventDurationMinutes(b);
-            return bDuration - aDuration; // Longer events first
-        }
-
-        return aStart - bStart;
-    });
-
-    // Process events to assign column positions
-    const processedEvents: ScheduleEvent[] = [];
-    const columns: { end: number, events: ScheduleEvent[] }[] = [];
-
-    for (const event of sortedEvents) {
-        const eventStart = new Date(event.start).getTime();
-        const eventEnd = new Date(event.end).getTime();
-
-        // Find a column where this event can fit
-        let columnIndex = -1;
-        for (let i = 0; i < columns.length; i++) {
-            if (columns[i].end <= eventStart) {
-                columnIndex = i;
-                break;
-            }
-        }
-
-        // If no column found, create a new one
-        if (columnIndex === -1) {
-            columnIndex = columns.length;
-            columns.push({end: 0, events: []});
-        }
-
-        // Update the column's end time
-        columns[columnIndex].end = eventEnd;
-        columns[columnIndex].events.push(event);
-
-        // Add the processed event with column information
-        const processedEvent = {
-            ...event,
-            column: columnIndex,
-            maxColumns: columns.length
-        };
-
-        processedEvents.push(processedEvent);
-    }
-
-    // Calculate width and left position for each event
-    const finalEvents = processedEvents.map(event => {
-        const columnWidth = 100 / columns.length;
-        // Safely access column with default value if undefined
-        const column = event.column ?? 0;
-        return {
-            ...event,
-            width: columnWidth,
-            left: column * columnWidth,
-            maxColumns: columns.length
-        };
-    });
-
-    return finalEvents;
+    return processEvents(events);
 };
-
-// Helper function to position events on the timeline
-const getEventStyle = (event: ScheduleEvent) => {
-    const start = new Date(event.start);
-    const end = new Date(event.end);
-
-    // Calculate position and height
-    const startHour = start.getHours();
-    const startMinute = start.getMinutes();
-    const endHour = end.getHours();
-    const endMinute = end.getMinutes();
-
-    // Calculate top position (60px per hour)
-    const top = (startHour + startMinute / 60) * 60;
-
-    // Calculate height (60px per hour)
-    const durationHours = (endHour - startHour) + (endMinute - startMinute) / 60;
-    const height = Math.max(durationHours * 60, 20); // Minimum height of 20px
-
-    return {
-        top: `${top}px`,
-        height: `${height}px`,
-        width: event.width ? `${event.width}%` : '100%',
-        left: event.left ? `${event.left}%` : '0',
-    };
-};
-
-// Get time slot from mouse position
-const getTimeSlotFromMouseEvent = (e: React.MouseEvent, scrollContainerRef: React.RefObject<HTMLDivElement>) => {
-    const calendarRect = scrollContainerRef.current?.getBoundingClientRect();
-    if (!calendarRect) return null;
-
-    // Calculate the relative position within the calendar
-    const relativeY = e.clientY - calendarRect.top + (scrollContainerRef.current?.scrollTop || 0);
-
-    // Calculate hour and minute
-    const hour = Math.floor(relativeY / 60);
-    const minutePosition = relativeY % 60;
-
-    let minute = 0;
-    if (minutePosition < 15) minute = 0;
-    else if (minutePosition < 30) minute = 15;
-    else if (minutePosition < 45) minute = 30;
-    else minute = 45;
-
-    return {hour, minute};
-};
-
-// Tooltip hook
-const useTooltip = () => {
-    const [tooltipContent, setTooltipContent] = useState<React.ReactNode | null>(null);
-    const [tooltipPosition, setTooltipPosition] = useState({top: 0, left: 0});
-    const [isTooltipVisible, setIsTooltipVisible] = useState(false);
-    const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const activeEventRef = useRef<HTMLElement | null>(null);
-
-    const showTooltip = useCallback((content: React.ReactNode, e: React.MouseEvent) => {
-        // Clear any existing timeout
-        if (tooltipTimeoutRef.current) {
-            clearTimeout(tooltipTimeoutRef.current);
-        }
-
-        // Store the current target element
-        activeEventRef.current = e.currentTarget as HTMLElement;
-
-        // Set tooltip content and position
-        setTooltipContent(content);
-
-        // Calculate position
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        const scrollY = window.scrollY || document.documentElement.scrollTop;
-        const scrollX = window.scrollX || document.documentElement.scrollLeft;
-
-        // Position tooltip above the element by default
-        let top = rect.top + scrollY - 10;
-        let left = rect.left + scrollX + rect.width / 2;
-
-        // Adjust if tooltip would go off screen
-        if (top < 10) {
-            // Position below element if it would go off the top
-            top = rect.bottom + scrollY + 10;
-        }
-
-        setTooltipPosition({top, left});
-
-        // Show tooltip with a small delay
-        tooltipTimeoutRef.current = setTimeout(() => {
-            setIsTooltipVisible(true);
-        }, 200);
-    }, []);
-
-    const hideTooltip = useCallback((e?: React.MouseEvent) => {
-        // Only hide if the mouse is not moving to the tooltip itself
-        if (e && activeEventRef.current === e.currentTarget) {
-            // Clear any existing timeout
-            if (tooltipTimeoutRef.current) {
-                clearTimeout(tooltipTimeoutRef.current);
-            }
-
-            // Hide tooltip with a small delay to allow moving to tooltip
-            tooltipTimeoutRef.current = setTimeout(() => {
-                setIsTooltipVisible(false);
-            }, 200);
-        }
-    }, []);
-
-    const renderTooltip = () => {
-        if (!isTooltipVisible || !tooltipContent) return null;
-
-        return createPortal(
-            <div
-                className="tooltip fixed z-50 bg-white rounded-md shadow-lg p-3 max-w-sm border border-gray-200"
-                style={{
-                    top: tooltipPosition.top,
-                    left: tooltipPosition.left,
-                    maxWidth: '300px'
-                }}
-                onMouseEnter={() => {
-                    // Clear the hide timeout if user moves mouse to tooltip
-                    if (tooltipTimeoutRef.current) {
-                        clearTimeout(tooltipTimeoutRef.current);
-                    }
-                }}
-                onMouseLeave={() => {
-                    // Hide the tooltip when mouse leaves
-                    setIsTooltipVisible(false);
-                }}
-            >
-                {tooltipContent}
-            </div>,
-            document.body
-        );
-    };
-
-    return {
-        showTooltip,
-        hideTooltip,
-        renderTooltip,
-        tooltipContent,
-        isTooltipVisible
-    };
-};
-
-// Drag and drop hook
-const useDragAndDrop = (onEventDrop?: (event: ScheduleEvent, newStart: Date, newEnd: Date) => void) => {
-    const [draggedEvent, setDraggedEvent] = useState<ScheduleEvent | null>(null);
-
-    const handleDragStart = useCallback((event: React.DragEvent, scheduleEvent: ScheduleEvent) => {
-        event.dataTransfer.setData('text/plain', JSON.stringify(scheduleEvent));
-        setDraggedEvent(scheduleEvent);
-
-        // Set the drag image (optional)
-        const dragImage = document.createElement('div');
-        dragImage.textContent = scheduleEvent.title;
-        dragImage.style.position = 'absolute';
-        dragImage.style.top = '-1000px';
-        document.body.appendChild(dragImage);
-        event.dataTransfer.setDragImage(dragImage, 0, 0);
-
-        // Clean up the drag image after a short delay
-        setTimeout(() => {
-            document.body.removeChild(dragImage);
-        }, 0);
-    }, []);
-
-    const handleDragOver = useCallback((event: React.DragEvent) => {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
-    }, []);
-
-    const handleDrop = useCallback((event: React.DragEvent, day: Date, hour: number) => {
-        event.preventDefault();
-
-        if (!draggedEvent || !onEventDrop) return;
-
-        try {
-            // Create new start date based on drop location
-            const newStart = new Date(day);
-            newStart.setHours(hour, 0, 0, 0);
-
-            // Calculate original duration
-            const originalStart = new Date(draggedEvent.start);
-            const originalEnd = new Date(draggedEvent.end);
-            const durationMs = originalEnd.getTime() - originalStart.getTime();
-
-            // Create new end date by adding the original duration
-            const newEnd = new Date(newStart.getTime() + durationMs);
-
-            // Call the onEventDrop callback
-            onEventDrop(draggedEvent, newStart, newEnd);
-
-            // Reset dragged event
-            setDraggedEvent(null);
-        } catch (error) {
-            console.error('Error handling drop:', error);
-        }
-    }, [draggedEvent, onEventDrop]);
-
-    return {
-        handleDragStart,
-        handleDragOver,
-        handleDrop
-    };
-};
-
 interface CalendarDaySlotProps {
     date: Date;
     events: ScheduleEvent[];
@@ -365,7 +31,6 @@ interface CalendarDaySlotProps {
     onAddEvent?: (date: Date, event?: ScheduleEvent) => void;
     currentTime: Date;
     onEventDrop?: (event: ScheduleEvent, newStart: Date, newEnd: Date) => void;
-    showHeader?: boolean;
     onDateClick?: (date: Date) => void;
     width?: string;
     dayIndex?: number;
@@ -378,7 +43,6 @@ export default function CalendarDaySlot({
                                             onAddEvent,
                                             currentTime,
                                             onEventDrop,
-                                            showHeader = false,
                                             onDateClick,
                                             width = '100%',
                                             dayIndex = 0
@@ -424,6 +88,13 @@ export default function CalendarDaySlot({
 
     // Handle mouse down for drag selection
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        // Check if we clicked on an event by checking if the target or any parent has event-container class
+        const target = e.target as HTMLElement;
+        if (target.closest('.event-container')) {
+            // Clicked on an event, don't start selection
+            return;
+        }
+        
         const slot = getTimeSlotFromMouseEvent(e, scrollContainerRef);
         if (slot) {
             setSelectionStart(slot);
@@ -455,8 +126,9 @@ export default function CalendarDaySlot({
             }
 
             // Call onAddEvent with the selected time range
+            // Use empty string for ID to trigger the Create Event dialog instead of Edit dialog
             onAddEvent(startDate, {
-                id: `new-event-${Date.now()}`,
+                id: '', // Empty ID indicates this is a new event
                 start: startDate,
                 end: endDate,
                 title: '',
@@ -499,27 +171,11 @@ export default function CalendarDaySlot({
 
     return (
         <div className="calendar-day-slot" style={{width}}>
-            {/* Day header if needed */}
-            {showHeader && (
-                <div
-                    className={`text-center py-2 border-b ${isToday ? 'bg-blue-50' : ''}`}
-                    onClick={() => onDateClick && onDateClick(date)}
-                >
-                    <div className="text-sm font-medium">
-                        {date.toLocaleDateString('en-US', {weekday: 'short'})}
-                    </div>
-                    <div
-                        className={`text-lg ${isToday ? 'bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto' : ''}`}>
-                        {date.getDate()}
-                    </div>
-                </div>
-            )}
-
             {/* All-day section */}
-            <div className="border-b">
+            <div className="border-b h-8 flex items-center">
                 {/* All-day events */}
                 {allDayEvents.length > 0 ? (
-                    <div className="all-day-events py-1 px-2">
+                    <div className="all-day-events py-1 px-2 w-full">
                         {allDayEvents.map((event, index) => (
                             <div
                                 key={`all-day-${event.id || index}`}
@@ -546,11 +202,12 @@ export default function CalendarDaySlot({
                             >
                                 <span className="mr-1 text-green-500 flex-shrink-0 text-xs">📆</span>
                                 <div className="text-xs font-medium truncate flex-grow">{event.title}</div>
-                                {event.recurrenceRule && (
-                                    <RecurrenceIndicator
-                                        rule={event.recurrenceRule}
-                                        className="ml-1"
-                                    />
+                                {event.isRecurring && event.recurrenceRule && (
+                                    <div className="ml-1">
+                                        <RecurrenceIndicator
+                                            event={event}
+                                        />
+                                    </div>
                                 )}
                             </div>
                         ))}
@@ -579,13 +236,31 @@ export default function CalendarDaySlot({
                 onMouseDown={handleMouseDown}
                 onMouseUp={handleMouseUp}
                 onClick={(e) => {
-                    // Only trigger click if we're not in a drag operation
-                    if (!selectionStart && onAddEvent) {
+                    // Check if the click target is an event element
+                    // We need to check if the click is on an event by examining the target and its parents
+                    const isClickOnEvent = (e.target as HTMLElement).closest('.event-container') !== null;
+                    
+                    // Only trigger click if we're not in a drag operation and not clicking on an event
+                    if (!selectionStart && onAddEvent && !isClickOnEvent) {
                         const slot = getTimeSlotFromMouseEvent(e, scrollContainerRef);
                         if (slot) {
                             const eventDate = new Date(date);
                             eventDate.setHours(slot.hour, slot.minute, 0, 0);
-                            onAddEvent(eventDate);
+                            
+                            // Create a default end time (30 minutes after start)
+                            const endDate = new Date(eventDate);
+                            endDate.setMinutes(endDate.getMinutes() + 30);
+                            
+                            // Call onAddEvent with the selected time
+                            // Use empty string for ID to trigger the Create Event dialog instead of Edit dialog
+                            onAddEvent(eventDate, {
+                                id: '', // Empty ID indicates this is a new event
+                                title: '',
+                                start: eventDate,
+                                end: endDate,
+                                type: 'event',
+                                isAllDay: false
+                            });
                         }
                     }
                 }}
@@ -665,64 +340,68 @@ export default function CalendarDaySlot({
                     return (
                         <div
                             key={`event-${event.id || index}`}
-                            className="absolute z-10"
+                            className="absolute cursor-pointer hover:shadow-md transition-shadow z-10 hover:z-30 event-container"
                             style={{
-                                ...style,
-                                width: `calc(${style.width} - 4px)`,
+                                top: style.top,
+                                height: event.type === 'reminder' ? '22px' : style.height,
+                                left: `${event.left}%`,
+                                width: `calc(${event.width}% - 4px)`,
+                                marginRight: '2px'
                             }}
+                            onClick={() => onEventClick && onEventClick(event)}
+                            draggable={true}
+                            onDragStart={(e) => handleDragStart(e, event)}
+                            onMouseEnter={(e) => {
+                                showTooltip(
+                                    <>
+                                        <div className="font-bold">{event.title}</div>
+                                        <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
+                                        {event.description && <div className="mt-1">{event.description}</div>}
+                                        {event.location && <div className="mt-1">📍 {event.location}</div>}
+                                    </>,
+                                    e
+                                );
+                            }}
+                            onMouseLeave={hideTooltip}
                         >
-                            <div
-                                className={`
-                    absolute inset-0 rounded-md border ${getEventBorderColor(event.type)}
-                    cursor-pointer overflow-hidden
-                  `}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onEventClick) onEventClick(event);
-                                }}
-                                onMouseEnter={(e) => {
-                                    showTooltip(
-                                        <>
-                                            <div className="font-bold">{event.title}</div>
-                                            <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
-                                            {event.description && <div className="mt-1">{event.description}</div>}
-                                            {event.location && <div className="mt-1">📍 {event.location}</div>}
-                                        </>,
-                                        e
-                                    );
-                                }}
-                                onMouseLeave={hideTooltip}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, event)}
-                            >
-                                {/* Background */}
-                                <div
-                                    className="absolute top-0 left-0 right-0 bottom-0 bg-blue-500 rounded-sm"
-                                    style={{
-                                        border: '1px solid rgba(255, 255, 255, 0.8)'
-                                    }}
-                                ></div>
-
+                            {/* Time indicator (full width) */}
+                            <div className="relative w-full h-full">
+                                {event.type === 'reminder' ? (
+                                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
+                                ) : (
+                                    <div
+                                        className={`absolute top-0 left-0 right-0 bottom-0 ${event.isAllDay ? 'bg-green-500' : 'bg-blue-500'} rounded-sm`}
+                                        style={{
+                                            border: '1px solid rgba(255, 255, 255, 0.8)'
+                                        }}
+                                    ></div>
+                                )}
+                                
                                 {/* Title/icon part */}
                                 <div
                                     className={`
-                      absolute ${(event.type === 'reminder' || getEventDurationMinutes(event) < 30) ?
-                                        ((event.inFirstQuarter ?? false) ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')) :
-                                        'top-0.5'} left-1.5
-                      px-2 py-0.5 flex items-center
-                      ${getEventColor(event.type)} 
-                      rounded-md shadow-sm
-                    `}
+                                        absolute ${(event.type === 'reminder' || getEventDurationMinutes(event) < 30) ?
+                                            ((style.inFirstQuarter) ? 'top-0.5' : (event.type === 'reminder' ? 'bottom-0' : 'bottom-0.5')) :
+                                            'top-0.5'} left-1.5
+                                        px-2 py-0.5 flex items-center
+                                        ${getEventColor(event.type)} 
+                                        rounded-md shadow-sm
+                                    `}
                                     style={{
                                         minHeight: '20px',
                                         maxWidth: 'calc(100% - 10px)',
                                         width: 'fit-content',
                                         border: event.type === 'reminder' ?
-                                            '1px solid rgba(245, 158, 11, 0.8)' :
+                                            '1px solid rgba(245, 158, 11, 0.8)' : // amber color for reminders
                                             event.isAllDay ?
-                                                '1px solid rgba(34, 197, 94, 0.8)' :
-                                                '1px solid rgba(59, 130, 246, 0.8)',
-                                        pointerEvents: 'auto'
+                                                '1px solid rgba(34, 197, 94, 0.8)' : // green color for all-day events
+                                                '1px solid rgba(59, 130, 246, 0.8)', // blue color for regular events
+                                        pointerEvents: 'auto',
+                                        fontSize: '0.75rem',
+                                        lineHeight: '1rem',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
                                     }}
                                 >
                                     {/* Icon */}
@@ -744,13 +423,11 @@ export default function CalendarDaySlot({
                                     )}
 
                                     {/* Recurrence indicator */}
-                                    {event.recurrenceRule && (
+                                    {event.isRecurring && event.recurrenceRule && (
                                         <RecurrenceIndicator
                                             event={event}
                                             showDetails={false}
-                                        >
-                                            <span className="ml-1">↻</span>
-                                        </RecurrenceIndicator>
+                                        />
                                     )}
                                 </div>
                             </div>
@@ -764,20 +441,5 @@ export default function CalendarDaySlot({
     );
 }
 
-// Export utility functions for use in other components
+// No need to export utility functions as they are now imported from CalendarUtils.tsx
 export type { ScheduleEvent };
-export {
-  generateTimeSlots,
-  formatTimeSlot,
-  formatEventTime,
-  formatEventDate,
-  getEventDurationMinutes,
-  getEventColor,
-  getEventBorderColor,
-  processTimedEvents,
-  getEventStyle,
-  getTimeSlotFromMouseEvent
-};
-
-// Export hooks separately to avoid circular references
-export { useTooltip, useDragAndDrop };

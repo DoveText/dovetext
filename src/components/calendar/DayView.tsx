@@ -3,7 +3,8 @@
 import React from 'react';
 import { ScheduleEvent } from './Calendar';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import CalendarDaySlot, { generateTimeSlots } from './CalendarDaySlot';
+import CalendarDaySlot from './CalendarDaySlot';
+import { generateTimeSlots } from './CalendarUtils';
 
 export interface DayViewProps {
   date: Date;
@@ -68,7 +69,6 @@ export default function DayView({ date, events, onEventClick, onAddEvent, curren
             onAddEvent={onAddEvent}
             currentTime={currentTime}
             onEventDrop={onEventDrop}
-            showHeader={false}
             onDateClick={handleDateClick}
             width="100%"
             dayIndex={0}
