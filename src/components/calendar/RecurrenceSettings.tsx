@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import FormField from '../common/form/FormField';
 import FormInput from '../common/form/FormInput';
 import Select from '../common/Select';
@@ -45,12 +45,9 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     value?.until ? formatDateForInput(value.until) : formatDateForInput(new Date(initialDate.getTime() + 90 * 24 * 60 * 60 * 1000)) // 90 days later by default
   );
 
-  // Update the parent component when recurrence settings change
-  useEffect(() => {
-    if (!value) {
-      return;
-    }
-
+  // Create a function to generate the recurrence rule based on current settings
+  const generateRecurrenceRule = () => {
+    // Create a rule based on current state
     const rule: RecurrenceRule = {
       type: recurrenceType,
       interval: interval,
@@ -89,8 +86,79 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
       rule.until = undefined;
     }
 
-    onChange(rule);
-  }, [recurrenceType, interval, weekdays, monthlyType, endType, occurrences, endDate, initialDate, onChange, value]);
+    return rule;
+  };
+  
+  // Create handlers for each form field change
+  const handleRecurrenceTypeChange = (value: string) => {
+    setRecurrenceType(value as 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY');
+    // Update parent after state change
+    setTimeout(() => {
+      onChange(generateRecurrenceRule());
+    }, 0);
+  };
+  
+  const handleIntervalChange = (value: number) => {
+    setInterval(value);
+    // Update parent after state change
+    setTimeout(() => {
+      onChange(generateRecurrenceRule());
+    }, 0);
+  };
+  
+  const handleWeekdayChange = (day: number, checked: boolean) => {
+    const newWeekdays = [...weekdays];
+    if (checked && !newWeekdays.includes(day)) {
+      newWeekdays.push(day);
+    } else if (!checked && newWeekdays.includes(day)) {
+      const index = newWeekdays.indexOf(day);
+      newWeekdays.splice(index, 1);
+    }
+    setWeekdays(newWeekdays);
+    // Update parent after state change
+    setTimeout(() => {
+      onChange(generateRecurrenceRule());
+    }, 0);
+  };
+  
+  const handleMonthlyTypeChange = (value: string) => {
+    setMonthlyType(value as 'dayOfMonth' | 'dayOfWeek');
+    // Update parent after state change
+    setTimeout(() => {
+      onChange(generateRecurrenceRule());
+    }, 0);
+  };
+  
+  const handleEndTypeChange = (value: string) => {
+    setEndType(value as 'never' | 'count' | 'until');
+    // Update parent after state change
+    setTimeout(() => {
+      onChange(generateRecurrenceRule());
+    }, 0);
+  };
+  
+  const handleOccurrencesChange = (value: number) => {
+    setOccurrences(value);
+    // Update parent after state change
+    setTimeout(() => {
+      onChange(generateRecurrenceRule());
+    }, 0);
+  };
+  
+  const handleEndDateChange = (value: string) => {
+    setEndDate(value);
+    // Update parent after state change
+    setTimeout(() => {
+      onChange(generateRecurrenceRule());
+    }, 0);
+  };
+  
+  // Initial update on mount
+  useEffect(() => {
+    // Only call once on initial mount
+    onChange(generateRecurrenceRule());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Helper function to format date for input
   function formatDateForInput(date: Date): string {
@@ -114,7 +182,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
           <Select
             id="recurrence-type"
             value={recurrenceType}
-            onChange={(e) => setRecurrenceType(e.target.value as 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY')}
+            onChange={handleRecurrenceTypeChange}
             options={[
               { value: 'DAILY', label: 'Daily' },
               { value: 'WEEKLY', label: 'Weekly' },
@@ -127,14 +195,15 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
       
       {/* Interval Selection */}
       <div className="flex items-center space-x-2">
-        <FormField label="Every" htmlFor="recurrence-interval" className="w-24">
+        <FormField label="Every" htmlFor="recurrence-interval">
           <FormInput
             id="recurrence-interval"
             type="number"
             min="1"
             max="99"
-            value={interval.toString()}
-            onChange={(e) => setInterval(parseInt(e.target.value) || 1)}
+            value={interval}
+            onChange={(e) => handleIntervalChange(parseInt(e.target.value) || 1)}
+            className="w-16 mr-2"
           />
         </FormField>
         
@@ -180,10 +249,11 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
           <div className="flex items-center space-x-2 mb-2">
             <input
               type="radio"
-              id="monthly-day-of-month"
-              name="monthly-type"
+              name="monthlyType"
+              value="dayOfMonth"
               checked={monthlyType === 'dayOfMonth'}
-              onChange={() => setMonthlyType('dayOfMonth')}
+              onChange={() => handleMonthlyTypeChange('dayOfMonth')}
+              className="mr-2"
             />
             <label htmlFor="monthly-day-of-month">
               On day {initialDate.getDate()} of the month
@@ -193,10 +263,11 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
           <div className="flex items-center space-x-2">
             <input
               type="radio"
-              id="monthly-day-of-week"
-              name="monthly-type"
+              name="monthlyType"
+              value="dayOfWeek"
               checked={monthlyType === 'dayOfWeek'}
-              onChange={() => setMonthlyType('dayOfWeek')}
+              onChange={() => handleMonthlyTypeChange('dayOfWeek')}
+              className="mr-2"
             />
             <label htmlFor="monthly-day-of-week">
               On the {getOrdinal(Math.floor((initialDate.getDate() - 1) / 7) + 1)} {getDayName(initialDate.getDay())} of the month
@@ -222,10 +293,11 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
           <div className="flex items-center space-x-2">
             <input
               type="radio"
-              id="end-never"
-              name="end-type"
+              name="endType"
+              value="never"
               checked={endType === 'never'}
-              onChange={() => setEndType('never')}
+              onChange={() => handleEndTypeChange('never')}
+              className="mr-2"
             />
             <label htmlFor="end-never">Never</label>
           </div>
@@ -233,20 +305,20 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
           <div className="flex items-center space-x-2">
             <input
               type="radio"
-              id="end-count"
-              name="end-type"
+              name="endType"
+              value="count"
               checked={endType === 'count'}
-              onChange={() => setEndType('count')}
+              onChange={() => handleEndTypeChange('count')}
+              className="mr-2"
             />
             <label htmlFor="end-count">After</label>
-            <input
+            <FormInput
               type="number"
-              className={`w-16 px-2 py-1 border rounded-md ${endType === 'count' ? '' : 'opacity-50'}`}
               min="1"
-              max="999"
+              max="99"
               value={occurrences}
-              onChange={(e) => setOccurrences(parseInt(e.target.value) || 1)}
-              disabled={endType !== 'count'}
+              onChange={(e) => handleOccurrencesChange(parseInt(e.target.value) || 1)}
+              className="w-16 mx-2"
             />
             <span>occurrences</span>
           </div>
@@ -254,19 +326,18 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
           <div className="flex items-center space-x-2">
             <input
               type="radio"
-              id="end-until"
-              name="end-type"
+              name="endType"
+              value="until"
               checked={endType === 'until'}
-              onChange={() => setEndType('until')}
+              onChange={() => handleEndTypeChange('until')}
+              className="mr-2"
             />
             <label htmlFor="end-until">On</label>
-            <input
+            <FormInput
               type="date"
-              className={`px-2 py-1 border rounded-md ${endType === 'until' ? '' : 'opacity-50'}`}
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              disabled={endType !== 'until'}
-              min={formatDateForInput(new Date())}
+              onChange={(e) => handleEndDateChange(e.target.value)}
+              className="ml-2"
             />
           </div>
         </div>

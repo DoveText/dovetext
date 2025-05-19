@@ -145,19 +145,30 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
       endDate.setHours(23, 59, 59, 999);
     }
     
-    // Create event object
+    // Create event object with all required fields
+    // Keep dates as Date objects since the parent component expects them
     const eventData = {
       id: eventId, // Include the ID for editing existing events
       title,
-      start: startDate,
-      end: endDate,
+      start: startDate, // Keep as Date object
+      end: endDate, // Keep as Date object
       isAllDay,
       type: eventType,
       location,
       description,
+      // Include recurrence data
       isRecurring: !!recurrenceRule,
-      recurrenceRule: recurrenceRule || undefined
+      recurrenceRule: recurrenceRule ? {
+        type: recurrenceRule.type,
+        interval: recurrenceRule.interval,
+        pattern: recurrenceRule.pattern || {},
+        count: recurrenceRule.count,
+        until: recurrenceRule.until // Keep as Date object if present
+      } : null
     };
+    
+    // Debug log to see what's being sent
+    console.log('Saving event with data:', JSON.stringify(eventData, null, 2));
     
     // First save the event data
     onSave(eventData);
@@ -326,10 +337,22 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
                     <input
                       type="checkbox"
                       checked={!!recurrenceRule}
-                      onChange={() => setRecurrenceRule(recurrenceRule ? null : {
-                        type: 'DAILY',
-                        interval: 1
-                      })}
+                      onChange={() => {
+                        if (recurrenceRule) {
+                          // If turning off recurrence, set to null
+                          setRecurrenceRule(null);
+                        } else {
+                          // If turning on recurrence, create a basic rule and switch to recurrence tab
+                          const newRule = {
+                            type: 'DAILY' as const,
+                            interval: 1,
+                            pattern: {}
+                          };
+                          setRecurrenceRule(newRule);
+                          // Automatically switch to recurrence tab when enabling recurrence
+                          setActiveTab('recurrence');
+                        }
+                      }}
                       className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
                       style={{ 
                         right: recurrenceRule ? '0' : 'auto', 

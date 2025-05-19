@@ -105,7 +105,19 @@ function ScheduleContent() {
         isAllDay: eventData.isAllDay,
         type: eventData.type,
         location: eventData.location,
-        description: eventData.description
+        description: eventData.description,
+        // Include recurrence data if present
+        isRecurring: eventData.isRecurring || false,
+        recurrenceRule: eventData.recurrenceRule ? {
+          type: eventData.recurrenceRule.type,
+          interval: eventData.recurrenceRule.interval,
+          pattern: eventData.recurrenceRule.pattern || {},
+          count: eventData.recurrenceRule.count,
+          // Convert Date object to timestamp if present
+          until: eventData.recurrenceRule.until ? 
+            Math.floor(eventData.recurrenceRule.until.getTime() / 1000) : 
+            null
+        } : null
       };
       
       let savedEvent: Schedule;
