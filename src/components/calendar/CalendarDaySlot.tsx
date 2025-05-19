@@ -355,7 +355,11 @@ export default function CalendarDaySlot({
                                 showTooltip(
                                     <>
                                         <div className="font-bold">{event.title}</div>
-                                        <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
+                                        {event.type === 'reminder' ? (
+                                            <div>{formatEventDate(event.start)} {formatEventTime(event.start)}</div>
+                                        ) : (
+                                            <div>{formatEventDate(event.start)} {formatEventTime(event.start)} - {formatEventTime(event.end)}</div>
+                                        )}
                                         {event.description && <div className="mt-1">{event.description}</div>}
                                         {event.location && <div className="mt-1">📍 {event.location}</div>}
                                     </>,

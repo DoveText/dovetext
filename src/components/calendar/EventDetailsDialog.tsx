@@ -83,6 +83,10 @@ export default function EventDetailsDialog({
               <p className="text-sm font-medium">{formatDate(event.start)}</p>
               {event.isAllDay ? (
                 <p className="text-sm text-gray-600">All day</p>
+              ) : event.type === 'reminder' ? (
+                <p className="text-sm text-gray-600">
+                  {formatTime(event.start)}
+                </p>
               ) : (
                 <p className="text-sm text-gray-600">
                   {formatTime(event.start)} - {formatTime(event.end)}
