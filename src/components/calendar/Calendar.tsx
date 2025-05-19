@@ -6,41 +6,36 @@ import WeekView from './WeekView';
 import MonthView from './MonthView';
 import ListView from './ListView';
 import { ChevronLeftIcon, ChevronRightIcon, ListBulletIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { Schedule, RecurrenceRule } from '@/types/schedule';
 
 export type CalendarViewType = 'day' | 'week' | 'month';
 export type DisplayMode = 'calendar' | 'list';
 
+// Extend the Schedule interface with display-specific properties for the calendar
 export interface ScheduleEvent {
+  // Base properties from Schedule
   id: string;
   title: string;
-  start: Date;
-  end: Date;
+  start: Date;  // Note: This is Date instead of number (epoch seconds)
+  end: Date;    // Note: This is Date instead of number (epoch seconds)
   isAllDay: boolean;
   type: 'event' | 'reminder' | 'all-day';
   location?: string;
   description?: string;
   color?: string;
   isRecurring?: boolean;
+  
+  // Modified recurrenceRule with Date instead of number for until
+  recurrenceRule?: Omit<RecurrenceRule, 'until'> & {
+    until?: Date | null;
+  };
+  
   // Properties added for calendar display
   width?: number;
   left?: number;
   column?: number;
   maxColumns?: number;
   inFirstQuarter?: boolean;
-  recurrenceRule?: {
-    type: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
-    interval: number;
-    pattern?: {
-      daysOfWeek?: number[];  // For weekly (0-6, where 0 is Sunday)
-      dayOfMonth?: number;    // For monthly (1-31)
-      dayOfWeek?: number;     // For monthly (0-6)
-      weekOfMonth?: number;   // For monthly (1-5, where 5 means "last")
-      month?: number;         // For yearly (0-11)
-      day?: number;           // For yearly (1-31)
-    };
-    count?: number;
-    until?: Date | null;
-  };
 }
 
 interface CalendarProps {

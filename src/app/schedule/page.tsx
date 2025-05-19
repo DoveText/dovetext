@@ -39,11 +39,35 @@ function ScheduleContent() {
         );
         
         // Convert epoch seconds to Date objects
-        const formattedEvents: ScheduleEvent[] = data.map(event => ({
-          ...event,
-          start: new Date(event.start * 1000), // Convert from seconds to milliseconds
-          end: new Date(event.end * 1000)     // Convert from seconds to milliseconds
-        }));
+        const formattedEvents: ScheduleEvent[] = data.map(event => {
+          // Create a new object with only the properties we need for ScheduleEvent
+          const formattedEvent: ScheduleEvent = {
+            id: event.id,
+            title: event.title,
+            start: new Date(event.start * 1000), // Convert from seconds to milliseconds
+            end: new Date(event.end * 1000),     // Convert from seconds to milliseconds
+            isAllDay: event.isAllDay,
+            type: event.type,
+            location: event.location,
+            description: event.description,
+            color: event.color,
+            isRecurring: event.isRecurring
+          };
+          
+          // Handle recurrence data if present
+          if (event.recurrenceRule) {
+            formattedEvent.recurrenceRule = {
+              type: event.recurrenceRule.type,
+              interval: event.recurrenceRule.interval,
+              pattern: event.recurrenceRule.pattern,
+              count: event.recurrenceRule.count,
+              // Convert until timestamp to Date if present
+              until: event.recurrenceRule.until ? new Date(event.recurrenceRule.until * 1000) : null
+            };
+          }
+          
+          return formattedEvent;
+        });
         
         setEvents(formattedEvents);
       } catch (error) {
@@ -116,8 +140,8 @@ function ScheduleContent() {
           // Convert Date object to timestamp if present
           until: eventData.recurrenceRule.until ? 
             Math.floor(eventData.recurrenceRule.until.getTime() / 1000) : 
-            null
-        } : null
+            undefined
+        } : undefined
       };
       
       let savedEvent: Schedule;
@@ -131,11 +155,33 @@ function ScheduleContent() {
         // Update the event in the local state
         updatedEvents = events.map(event => {
           if (event.id === eventData.id) {
-            return {
-              ...savedEvent,
+            // Convert the saved event back to a ScheduleEvent
+            const updatedEvent: ScheduleEvent = {
+              id: savedEvent.id,
+              title: savedEvent.title,
               start: new Date(savedEvent.start * 1000), // Convert from seconds to milliseconds
-              end: new Date(savedEvent.end * 1000)      // Convert from seconds to milliseconds
+              end: new Date(savedEvent.end * 1000),     // Convert from seconds to milliseconds
+              isAllDay: savedEvent.isAllDay,
+              type: savedEvent.type,
+              location: savedEvent.location,
+              description: savedEvent.description,
+              color: savedEvent.color,
+              isRecurring: savedEvent.isRecurring
             };
+            
+            // Handle recurrence data if present
+            if (savedEvent.recurrenceRule) {
+              updatedEvent.recurrenceRule = {
+                type: savedEvent.recurrenceRule.type,
+                interval: savedEvent.recurrenceRule.interval,
+                pattern: savedEvent.recurrenceRule.pattern,
+                count: savedEvent.recurrenceRule.count,
+                // Convert until timestamp to Date if present
+                until: savedEvent.recurrenceRule.until ? new Date(savedEvent.recurrenceRule.until * 1000) : null
+              };
+            }
+            
+            return updatedEvent;
           }
           return event;
         });
@@ -145,10 +191,29 @@ function ScheduleContent() {
         
         // Add new event to the local state
         const newEvent: ScheduleEvent = {
-          ...savedEvent,
+          id: savedEvent.id,
+          title: savedEvent.title,
           start: new Date(savedEvent.start * 1000), // Convert from seconds to milliseconds
-          end: new Date(savedEvent.end * 1000)      // Convert from seconds to milliseconds
+          end: new Date(savedEvent.end * 1000),     // Convert from seconds to milliseconds
+          isAllDay: savedEvent.isAllDay,
+          type: savedEvent.type,
+          location: savedEvent.location,
+          description: savedEvent.description,
+          color: savedEvent.color,
+          isRecurring: savedEvent.isRecurring
         };
+        
+        // Handle recurrence data if present
+        if (savedEvent.recurrenceRule) {
+          newEvent.recurrenceRule = {
+            type: savedEvent.recurrenceRule.type,
+            interval: savedEvent.recurrenceRule.interval,
+            pattern: savedEvent.recurrenceRule.pattern,
+            count: savedEvent.recurrenceRule.count,
+            // Convert until timestamp to Date if present
+            until: savedEvent.recurrenceRule.until ? new Date(savedEvent.recurrenceRule.until * 1000) : null
+          };
+        }
         
         updatedEvents = [...events, newEvent];
       }
