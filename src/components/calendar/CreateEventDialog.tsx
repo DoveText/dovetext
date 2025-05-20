@@ -146,25 +146,29 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
     }
     
     // Create event object with all required fields
-    // Keep dates as Date objects since the parent component expects them
+    const startTimestamp = Math.floor(startDate.getTime() / 1000);
+    const endTimestamp = Math.floor(endDate.getTime() / 1000);
     const eventData = {
       id: eventId, // Include the ID for editing existing events
       title,
-      start: startDate, // Keep as Date object
-      end: endDate, // Keep as Date object
+      start: startTimestamp,
+      end: endTimestamp,
       isAllDay,
       type: eventType,
-      location,
-      description,
-      // Include recurrence data
+      location: location || undefined,
+      description: description || undefined,
       isRecurring: !!recurrenceRule,
       recurrenceRule: recurrenceRule ? {
         type: recurrenceRule.type,
         interval: recurrenceRule.interval,
         pattern: recurrenceRule.pattern || {},
         count: recurrenceRule.count,
-        until: recurrenceRule.until // Keep as Date object if present
-      } : null
+        // until is now handled by recurrenceEnd directly in the schedule
+      } : undefined,
+      // Set recurrenceStart to the event start time for recurring events
+      recurrenceStart: recurrenceRule ? startTimestamp : undefined,
+      // Set recurrenceEnd to the until date if specified
+      recurrenceEnd: recurrenceRule?.until ? Math.floor(recurrenceRule.until.getTime() / 1000) : undefined
     };
     
     // Debug log to see what's being sent

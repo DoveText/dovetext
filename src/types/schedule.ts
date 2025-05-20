@@ -12,7 +12,7 @@ export interface RecurrenceRule {
   interval: number;
   pattern?: RecurrencePattern;
   count?: number;
-  until?: number; // Epoch time in seconds (long)
+  // Note: until/end date is now stored directly in the Schedule as recurrenceEnd
 }
 
 export interface Schedule {
@@ -30,6 +30,8 @@ export interface Schedule {
   updatedAt: number; // Epoch time in seconds (long)
   isRecurring?: boolean;
   recurrenceRule?: RecurrenceRule;
+  recurrenceStart?: number; // Epoch time in seconds (long)
+  recurrenceEnd?: number;   // Epoch time in seconds (long)
 }
 
 export interface CreateScheduleRequest {
@@ -43,6 +45,8 @@ export interface CreateScheduleRequest {
   color?: string;
   isRecurring?: boolean;
   recurrenceRule?: RecurrenceRule;
+  recurrenceStart?: number; // Epoch time in seconds (long)
+  recurrenceEnd?: number;   // Epoch time in seconds (long)
 }
 
 export interface UpdateScheduleRequest {
@@ -56,4 +60,6 @@ export interface UpdateScheduleRequest {
   color?: string;
   isRecurring?: boolean;
   recurrenceRule?: RecurrenceRule;
+  recurrenceStart?: number; // Epoch time in seconds (long)
+  recurrenceEnd?: number;   // Epoch time in seconds (long)
 }

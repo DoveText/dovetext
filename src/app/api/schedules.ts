@@ -11,6 +11,18 @@ export const schedulesApi = {
   },
 
   /**
+   * Get expanded recurring event instances for a specific date range
+   * @param startTime Start time in epoch seconds
+   * @param endTime End time in epoch seconds
+   */
+  async getRecurringExpansions(startTime: number, endTime: number): Promise<Schedule[]> {
+    const { data } = await apiClient.get<Schedule[]>(`/api/v1/schedules/recurring-expansions`, {
+      params: { startTime, endTime }
+    });
+    return data;
+  },
+
+  /**
    * Get schedules for a specific date range using epoch seconds
    * @param startTime Start time in epoch seconds
    * @param endTime End time in epoch seconds

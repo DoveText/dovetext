@@ -30,6 +30,10 @@ export interface ScheduleEvent {
     until?: Date | null;
   };
   
+  // Recurrence date range fields
+  recurrenceStart?: number; // Epoch time in seconds
+  recurrenceEnd?: number;   // Epoch time in seconds
+  
   // Properties added for calendar display
   width?: number;
   left?: number;

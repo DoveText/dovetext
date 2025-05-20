@@ -23,58 +23,86 @@ function ScheduleContent() {
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   
-  // Load events from API on component mount
-  useEffect(() => {
-    const loadEvents = async () => {
-      try {
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - 30); // Get events from 30 days ago
-        
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + 60); // Get events up to 60 days in the future
-        
-        const data = await schedulesApi.getByDateRange(
-          Math.floor(startDate.getTime() / 1000), // Convert to epoch seconds
-          Math.floor(endDate.getTime() / 1000)    // Convert to epoch seconds
-        );
-        
-        // Convert epoch seconds to Date objects
-        const formattedEvents: ScheduleEvent[] = data.map(event => {
-          // Create a new object with only the properties we need for ScheduleEvent
-          const formattedEvent: ScheduleEvent = {
-            id: event.id,
-            title: event.title,
-            start: new Date(event.start * 1000), // Convert from seconds to milliseconds
-            end: new Date(event.end * 1000),     // Convert from seconds to milliseconds
-            isAllDay: event.isAllDay,
-            type: event.type,
-            location: event.location,
-            description: event.description,
-            color: event.color,
-            isRecurring: event.isRecurring
-          };
-          
-          // Handle recurrence data if present
-          if (event.recurrenceRule) {
-            formattedEvent.recurrenceRule = {
-              type: event.recurrenceRule.type,
-              interval: event.recurrenceRule.interval,
-              pattern: event.recurrenceRule.pattern,
-              count: event.recurrenceRule.count,
-              // Convert until timestamp to Date if present
-              until: event.recurrenceRule.until ? new Date(event.recurrenceRule.until * 1000) : null
-            };
-          }
-          
-          return formattedEvent;
-        });
-        
-        setEvents(formattedEvents);
-      } catch (error) {
-        console.error('Error loading events:', error);
-      }
+  // Load events from API
+  const loadEvents = async () => {
+    if (!user) return;
+    
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30); // Get events from 30 days ago
+      
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 60); // Get events up to 60 days in the future
+      
+      // Convert to timestamps
+      const startTimestamp = Math.floor(startDate.getTime() / 1000);
+      const endTimestamp = Math.floor(endDate.getTime() / 1000);
+      
+      // Fetch both regular events and recurring event expansions in parallel
+      const [regularData, recurringExpansions] = await Promise.all([
+        schedulesApi.getByDateRange(startTimestamp, endTimestamp),
+        schedulesApi.getRecurringExpansions(startTimestamp, endTimestamp)
+      ]);
+      
+      // Filter out the base recurring events (we'll show their expansions instead)
+      const filteredRegularEvents = regularData.filter(event => !event.isRecurring);
+      
+      // Process regular events
+      const regularEvents = filteredRegularEvents.map(event => formatEventForCalendar(event));
+      
+      // Process recurring event expansions
+      const recurringEvents = recurringExpansions.map(event => formatEventForCalendar(event));
+      
+      // Combine all events
+      setEvents([...regularEvents, ...recurringEvents]);
+    } catch (error) {
+      console.error('Error loading events:', error);
+    }
+  };
+  
+  // Helper function to format events for the calendar
+  const formatEventForCalendar = (event: any): ScheduleEvent => {
+    // Create a new object with only the properties we need for ScheduleEvent
+    const formattedEvent: ScheduleEvent = {
+      id: event.id,
+      title: event.title,
+      start: new Date(event.start * 1000), // Convert from seconds to milliseconds
+      end: new Date(event.end * 1000),     // Convert from seconds to milliseconds
+      isAllDay: event.isAllDay,
+      type: event.type,
+      location: event.location,
+      description: event.description,
+      color: event.color,
+      isRecurring: event.isRecurring
     };
     
+    // Handle recurrence data if present
+    if (event.recurrenceRule) {
+      formattedEvent.recurrenceRule = {
+        type: event.recurrenceRule.type,
+        interval: event.recurrenceRule.interval,
+        pattern: event.recurrenceRule.pattern,
+        count: event.recurrenceRule.count,
+        // until is now stored in recurrenceEnd
+      };
+      
+      // Add recurrence start/end fields if present
+      if (event.recurrenceStart) {
+        formattedEvent.recurrenceStart = event.recurrenceStart;
+      }
+      
+      if (event.recurrenceEnd) {
+        formattedEvent.recurrenceEnd = event.recurrenceEnd;
+        // For backwards compatibility with components that still use until
+        formattedEvent.recurrenceRule.until = new Date(event.recurrenceEnd * 1000);
+      }
+    }
+    
+    return formattedEvent;
+  };
+  
+  // Load events on component mount
+  useEffect(() => {
     if (user) {
       loadEvents();
     }
@@ -121,110 +149,70 @@ function ScheduleContent() {
   // Handle save event
   const handleSaveEvent = async (eventData: any) => {
     try {
-      // Convert Date objects to epoch seconds for API
-      const apiEventData = {
-        title: eventData.title,
-        start: Math.floor(eventData.start.getTime() / 1000), // Convert to epoch seconds
-        end: Math.floor(eventData.end.getTime() / 1000),     // Convert to epoch seconds
-        isAllDay: eventData.isAllDay,
-        type: eventData.type,
-        location: eventData.location,
-        description: eventData.description,
-        // Include recurrence data if present
-        isRecurring: eventData.isRecurring || false,
-        recurrenceRule: eventData.recurrenceRule ? {
-          type: eventData.recurrenceRule.type,
-          interval: eventData.recurrenceRule.interval,
-          pattern: eventData.recurrenceRule.pattern || {},
-          count: eventData.recurrenceRule.count,
-          // Convert Date object to timestamp if present
-          until: eventData.recurrenceRule.until ? 
-            Math.floor(eventData.recurrenceRule.until.getTime() / 1000) : 
-            undefined
-        } : undefined
-      };
-      
-      let savedEvent: Schedule;
-      let updatedEvents: ScheduleEvent[];
-      
-      // Check if we're editing an existing event or creating a new one
       if (eventData.id) {
-        // Update existing event
-        savedEvent = await schedulesApi.update(eventData.id, apiEventData);
-        
-        // Update the event in the local state
-        updatedEvents = events.map(event => {
-          if (event.id === eventData.id) {
-            // Convert the saved event back to a ScheduleEvent
-            const updatedEvent: ScheduleEvent = {
-              id: savedEvent.id,
-              title: savedEvent.title,
-              start: new Date(savedEvent.start * 1000), // Convert from seconds to milliseconds
-              end: new Date(savedEvent.end * 1000),     // Convert from seconds to milliseconds
-              isAllDay: savedEvent.isAllDay,
-              type: savedEvent.type,
-              location: savedEvent.location,
-              description: savedEvent.description,
-              color: savedEvent.color,
-              isRecurring: savedEvent.isRecurring
-            };
-            
-            // Handle recurrence data if present
-            if (savedEvent.recurrenceRule) {
-              updatedEvent.recurrenceRule = {
-                type: savedEvent.recurrenceRule.type,
-                interval: savedEvent.recurrenceRule.interval,
-                pattern: savedEvent.recurrenceRule.pattern,
-                count: savedEvent.recurrenceRule.count,
-                // Convert until timestamp to Date if present
-                until: savedEvent.recurrenceRule.until ? new Date(savedEvent.recurrenceRule.until * 1000) : null
-              };
-            }
-            
-            return updatedEvent;
-          }
-          return event;
-        });
+        // Update existing event - with our simplified approach, we can directly update any instance
+        await handleRegularEventUpdate(eventData);
       } else {
-        // Create new event
-        savedEvent = await schedulesApi.create(apiEventData);
-        
-        // Add new event to the local state
-        const newEvent: ScheduleEvent = {
-          id: savedEvent.id,
-          title: savedEvent.title,
-          start: new Date(savedEvent.start * 1000), // Convert from seconds to milliseconds
-          end: new Date(savedEvent.end * 1000),     // Convert from seconds to milliseconds
-          isAllDay: savedEvent.isAllDay,
-          type: savedEvent.type,
-          location: savedEvent.location,
-          description: savedEvent.description,
-          color: savedEvent.color,
-          isRecurring: savedEvent.isRecurring
-        };
-        
-        // Handle recurrence data if present
-        if (savedEvent.recurrenceRule) {
-          newEvent.recurrenceRule = {
-            type: savedEvent.recurrenceRule.type,
-            interval: savedEvent.recurrenceRule.interval,
-            pattern: savedEvent.recurrenceRule.pattern,
-            count: savedEvent.recurrenceRule.count,
-            // Convert until timestamp to Date if present
-            until: savedEvent.recurrenceRule.until ? new Date(savedEvent.recurrenceRule.until * 1000) : null
-          };
-        }
-        
-        updatedEvents = [...events, newEvent];
+        // Creating a new event
+        await handleNewEventCreation(eventData);
       }
       
-      setEvents(updatedEvents);
+      // Reload events to get the updated data
+      await loadEvents();
+      
       setShowCreateEventDialog(false);
       setSelectedEvent(null); // Clear the selected event after saving
     } catch (error) {
       console.error('Error saving event:', error);
       // Could add error handling UI here
     }
+  };
+  
+  // These helper functions are no longer needed with our simplified approach
+  
+  // Helper function to handle regular event updates
+  const handleRegularEventUpdate = async (eventData: any) => {
+    // Convert Date objects to epoch seconds for API
+    const apiEvent = prepareEventForApi(eventData);
+    
+    // Update the event via API
+    await schedulesApi.update(eventData.id, apiEvent);
+  };
+  
+  // Helper function to handle new event creation
+  const handleNewEventCreation = async (eventData: any) => {
+    // Convert Date objects to epoch seconds for API
+    const apiEvent = prepareEventForApi(eventData);
+    
+    // Create the event via API
+    await schedulesApi.create(apiEvent);
+  };
+  
+  // Helper function to prepare event data for API
+  const prepareEventForApi = (eventData: any) => {
+    const apiEvent = {
+      ...eventData,
+      start: Math.floor(eventData.start.getTime() / 1000),
+      end: Math.floor(eventData.end.getTime() / 1000),
+      // Remove until from recurrenceRule as it's now stored in recurrenceEnd
+      recurrenceRule: eventData.recurrenceRule ? {
+        ...eventData.recurrenceRule,
+        // Remove until from recurrenceRule
+        until: undefined
+      } : undefined
+    };
+    
+    // Set recurrenceStart to event start time for recurring events if not already set
+    if (eventData.isRecurring && !eventData.recurrenceStart) {
+      apiEvent.recurrenceStart = Math.floor(eventData.start.getTime() / 1000);
+    }
+    
+    // Set recurrenceEnd from the until field in recurrenceRule if present
+    if (eventData.isRecurring && eventData.recurrenceRule?.until && !eventData.recurrenceEnd) {
+      apiEvent.recurrenceEnd = Math.floor(eventData.recurrenceRule.until.getTime() / 1000);
+    }
+    
+    return apiEvent;
   };
   
   // Handle edit event
@@ -236,8 +224,11 @@ function ScheduleContent() {
   // Handle delete event
   const handleDeleteEvent = async (eventId: string) => {
     try {
+      // With our simplified approach, we can directly delete any event
       await schedulesApi.delete(eventId);
-      setEvents(events.filter(event => event.id !== eventId));
+      
+      // Reload events to get the updated state
+      await loadEvents();
       setShowEventDetailsDialog(false);
     } catch (error) {
       console.error('Error deleting event:', error);
