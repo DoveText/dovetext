@@ -146,13 +146,17 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
     }
     
     // Create event object with all required fields
+    // Convert to Unix timestamps for API compatibility
     const startTimestamp = Math.floor(startDate.getTime() / 1000);
     const endTimestamp = Math.floor(endDate.getTime() / 1000);
+    
+    // Create the event data with Unix timestamps instead of Date objects
+    // This ensures timezone consistency between frontend and backend
     const eventData = {
       id: eventId, // Include the ID for editing existing events
       title,
-      start: startTimestamp,
-      end: endTimestamp,
+      start: startTimestamp, // Use Unix timestamp to avoid timezone issues
+      end: endTimestamp,     // Use Unix timestamp to avoid timezone issues
       isAllDay,
       type: eventType,
       location: location || undefined,

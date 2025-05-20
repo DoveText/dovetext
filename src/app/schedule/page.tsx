@@ -192,8 +192,13 @@ function ScheduleContent() {
   const prepareEventForApi = (eventData: any) => {
     const apiEvent = {
       ...eventData,
-      start: Math.floor(eventData.start.getTime() / 1000),
-      end: Math.floor(eventData.end.getTime() / 1000),
+      // Handle both Date objects and Unix timestamps
+      start: typeof eventData.start === 'number' 
+        ? eventData.start 
+        : Math.floor(eventData.start.getTime() / 1000),
+      end: typeof eventData.end === 'number' 
+        ? eventData.end 
+        : Math.floor(eventData.end.getTime() / 1000),
       // Remove until from recurrenceRule as it's now stored in recurrenceEnd
       recurrenceRule: eventData.recurrenceRule ? {
         ...eventData.recurrenceRule,
@@ -204,7 +209,9 @@ function ScheduleContent() {
     
     // Set recurrenceStart to event start time for recurring events if not already set
     if (eventData.isRecurring && !eventData.recurrenceStart) {
-      apiEvent.recurrenceStart = Math.floor(eventData.start.getTime() / 1000);
+      apiEvent.recurrenceStart = typeof eventData.start === 'number'
+        ? eventData.start
+        : Math.floor(eventData.start.getTime() / 1000);
     }
     
     // Set recurrenceEnd from the until field in recurrenceRule if present
