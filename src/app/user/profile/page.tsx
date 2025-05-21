@@ -5,7 +5,6 @@ import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { toast } from 'react-hot-toast';
 import { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
 import {
   ProfileSection,
   PersonalInfoSection,

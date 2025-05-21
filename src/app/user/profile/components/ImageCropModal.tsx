@@ -2,7 +2,6 @@
 
 import { RefObject } from 'react';
 import { Crop, PixelCrop } from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
 // Import ReactCrop directly - we'll handle the component in a way that works with TypeScript
 import ReactCrop from 'react-image-crop';
 

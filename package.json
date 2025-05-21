@@ -41,6 +41,8 @@
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^18",
+    "react-hot-toast": "^2.5.2",
+    "react-image-crop": "^11.0.10",
     "react-markdown": "^10.1.0",
     "react-phone-input-2": "^2.15.1",
     "react-tabs": "^6.1.0",
