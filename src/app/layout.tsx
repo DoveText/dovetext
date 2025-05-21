@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import Footer from '@/components/Footer';
 import Navigation from '@/components/Navigation'; 
@@ -36,6 +37,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <Script
+          strategy="afterInteractive"
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "bd727714eee74ace850d189571796afa"}'
+        />
+      </head>
       <body className={inter.className}>
         <AuthProvider>
           <ActionProvider>
