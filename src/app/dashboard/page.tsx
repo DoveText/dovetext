@@ -8,6 +8,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { CalendarIcon, SparklesIcon, ArrowRightIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useAction } from '@/context/ActionContext';
 import ChatInput from '@/components/common/ChatInput';
+import { dashboardApi, DashboardStats } from '@/app/api/dashboard';
 
 function DashboardContent() {
   const { user } = useAuth();
@@ -34,9 +35,37 @@ function DashboardContent() {
   
   // Selected time range state
   const [selectedTimeRange, setSelectedTimeRange] = useState<'today' | 'week' | 'month'>('week');
+  // Dashboard stats state
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
+    totalSchedules: 0,
+    missedSchedules: 0,
+    automationExecutions: 0,
+    failedExecutions: 0,
+    timeRange: 'week',
+    dateRangeLabel: ''
+  });
   
-  // Generate date range subtitle based on selected time range
+  // Fetch dashboard stats from API
+  const fetchDashboardStats = async (timeRange: string) => {
+    try {
+      const data = await dashboardApi.getStats(timeRange);
+      setDashboardStats(data);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    }
+  };
+  
+  // Fetch stats when time range changes
+  useEffect(() => {
+    fetchDashboardStats(selectedTimeRange);
+  }, [selectedTimeRange]);
+  
+  // Use the dateRangeLabel from API if available, otherwise generate locally
   const getDateRangeSubtitle = () => {
+    if (dashboardStats.dateRangeLabel) {
+      return dashboardStats.dateRangeLabel;
+    }
+    
     const today = new Date();
     const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     
@@ -62,31 +91,6 @@ function DashboardContent() {
       return `${formatter.format(startOfMonth)} - ${formatter.format(endOfMonth)}`;
     }
   };
-  
-  // Mock user stats based on selected time range - in a real app, these would come from the backend
-  const userStatsByRange = {
-    today: {
-      totalSchedules: 3,
-      missedSchedules: 1,
-      automationExecutions: 5,
-      failedExecutions: 0
-    },
-    week: {
-      totalSchedules: 12,
-      missedSchedules: 2,
-      automationExecutions: 28,
-      failedExecutions: 3
-    },
-    month: {
-      totalSchedules: 45,
-      missedSchedules: 8,
-      automationExecutions: 120,
-      failedExecutions: 7
-    }
-  };
-  
-  // Get stats for the selected time range
-  const userStats = userStatsByRange[selectedTimeRange];
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -128,22 +132,22 @@ function DashboardContent() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-4 sm:mt-6">
           <div className="bg-blue-50 p-4 rounded-lg">
             <p className="text-sm font-medium text-gray-500">Total Schedules</p>
-            <p className="text-2xl font-bold text-blue-600">{userStats.totalSchedules}</p>
+            <p className="text-2xl font-bold text-blue-600">{dashboardStats.totalSchedules}</p>
             <p className="text-xs text-gray-500 mt-1">Events in selected period</p>
           </div>
           <div className="bg-red-50 p-4 rounded-lg">
             <p className="text-sm font-medium text-gray-500">Missed Schedules</p>
-            <p className="text-2xl font-bold text-red-600">{userStats.missedSchedules}</p>
+            <p className="text-2xl font-bold text-red-600">{dashboardStats.missedSchedules}</p>
             <p className="text-xs text-gray-500 mt-1">Unacknowledged past events</p>
           </div>
           <div className="bg-green-50 p-4 rounded-lg">
             <p className="text-sm font-medium text-gray-500">Automation Executions</p>
-            <p className="text-2xl font-bold text-green-600">{userStats.automationExecutions}</p>
+            <p className="text-2xl font-bold text-green-600">{dashboardStats.automationExecutions}</p>
             <p className="text-xs text-gray-500 mt-1">Total runs in period</p>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg">
             <p className="text-sm font-medium text-gray-500">Failed Executions</p>
-            <p className="text-2xl font-bold text-yellow-600">{userStats.failedExecutions}</p>
+            <p className="text-2xl font-bold text-yellow-600">{dashboardStats.failedExecutions}</p>
             <p className="text-xs text-gray-500 mt-1">Errors during automation</p>
           </div>
         </div>
