@@ -100,13 +100,13 @@ function DashboardContent() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Welcome, {user?.displayName || user?.email?.split('@')[0] || 'User'}</h1>
-            <p className="text-gray-600 mt-1">Here&apos;s your current status and activities</p>
+            <p className="text-gray-600 mt-2">Here&apos;s your current status and activities</p>
           </div>
-          <div className="mt-4 md:mt-0 flex flex-col items-end">
-            <div className="bg-blue-50 p-3 rounded-lg mb-2">
-              <p className="text-sm font-medium text-blue-800">Last login: {new Date().toLocaleDateString()}</p>
-            </div>
-            <div className="flex flex-col items-end">
+          <div className="mt-4 md:mt-0">
+            <div className="flex items-center space-x-4">
+              <div className="bg-blue-50 p-2 rounded-md inline-block">
+                <p className="text-sm font-medium text-blue-800">Last login: {new Date().toLocaleDateString()}</p>
+              </div>
               <div className="flex space-x-2 text-sm">
                 {timeRanges.map(range => (
                   <button
@@ -122,10 +122,10 @@ function DashboardContent() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {getDateRangeSubtitle()}
-              </p>
             </div>
+            <p className="text-xs text-gray-500 mt-1 text-right">
+              {getDateRangeSubtitle()}
+            </p>
           </div>
         </div>
 
