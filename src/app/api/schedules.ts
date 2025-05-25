@@ -64,4 +64,15 @@ export const schedulesApi = {
   async delete(id: string): Promise<void> {
     await apiClient.delete(`/api/v1/schedules/${id}`);
   },
+
+  /**
+   * Acknowledge a schedule instance
+   * @param scheduleId
+   * @param instanceId The ID of the instance to acknowledge
+   * @returns The acknowledged schedule instance
+   */
+  async acknowledgeInstance(scheduleId: any, instanceId: number): Promise<Schedule> {
+    const { data } = await apiClient.post<Schedule>(`/api/v1/schedules/acknowledge/${scheduleId}/${instanceId}/`);
+    return data;
+  }
 };

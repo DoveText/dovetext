@@ -243,6 +243,28 @@ function ScheduleContent() {
     }
   };
   
+  // Handle event acknowledgment
+  const handleAcknowledgeEvent = async (event: ScheduleEvent) => {
+    try {
+      // Update the event in the local state
+      setCalendarEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === event.id && e.instanceId === event.instanceId 
+            ? { ...e, acknowledged: true } 
+            : e
+        )
+      );
+      
+      toast.success('Event acknowledged successfully');
+      
+      // Refresh events to get the latest status
+      fetchEvents();
+    } catch (error) {
+      console.error('Error acknowledging event:', error);
+      toast.error('Failed to acknowledge event');
+    }
+  };
+  
   // Handle event drop
   const handleEventDrop = (event: ScheduleEvent, newStart: Date, newEnd: Date) => {
     // Create a copy of the event with updated times
@@ -319,6 +341,7 @@ function ScheduleContent() {
         event={selectedEvent}
         onEdit={handleEditEvent}
         onDelete={handleDeleteEvent}
+        onAcknowledge={handleAcknowledgeEvent}
       />
       </div>
     </div>

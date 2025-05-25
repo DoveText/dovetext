@@ -34,6 +34,11 @@ export interface ScheduleEvent {
   recurrenceStart?: number; // Epoch time in seconds
   recurrenceEnd?: number;   // Epoch time in seconds
   
+  // Instance-specific properties
+  instanceId?: number;  // ID of the schedule instance, 0 for non-instantiated instances
+  status?: string;     // Status of the instance (SCHEDULED, NOTIFIED, STARTED, COMPLETED, MISSED, etc.)
+  acknowledged?: boolean; // Whether the instance has been acknowledged by the user
+  
   // Properties added for calendar display
   width?: number;
   left?: number;

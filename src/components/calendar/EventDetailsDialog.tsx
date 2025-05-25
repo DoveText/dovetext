@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { XMarkIcon, PencilIcon, TrashIcon, ClockIcon, MapPinIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PencilIcon, TrashIcon, ClockIcon, MapPinIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { schedulesApi } from '@/app/api/schedules';
 import { ScheduleEvent } from './Calendar';
 
 interface EventDetailsDialogProps {
@@ -10,6 +11,7 @@ interface EventDetailsDialogProps {
   event: ScheduleEvent | null;
   onEdit?: (event: ScheduleEvent) => void;
   onDelete?: (eventId: string) => void;
+  onAcknowledge?: (event: ScheduleEvent) => void;
 }
 
 export default function EventDetailsDialog({ 
@@ -17,9 +19,20 @@ export default function EventDetailsDialog({
   onClose, 
   event, 
   onEdit, 
-  onDelete 
+  onDelete,
+  onAcknowledge 
 }: EventDetailsDialogProps) {
   if (!isOpen || !event) return null;
+  
+  // Check if a date is from the current day
+  const isCurrentDay = (date: Date): boolean => {
+    const now = new Date();
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate()
+    );
+  };
 
   // Format date for display
   const formatDate = (date: Date) => {
@@ -114,6 +127,35 @@ export default function EventDetailsDialog({
         
         {/* Action Buttons */}
         <div className="flex justify-end space-x-3 mt-6">
+          {/* Acknowledge Button - Only show for instances from the current day that aren't already acknowledged */}
+          {onAcknowledge && event.instanceId && event.instanceId > 0 && !event.acknowledged && (
+            <button
+              onClick={async () => {
+                try {
+                  // Call the API to acknowledge the instance
+                  await schedulesApi.acknowledgeInstance(event?.id, event.instanceId!);
+                  
+                  // Update the local state
+                  if (onAcknowledge) {
+                    const updatedEvent = { ...event, acknowledged: true };
+                    onAcknowledge(updatedEvent);
+                  }
+                  
+                  onClose();
+                } catch (error) {
+                  console.error('Failed to acknowledge schedule instance:', error);
+                  // You could add error handling UI here
+                }
+              }}
+              className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+              // Disable button if event is not from the current day
+              disabled={!isCurrentDay(event.start)}
+            >
+              <CheckCircleIcon className="h-4 w-4 mr-1" />
+              Acknowledge
+            </button>
+          )}
+          
           {onDelete && (
             <button
               onClick={() => {
