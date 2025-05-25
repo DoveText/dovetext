@@ -126,9 +126,16 @@ export default function EventDetailsDialog({
         <div className="flex justify-between items-start">
           <div>
             <h2 className="text-xl font-semibold">{event.title}</h2>
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded mt-1 inline-block ${getEventTypeBadgeColor(event.type, event.isAllDay)}`}>
-              {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
-            </span>
+            <div className="flex flex-wrap gap-2 mt-1">
+              <span className={`text-xs font-medium px-2.5 py-0.5 rounded inline-block ${getEventTypeBadgeColor(event.type, event.isAllDay)}`}>
+                {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
+              </span>
+              {(instanceDetails?.acknowledged || event.acknowledged) && (
+                <span className="text-xs font-medium px-2.5 py-0.5 rounded inline-block bg-green-100 text-green-800">
+                  You have acknowledged this {event.type}
+                </span>
+              )}
+            </div>
           </div>
           <button 
             onClick={onClose}
@@ -175,40 +182,37 @@ export default function EventDetailsDialog({
             </div>
           )}
           
-          {/* Instance Status - Only show for events with instanceId */}
-          {event.instanceId && (
-            <div className="flex items-start mt-2">
-              <CheckCircleIcon className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">Status</p>
-                <div className="flex items-center mt-1">
-                  {isLoading ? (
-                    <p className="text-sm text-gray-600">Loading status...</p>
-                  ) : (
-                    <>
-                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${getStatusColor(instanceDetails?.status || event.status || 'SCHEDULED')}`}></span>
-                      <p className="text-sm text-gray-600">
-                        {instanceDetails?.status || event.status || 'SCHEDULED'}
-                        {(instanceDetails?.acknowledged || event.acknowledged) && ' (Acknowledged)'}
-                      </p>
-                    </>
-                  )}
-                </div>
+          {/* Instance Status - Show for all events */}
+          <div className="flex items-start mt-2">
+            <CheckCircleIcon className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium">Status</p>
+              <div className="flex items-center mt-1">
+                {isLoading ? (
+                  <p className="text-sm text-gray-600">Loading status...</p>
+                ) : (
+                  <>
+                    <span className={`inline-block w-2 h-2 rounded-full mr-2 ${getStatusColor(instanceDetails?.status || event.status || 'SCHEDULED')}`}></span>
+                    <p className="text-sm text-gray-600">
+                      {instanceDetails?.status || event.status || 'SCHEDULED'}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
-          )}
+          </div>
         </div>
         
         {/* Action Buttons */}
         <div className="flex justify-end space-x-3 mt-6">
           {/* Acknowledge Button - Only show for instances from the current day that aren't already acknowledged */}
-          {onAcknowledge && event.instanceId && event.instanceId > 0 && 
-           (!event.acknowledged && (!instanceDetails || !instanceDetails.acknowledged)) && (
+          {onAcknowledge &&
+           (!instanceDetails || !instanceDetails.acknowledged) && (
             <button
               onClick={async () => {
                 try {
                   // Call the API to acknowledge the instance
-                  await schedulesApi.acknowledgeInstance(event?.id, event.instanceId!);
+                  await schedulesApi.acknowledgeInstance(event?.id, instanceDetails.id);
                   
                   // Update the local state
                   if (onAcknowledge) {

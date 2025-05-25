@@ -243,33 +243,21 @@ function ScheduleContent() {
     }
   };
   
-  // Handle event acknowledgment
-  const handleAcknowledgeEvent = async (event: ScheduleEvent) => {
-    if (!event.instanceId || !event.id) {
-      console.error('Cannot acknowledge event without instanceId');
-      return;
-    }
+  // Handle event acknowledgment - just update local state since API call is handled in the dialog
+  const handleAcknowledgeEvent = (event: ScheduleEvent) => {
+    // Update the event in the local state
+    setEvents((prevEvents: ScheduleEvent[]) => 
+      prevEvents.map((e: ScheduleEvent) => 
+        e.id === event.id && e.instanceId === event.instanceId 
+          ? { ...e, acknowledged: true } 
+          : e
+      )
+    );
     
-    try {
-      // Call the API to acknowledge the event
-      await schedulesApi.acknowledgeInstance(event.id, event.instanceId);
-      
-      // Update the event in the local state
-      setEvents((prevEvents: ScheduleEvent[]) => 
-        prevEvents.map((e: ScheduleEvent) => 
-          e.id === event.id && e.instanceId === event.instanceId 
-            ? { ...e, acknowledged: true } 
-            : e
-        )
-      );
-      
-      console.log('Event acknowledged successfully');
-      
-      // Refresh events to get the latest status
-      loadEvents();
-    } catch (error) {
-      console.error('Error acknowledging event:', error);
-    }
+    console.log('Event acknowledged successfully');
+    
+    // Refresh events to get the latest status
+    loadEvents();
   };
   
   // Handle event drop
