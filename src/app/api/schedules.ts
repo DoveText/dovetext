@@ -72,7 +72,18 @@ export const schedulesApi = {
    * @returns The acknowledged schedule instance
    */
   async acknowledgeInstance(scheduleId: any, instanceId: number): Promise<Schedule> {
-    const { data } = await apiClient.post<Schedule>(`/api/v1/schedules/acknowledge/${scheduleId}/${instanceId}/`);
+    const { data } = await apiClient.post<Schedule>(`/api/v1/schedules/acknowledge/schedule/${scheduleId}/${instanceId}`);
+    return data;
+  },
+  
+  /**
+   * Get status information for a specific schedule instance
+   * @param scheduleId The ID of the schedule
+   * @param instanceId The ID of the instance
+   * @returns The instance status information including status and acknowledgment state
+   */
+  async getInstanceStatus(scheduleId: string, instanceId: number): Promise<any> {
+    const { data } = await apiClient.get(`/api/v1/schedules/instance/status/${scheduleId}/${instanceId}`);
     return data;
   }
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { XMarkIcon, PencilIcon, TrashIcon, ClockIcon, MapPinIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { schedulesApi } from '@/app/api/schedules';
 import { ScheduleEvent } from './Calendar';
@@ -22,6 +22,39 @@ export default function EventDetailsDialog({
   onDelete,
   onAcknowledge 
 }: EventDetailsDialogProps) {
+  const [instanceDetails, setInstanceDetails] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  // Define type for instance status
+  interface InstanceStatus {
+    id: number;
+    scheduleId: number;
+    status: string;
+    acknowledged: boolean;
+    start: number;
+    end: number;
+  }
+
+  // Fetch instance status when the dialog opens and the event has an instanceId
+  useEffect(() => {
+    if (isOpen && event) {
+      setIsLoading(true);
+      schedulesApi.getInstanceStatus(event.id, event.instanceId || 0)
+        .then((status: InstanceStatus) => {
+          setInstanceDetails(status);
+          console.log('Fetched instance status:', status);
+        })
+        .catch((error: Error) => {
+          console.error('Error fetching instance status:', error);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      setInstanceDetails(null);
+    }
+  }, [isOpen, event]);
+  
   if (!isOpen || !event) return null;
   
   // Check if a date is from the current day
@@ -68,7 +101,25 @@ export default function EventDetailsDialog({
         return 'bg-gray-100 text-gray-800';
     }
   };
-
+  
+  // Get status indicator color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'SCHEDULED':
+        return 'bg-blue-500';
+      case 'STARTED':
+        return 'bg-yellow-500';
+      case 'COMPLETED':
+        return 'bg-green-500';
+      case 'MISSED':
+        return 'bg-red-500';
+      case 'CANCELED':
+        return 'bg-gray-500';
+      default:
+        return 'bg-gray-300';
+    }
+  };
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -123,12 +174,36 @@ export default function EventDetailsDialog({
               <p className="text-sm">{event.description}</p>
             </div>
           )}
+          
+          {/* Instance Status - Only show for events with instanceId */}
+          {event.instanceId && (
+            <div className="flex items-start mt-2">
+              <CheckCircleIcon className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Status</p>
+                <div className="flex items-center mt-1">
+                  {isLoading ? (
+                    <p className="text-sm text-gray-600">Loading status...</p>
+                  ) : (
+                    <>
+                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${getStatusColor(instanceDetails?.status || event.status || 'SCHEDULED')}`}></span>
+                      <p className="text-sm text-gray-600">
+                        {instanceDetails?.status || event.status || 'SCHEDULED'}
+                        {(instanceDetails?.acknowledged || event.acknowledged) && ' (Acknowledged)'}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Action Buttons */}
         <div className="flex justify-end space-x-3 mt-6">
           {/* Acknowledge Button - Only show for instances from the current day that aren't already acknowledged */}
-          {onAcknowledge && event.instanceId && event.instanceId > 0 && !event.acknowledged && (
+          {onAcknowledge && event.instanceId && event.instanceId > 0 && 
+           (!event.acknowledged && (!instanceDetails || !instanceDetails.acknowledged)) && (
             <button
               onClick={async () => {
                 try {
@@ -141,6 +216,14 @@ export default function EventDetailsDialog({
                     onAcknowledge(updatedEvent);
                   }
                   
+                  // Update instance details locally
+                  if (instanceDetails) {
+                    setInstanceDetails({
+                      ...instanceDetails,
+                      acknowledged: true
+                    });
+                  }
+                  
                   onClose();
                 } catch (error) {
                   console.error('Failed to acknowledge schedule instance:', error);
@@ -148,11 +231,11 @@ export default function EventDetailsDialog({
                 }
               }}
               className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-              // Disable button if event is not from the current day
-              disabled={!isCurrentDay(event.start)}
+              // Disable button if event is not from the current day or if loading
+              disabled={!isCurrentDay(event.start) || isLoading}
             >
               <CheckCircleIcon className="h-4 w-4 mr-1" />
-              Acknowledge
+              {isLoading ? 'Loading...' : 'Acknowledge'}
             </button>
           )}
           
