@@ -85,6 +85,18 @@ export default function EventDetailsDialog({
       hour12: true
     });
   };
+  
+  // Format acknowledgment time from epoch seconds
+  const formatAcknowledgmentTime = (epochSeconds: number) => {
+    const date = new Date(epochSeconds * 1000);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
 
   // Get event type badge color
   const getEventTypeBadgeColor = (type: string, isAllDay: boolean = false) => {
@@ -132,7 +144,8 @@ export default function EventDetailsDialog({
               </span>
               {(instanceDetails?.acknowledged || event.acknowledged) && (
                 <span className="text-xs font-medium px-2.5 py-0.5 rounded inline-block bg-green-100 text-green-800">
-                  You have acknowledged this {event.type}
+                  You have acknowledged this {event.type} {instanceDetails?.acknowledgedAt ? 
+                    `at ${formatAcknowledgmentTime(instanceDetails.acknowledgedAt)}` : ''}
                 </span>
               )}
             </div>
