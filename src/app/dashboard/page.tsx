@@ -40,16 +40,27 @@ function DashboardContent() {
     totalSchedules: 0,
     missedSchedules: 0,
     automationExecutions: 0,
-    failedExecutions: 0,
-    timeRange: 'week',
-    dateRangeLabel: ''
+    failedExecutions: 0
   });
+  
+  // Local state for date range label
+  const [dateRangeLabel, setDateRangeLabel] = useState('');
   
   // Fetch dashboard stats from API
   const fetchDashboardStats = async (timeRange: string) => {
     try {
-      const data = await dashboardApi.getStats(timeRange);
+      // Calculate date range in user's local timezone
+      const dateRange = dashboardApi.calculateDateRange(timeRange);
+      
+      // Fetch stats with calculated date range
+      const data = await dashboardApi.getStats(
+        dateRange.startTime,
+        dateRange.endTime
+      );
+      
+      // Update stats and date range label
       setDashboardStats(data);
+      setDateRangeLabel(dateRange.dateRangeLabel);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
     }
@@ -60,37 +71,8 @@ function DashboardContent() {
     fetchDashboardStats(selectedTimeRange);
   }, [selectedTimeRange]);
   
-  // Use the dateRangeLabel from API if available, otherwise generate locally
-  const getDateRangeSubtitle = () => {
-    if (dashboardStats.dateRangeLabel) {
-      return dashboardStats.dateRangeLabel;
-    }
-    
-    const today = new Date();
-    const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    
-    if (selectedTimeRange === 'today') {
-      return formatter.format(today);
-    } else if (selectedTimeRange === 'week') {
-      // Get start of week (Sunday)
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() - today.getDay());
-      
-      // Get end of week (Saturday)
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-      
-      return `${formatter.format(startOfWeek)} - ${formatter.format(endOfWeek)}`;
-    } else { // month
-      // Get start of month
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      
-      // Get end of month
-      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      
-      return `${formatter.format(startOfMonth)} - ${formatter.format(endOfMonth)}`;
-    }
-  };
+  // The dateRangeLabel is now calculated by the dashboardApi.calculateDateRange function
+  // and stored in local state
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -124,7 +106,7 @@ function DashboardContent() {
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-1 text-right">
-              {getDateRangeSubtitle()}
+              {dateRangeLabel}
             </p>
           </div>
         </div>
