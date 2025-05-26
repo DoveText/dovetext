@@ -32,7 +32,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     value?.type || 'DAILY'
   );
   const [interval, setInterval] = useState<number>(value?.interval || 1);
-  
+
   // Weekly specific state
   const [weekdays, setWeekdays] = useState<number[]>(() => {
     if (value?.pattern?.daysOfWeek && value.pattern.daysOfWeek.length > 0) {
@@ -42,67 +42,67 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     const isoDay = initialDate.getDay() === 0 ? 7 : initialDate.getDay();
     return [isoDay];
   });
-  
+
   // Monthly specific state
   const [monthlyType, setMonthlyType] = useState<'dayOfMonth' | 'dayOfWeek' | 'beforeMonth'>(() => {
     if (value?.pattern?.weekOfMonth) return 'dayOfWeek';
     if (value?.pattern?.dayOfMonth && value.pattern.dayOfMonth < 0) return 'beforeMonth';
     return 'dayOfMonth';
   });
-  
+
   const [monthlyDayOfMonth, setMonthlyDayOfMonth] = useState<number>(
-    (value?.pattern?.dayOfMonth && value.pattern.dayOfMonth > 0) 
-      ? value.pattern.dayOfMonth 
+    (value?.pattern?.dayOfMonth && value.pattern.dayOfMonth > 0)
+      ? value.pattern.dayOfMonth
       : initialDate.getDate()
   );
-  
+
   const [monthlyDayOfWeek, setMonthlyDayOfWeek] = useState<number>(
     value?.pattern?.dayOfWeek || jsToIsoDay(initialDate.getDay())
   );
-  
+
   const [monthlyWeekOfMonth, setMonthlyWeekOfMonth] = useState<number>(
     value?.pattern?.weekOfMonth || Math.floor((initialDate.getDate() - 1) / 7) + 1
   );
-  
+
   const [monthlyDaysBeforeMonth, setMonthlyDaysBeforeMonth] = useState<number>(
-    (value?.pattern?.dayOfMonth && value.pattern.dayOfMonth < 0) 
-      ? -value.pattern.dayOfMonth 
+    (value?.pattern?.dayOfMonth && value.pattern.dayOfMonth < 0)
+      ? -value.pattern.dayOfMonth
       : 1
   );
-  
+
   // Yearly specific state
   const [yearlyType, setYearlyType] = useState<'specificDate' | 'positionBased'>(
     value?.pattern?.weekOfMonth ? 'positionBased' : 'specificDate'
   );
-  
+
   const [yearlyMonth, setYearlyMonth] = useState<number>(
-    value?.pattern?.month !== undefined 
-      ? value.pattern.month 
+    value?.pattern?.month !== undefined
+      ? value.pattern.month
       : initialDate.getMonth() + 1 // Convert JS month (0-11) to calendar month (1-12)
   );
-  
+
   const [yearlyDay, setYearlyDay] = useState<number>(
     value?.pattern?.day || initialDate.getDate()
   );
-  
+
   const [yearlyDayOfWeek, setYearlyDayOfWeek] = useState<number>(
     value?.pattern?.dayOfWeek || jsToIsoDay(initialDate.getDay())
   );
-  
+
   const [yearlyWeekOfMonth, setYearlyWeekOfMonth] = useState<number>(
     value?.pattern?.weekOfMonth || Math.floor((initialDate.getDate() - 1) / 7) + 1
   );
-  
+
   // End condition state
   const [endType, setEndType] = useState<'never' | 'count' | 'until'>(
     value?.until ? 'until' : value?.count ? 'count' : 'never'
   );
-  
+
   const [occurrences, setOccurrences] = useState<number>(value?.count || 10);
-  
+
   const [endDate, setEndDate] = useState<string>(
-    value?.until 
-      ? formatDateForInput(value.until) 
+    value?.until
+      ? formatDateForInput(value.until)
       : formatDateForInput(new Date(initialDate.getTime() + 90 * 24 * 60 * 60 * 1000)) // 90 days later by default
   );
 
@@ -173,12 +173,12 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
   const handleRecurrenceTypeChange = (value: string) => {
     const newType = value as 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
     setRecurrenceType(newType);
-    
+
     // Reset weekdays when changing to weekly
     if (newType === 'WEEKLY') {
       setWeekdays([jsToIsoDay(initialDate.getDay())]);
     }
-    
+
     // Update parent immediately
     onChange(generateRecurrenceRule());
   };
@@ -206,10 +206,10 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
       // No change needed
       return;
     }
-    
+
     // Update state
     setWeekdays(newWeekdays);
-    
+
     // Update parent immediately
     onChange(generateRecurrenceRule());
   };
@@ -219,47 +219,47 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     // Update parent immediately
     onChange(generateRecurrenceRule());
   };
-  
+
   const handleMonthlyDayOfMonthChange = (value: number) => {
     setMonthlyDayOfMonth(value);
     onChange(generateRecurrenceRule());
   };
-  
+
   const handleMonthlyDayOfWeekChange = (value: number) => {
     setMonthlyDayOfWeek(value);
     onChange(generateRecurrenceRule());
   };
-  
+
   const handleMonthlyWeekOfMonthChange = (value: number) => {
     setMonthlyWeekOfMonth(value);
     onChange(generateRecurrenceRule());
   };
-  
+
   const handleMonthlyDaysBeforeMonthChange = (value: number) => {
     setMonthlyDaysBeforeMonth(value);
     onChange(generateRecurrenceRule());
   };
-  
+
   const handleYearlyTypeChange = (value: string) => {
     setYearlyType(value as 'specificDate' | 'positionBased');
     onChange(generateRecurrenceRule());
   };
-  
+
   const handleYearlyMonthChange = (value: number) => {
     setYearlyMonth(value);
     onChange(generateRecurrenceRule());
   };
-  
+
   const handleYearlyDayChange = (value: number) => {
     setYearlyDay(value);
     onChange(generateRecurrenceRule());
   };
-  
+
   const handleYearlyDayOfWeekChange = (value: number) => {
     setYearlyDayOfWeek(value);
     onChange(generateRecurrenceRule());
   };
-  
+
   const handleYearlyWeekOfMonthChange = (value: number) => {
     setYearlyWeekOfMonth(value);
     onChange(generateRecurrenceRule());
@@ -267,10 +267,10 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
 
   const handleEndTypeChange = (value: string) => {
     const newEndType = value as 'never' | 'count' | 'until';
-    
+
     // Always set the end type immediately
     setEndType(newEndType);
-    
+
     // Set default values when changing end type
     if (newEndType === 'count') {
       // Always ensure occurrences has a valid value
@@ -284,7 +284,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
         setEndDate(formatDateForInput(defaultEndDate));
       }
     }
-    
+
     // Update parent after state change
     onChange(generateRecurrenceRule());
   };
@@ -315,47 +315,47 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
-  
+
   function parseDate(dateString: string): Date {
     const [year, month, day] = dateString.split('-').map(Number);
     return new Date(year, month - 1, day);
   }
-  
+
   // Convert JS day (0=Sunday) to ISO day (1=Monday, 7=Sunday)
   function jsToIsoDay(jsDay: number): number {
     return jsDay === 0 ? 7 : jsDay;
   }
-  
+
   // Convert ISO day (1=Monday, 7=Sunday) to JS day (0=Sunday, 6=Saturday)
   function isoToJsDay(isoDay: number): number {
     return isoDay === 7 ? 0 : isoDay;
   }
-  
+
   function getDayName(day: number): string {
     // Ensure we're using JS day format (0-6)
     const jsDay = day > 7 ? day % 7 : (day === 7 ? 0 : day);
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return days[jsDay];
   }
-  
+
   function getIsoDayName(isoDay: number): string {
     const isoDays = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     return isoDays[isoDay];
   }
-  
+
   function getMonthName(month: number): string {
     // Adjust for 0-based (JS) or 1-based (calendar) month
     const adjustedMonth = month > 11 ? (month - 1) % 12 : month;
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     return months[adjustedMonth];
   }
-  
+
   function getOrdinal(n: number): string {
     const suffixes = ['th', 'st', 'nd', 'rd'];
     const v = n % 100;
     return n + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
   }
-  
+
   // Generate options for select elements
   function generateDayOptionsArray() {
     const options = [];
@@ -367,7 +367,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     }
     return options;
   }
-  
+
   function generateMonthOptionsArray() {
     const options = [];
     for (let i = 1; i <= 12; i++) {
@@ -378,7 +378,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     }
     return options;
   }
-  
+
   function generateWeekOptionsArray() {
     return [
       { value: '1', label: 'First' },
@@ -391,7 +391,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
       { value: '-3', label: 'Third to last' }
     ];
   }
-  
+
   function generateDayOfWeekOptionsArray() {
     return [
       { value: '1', label: 'Monday' },
@@ -410,309 +410,373 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     return dayLabels[index];
   }
-  
+
   // Convert JS day index (0-6) to ISO day (1-7)
   function jsIndexToIsoDay(index: number): number {
     return index === 0 ? 7 : index;
   }
-  
+
   // Convert ISO day (1-7) to JS day index (0-6)
   function isoDayToJsIndex(isoDay: number): number {
     return isoDay === 7 ? 0 : isoDay;
   }
 
   return (
-    <div className="space-y-4">
-      {/* Recurrence Type Selection */}
+    <div className="space-y-6 p-2">
+      {/* 1. Recurrence Type Selection - radio buttons in one line */}
       <div>
-        <FormField label="Repeat" htmlFor="recurrence-type">
-          <Select
-            id="recurrence-type"
-            value={recurrenceType}
-            onChange={handleRecurrenceTypeChange}
-            options={[
-              { value: 'DAILY', label: 'Daily' },
-              { value: 'WEEKLY', label: 'Weekly' },
-              { value: 'MONTHLY', label: 'Monthly' },
-              { value: 'YEARLY', label: 'Yearly' }
-            ]}
-          />
-        </FormField>
+        <div className="mb-2 text-sm font-medium text-gray-700">Recurrence Type:</div>
+        <div className="flex flex-wrap gap-4 pl-3">
+          <label className="inline-flex items-center">
+            <input
+                type="radio"
+                name="recurrenceType"
+                value="DAILY"
+                checked={recurrenceType === 'DAILY'}
+                onChange={() => handleRecurrenceTypeChange('DAILY')}
+                className="mr-2"
+            />
+            <span className="text-sm">Daily</span>
+          </label>
+          <label className="inline-flex items-center">
+            <input
+                type="radio"
+                name="recurrenceType"
+                value="WEEKLY"
+                checked={recurrenceType === 'WEEKLY'}
+                onChange={() => handleRecurrenceTypeChange('WEEKLY')}
+                className="mr-2"
+            />
+            <span className="text-sm">Weekly</span>
+          </label>
+          <label className="inline-flex items-center">
+            <input
+                type="radio"
+                name="recurrenceType"
+                value="MONTHLY"
+                checked={recurrenceType === 'MONTHLY'}
+                onChange={() => handleRecurrenceTypeChange('MONTHLY')}
+                className="mr-2"
+            />
+            <span className="text-sm">Monthly</span>
+          </label>
+          <label className="inline-flex items-center">
+            <input
+                type="radio"
+                name="recurrenceType"
+                value="YEARLY"
+                checked={recurrenceType === 'YEARLY'}
+                onChange={() => handleRecurrenceTypeChange('YEARLY')}
+                className="mr-2"
+            />
+            <span className="text-sm">Yearly</span>
+          </label>
+        </div>
       </div>
-      
-      {/* Interval Selection */}
-      <div className="flex items-center space-x-2">
-        <FormField label="Every" htmlFor="recurrence-interval">
-          <FormInput
-            id="recurrence-interval"
-            type="number"
-            min="1"
-            max="99"
-            value={interval}
-            onChange={(e) => handleIntervalChange(parseInt(e.target.value) || 1)}
-            className="w-16 mr-2"
-          />
-        </FormField>
-        
-        <span className="mt-7">
-          {recurrenceType === 'DAILY' && (interval === 1 ? 'day' : 'days')}
-          {recurrenceType === 'WEEKLY' && (interval === 1 ? 'week' : 'weeks')}
-          {recurrenceType === 'MONTHLY' && (interval === 1 ? 'month' : 'months')}
-          {recurrenceType === 'YEARLY' && (interval === 1 ? 'year' : 'years')}
-        </span>
-      </div>
-      
-      {/* Weekly Pattern (days of week) */}
-      {recurrenceType === 'WEEKLY' && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">On these days</label>
-          <div className="flex flex-wrap gap-2">
-            {[0, 1, 2, 3, 4, 5, 6].map((jsIndex) => {
-              const isoDay = jsIndexToIsoDay(jsIndex);
-              return (
-                <button
-                  key={jsIndex}
-                  type="button"
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    weekdays.includes(isoDay) 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-100 text-gray-700'
-                  }`}
-                  onClick={() => {
-                    if (weekdays.includes(isoDay)) {
-                      // Don't allow removing the last day
-                      if (weekdays.length > 1) {
-                        handleWeekdayChange(isoDay, false);
-                      }
-                    } else {
-                      handleWeekdayChange(isoDay, true);
-                    }
-                  }}
-                >
-                  {getWeekdayButtonLabel(jsIndex)}
-                </button>
-              );
-            })}
+
+      <div>
+        <div className="mb-2 text-sm font-medium text-gray-700">Recurrence Settings:</div>
+        <div className="pl-3">
+          <div className="text-sm font-medium text-gray-700 mr-2">Recurrence Interval:</div>
+          <div className="flex items-center gap-3 mb-4 pl-3">
+            <span className="text-sm">Every</span>
+            <div className="w-20">
+              <FormInput
+                  id="recurrence-interval"
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={interval}
+                  onChange={(e) => handleIntervalChange(parseInt(e.target.value) || 1)}
+                  className="w-full text-xs"
+              />
+            </div>
+            <span className="text-sm text-gray-700">
+            {recurrenceType === 'DAILY' && (interval === 1 ? 'day' : 'days')}
+              {recurrenceType === 'WEEKLY' && (interval === 1 ? 'week' : 'weeks')}
+              {recurrenceType === 'MONTHLY' && (interval === 1 ? 'month' : 'months')}
+              {recurrenceType === 'YEARLY' && (interval === 1 ? 'year' : 'years')}
+            </span>
           </div>
-        </div>
-      )}
-      
-      {/* Monthly Pattern */}
-      {recurrenceType === 'MONTHLY' && (
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              id="monthly-day-of-month"
-              name="monthlyType"
-              value="dayOfMonth"
-              checked={monthlyType === 'dayOfMonth'}
-              onChange={() => handleMonthlyTypeChange('dayOfMonth')}
-              className="mr-2"
-            />
-            <label htmlFor="monthly-day-of-month" className="flex items-center">
-              <span>On day</span>
-              <Select
-                value={monthlyDayOfMonth.toString()}
-                onChange={(value) => handleMonthlyDayOfMonthChange(parseInt(value))}
-                className="mx-2 w-16"
-                disabled={monthlyType !== 'dayOfMonth'}
-                options={generateDayOptionsArray()}
-              />
-              <span>of the month</span>
-            </label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              id="monthly-day-of-week"
-              name="monthlyType"
-              value="dayOfWeek"
-              checked={monthlyType === 'dayOfWeek'}
-              onChange={() => handleMonthlyTypeChange('dayOfWeek')}
-              className="mr-2"
-            />
-            <label htmlFor="monthly-day-of-week" className="flex items-center flex-wrap">
-              <span>On the</span>
-              <Select
-                value={monthlyWeekOfMonth.toString()}
-                onChange={(value) => handleMonthlyWeekOfMonthChange(parseInt(value))}
-                className="mx-2 w-32"
-                disabled={monthlyType !== 'dayOfWeek'}
-                options={generateWeekOptionsArray()}
-              />
-              <Select
-                value={monthlyDayOfWeek.toString()}
-                onChange={(value) => handleMonthlyDayOfWeekChange(parseInt(value))}
-                className="mx-2 w-32"
-                disabled={monthlyType !== 'dayOfWeek'}
-                options={generateDayOfWeekOptionsArray()}
-              />
-              <span>of the month</span>
-            </label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              id="monthly-before-month"
-              name="monthlyType"
-              value="beforeMonth"
-              checked={monthlyType === 'beforeMonth'}
-              onChange={() => handleMonthlyTypeChange('beforeMonth')}
-              className="mr-2"
-            />
-            <label htmlFor="monthly-before-month" className="flex items-center">
-              <Select
-                value={monthlyDaysBeforeMonth.toString()}
-                onChange={(value) => handleMonthlyDaysBeforeMonthChange(parseInt(value))}
-                className="mx-2 w-16"
-                disabled={monthlyType !== 'beforeMonth'}
-                options={[1, 2, 3, 4, 5, 7, 10, 14, 21, 28].map(day => ({
-                  value: day.toString(),
-                  label: day.toString()
-                }))}
-              />
-              <span>{monthlyDaysBeforeMonth === 1 ? 'day' : 'days'} before the month starts</span>
-            </label>
-          </div>
-        </div>
-      )}
-      
-      {/* Yearly Pattern */}
-      {recurrenceType === 'YEARLY' && (
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              id="yearly-specific-date"
-              name="yearlyType"
-              value="specificDate"
-              checked={yearlyType === 'specificDate'}
-              onChange={() => handleYearlyTypeChange('specificDate')}
-              className="mr-2"
-            />
-            <label htmlFor="yearly-specific-date" className="flex items-center">
-              <span>Every</span>
-              <Select
-                value={yearlyMonth.toString()}
-                onChange={(value) => handleYearlyMonthChange(parseInt(value))}
-                className="mx-2 w-32"
-                disabled={yearlyType !== 'specificDate'}
-                options={generateMonthOptionsArray()}
-              />
-              <Select
-                value={yearlyDay.toString()}
-                onChange={(value) => handleYearlyDayChange(parseInt(value))}
-                className="mx-2 w-16"
-                disabled={yearlyType !== 'specificDate'}
-                options={generateDayOptionsArray()}
-              />
-            </label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              id="yearly-position-based"
-              name="yearlyType"
-              value="positionBased"
-              checked={yearlyType === 'positionBased'}
-              onChange={() => handleYearlyTypeChange('positionBased')}
-              className="mr-2"
-            />
-            <label htmlFor="yearly-position-based" className="flex items-center flex-wrap">
-              <span>On the</span>
-              <Select
-                value={yearlyWeekOfMonth.toString()}
-                onChange={(value) => handleYearlyWeekOfMonthChange(parseInt(value))}
-                className="mx-2 w-32"
-                disabled={yearlyType !== 'positionBased'}
-                options={generateWeekOptionsArray()}
-              />
-              <Select
-                value={yearlyDayOfWeek.toString()}
-                onChange={(value) => handleYearlyDayOfWeekChange(parseInt(value))}
-                className="mx-2 w-32"
-                disabled={yearlyType !== 'positionBased'}
-                options={generateDayOfWeekOptionsArray()}
-              />
-              <span>of</span>
-              <Select
-                value={yearlyMonth.toString()}
-                onChange={(value) => handleYearlyMonthChange(parseInt(value))}
-                className="mx-2 w-32"
-                disabled={yearlyType !== 'positionBased'}
-                options={generateMonthOptionsArray()}
-              />
-            </label>
-          </div>
-        </div>
-      )}
-      
-      {/* End Condition */}
-      <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Ends</label>
-        
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              id="end-never"
-              name="endType"
-              value="never"
-              checked={endType === 'never'}
-              onChange={() => handleEndTypeChange('never')}
-              className="mr-2"
-            />
-            <label htmlFor="end-never">Never</label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              id="end-count"
-              name="endType"
-              value="count"
-              checked={endType === 'count'}
-              onChange={() => handleEndTypeChange('count')}
-              className="mr-2"
-            />
-            <label htmlFor="end-count">After</label>
-            <FormInput
-              type="number"
-              min="1"
-              max="99"
-              value={occurrences}
-              onChange={(e) => handleOccurrencesChange(parseInt(e.target.value) || 1)}
-              className="w-16 mx-2"
-              disabled={endType !== 'count'}
-            />
-            <span>occurrences</span>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              id="end-until"
-              name="endType"
-              value="until"
-              checked={endType === 'until'}
-              onChange={() => handleEndTypeChange('until')}
-              className="mr-2"
-            />
-            <label htmlFor="end-until">On</label>
-            <FormInput
-              type="date"
-              value={endDate}
-              onChange={(e) => handleEndDateChange(e.target.value)}
-              className="ml-2"
-              disabled={endType !== 'until'}
-            />
+
+          <div className="mb-2 text-sm font-medium text-gray-700">Recurrence Options:</div>
+          <div className="flex items-start gap-3 pl-4 pr-4">
+            {/* Weekly Pattern (days of week) */}
+            {recurrenceType === 'WEEKLY' && (
+                <div>
+                  <div className="mb-2">On these days:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {[0, 1, 2, 3, 4, 5, 6].map((jsIndex) => {
+                      const isoDay = jsIndexToIsoDay(jsIndex);
+                      return (
+                          <button
+                              key={jsIndex}
+                              type="button"
+                              className={`w-9 h-9 rounded-full flex items-center justify-center font-medium transition-colors ${
+                                  weekdays.includes(isoDay)
+                                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                              onClick={() => {
+                                if (weekdays.includes(isoDay)) {
+                                  // Don't allow removing the last day
+                                  if (weekdays.length > 1) {
+                                    handleWeekdayChange(isoDay, false);
+                                  }
+                                } else {
+                                  handleWeekdayChange(isoDay, true);
+                                }
+                              }}
+                          >
+                            {getWeekdayButtonLabel(jsIndex)}
+                          </button>
+                      );
+                    })}
+                  </div>
+                </div>
+            )}
+
+            {/* Monthly Pattern */}
+            {recurrenceType === 'MONTHLY' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="inline-flex items-center">
+                      <input
+                          type="radio"
+                          id="monthly-day-of-month"
+                          name="monthlyType"
+                          value="dayOfMonth"
+                          checked={monthlyType === 'dayOfMonth'}
+                          onChange={() => handleMonthlyTypeChange('dayOfMonth')}
+                          className="mr-2"
+                      />
+                      <span className="mr-2 text-sm">On day</span>
+                      <div className="w-16 inline-block mx-1">
+                        <Select
+                            value={monthlyDayOfMonth.toString()}
+                            onChange={(value) => handleMonthlyDayOfMonthChange(parseInt(value))}
+                            disabled={monthlyType !== 'dayOfMonth'}
+                            options={generateDayOptionsArray()}
+                            className="text-xs"
+                        />
+                      </div>
+                      <span>of the month</span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="inline-flex items-center">
+                      <input
+                          type="radio"
+                          id="monthly-day-of-week"
+                          name="monthlyType"
+                          value="dayOfWeek"
+                          checked={monthlyType === 'dayOfWeek'}
+                          onChange={() => handleMonthlyTypeChange('dayOfWeek')}
+                          className="mr-2"
+                      />
+                      <span className="mr-2">On the</span>
+                      <div className="w-28 inline-block mx-1">
+                        <Select
+                            value={monthlyWeekOfMonth.toString()}
+                            onChange={(value) => handleMonthlyWeekOfMonthChange(parseInt(value))}
+                            disabled={monthlyType !== 'dayOfWeek'}
+                            options={generateWeekOptionsArray()}
+                            className="text-xs"
+                        />
+                      </div>
+                      <div className="w-28 inline-block mx-1">
+                        <Select
+                            value={monthlyDayOfWeek.toString()}
+                            onChange={(value) => handleMonthlyDayOfWeekChange(parseInt(value))}
+                            disabled={monthlyType !== 'dayOfWeek'}
+                            options={generateDayOfWeekOptionsArray()}
+                            className="text-xs"
+                        />
+                      </div>
+                      <span>of the month</span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="inline-flex items-center">
+                      <input
+                          type="radio"
+                          id="monthly-before-month"
+                          name="monthlyType"
+                          value="beforeMonth"
+                          checked={monthlyType === 'beforeMonth'}
+                          onChange={() => handleMonthlyTypeChange('beforeMonth')}
+                          className="mr-2"
+                      />
+                      <div className="w-16 inline-block mx-1">
+                        <Select
+                            value={monthlyDaysBeforeMonth.toString()}
+                            onChange={(value) => handleMonthlyDaysBeforeMonthChange(parseInt(value))}
+                            disabled={monthlyType !== 'beforeMonth'}
+                            options={[1, 2, 3, 4, 5, 7, 10, 14, 21, 28].map(day => ({
+                              value: day.toString(),
+                              label: day.toString()
+                            }))}
+                            className="text-xs"
+                        />
+                      </div>
+                      <span
+                          className="text-sm">{monthlyDaysBeforeMonth === 1 ? 'day' : 'days'} before month starts</span>
+                    </label>
+                  </div>
+                </div>
+            )}
+
+            {/* Yearly Pattern */}
+            {recurrenceType === 'YEARLY' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="inline-flex items-center">
+                      <input
+                          type="radio"
+                          id="yearly-specific-date"
+                          name="yearlyType"
+                          value="specificDate"
+                          checked={yearlyType === 'specificDate'}
+                          onChange={() => handleYearlyTypeChange('specificDate')}
+                          className="mr-2"
+                      />
+                      <span className="mr-2 text-sm">Every</span>
+                      <div className="w-32 inline-block mx-1">
+                        <Select
+                            value={yearlyMonth.toString()}
+                            onChange={(value) => handleYearlyMonthChange(parseInt(value))}
+                            disabled={yearlyType !== 'specificDate'}
+                            options={generateMonthOptionsArray()}
+                            className="text-xs"
+                        />
+                      </div>
+                      <div className="w-16 inline-block mx-1">
+                        <Select
+                            value={yearlyDay.toString()}
+                            onChange={(value) => handleYearlyDayChange(parseInt(value))}
+                            disabled={yearlyType !== 'specificDate'}
+                            options={generateDayOptionsArray()}
+                            className="text-xs"
+                        />
+                      </div>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="inline-flex items-center flex-wrap">
+                      <input
+                          type="radio"
+                          id="yearly-position-based"
+                          name="yearlyType"
+                          value="positionBased"
+                          checked={yearlyType === 'positionBased'}
+                          onChange={() => handleYearlyTypeChange('positionBased')}
+                          className="mr-2"
+                      />
+                      <span className="mr-2">On the</span>
+                      <div className="w-28 inline-block mx-1">
+                        <Select
+                            value={yearlyWeekOfMonth.toString()}
+                            onChange={(value) => handleYearlyWeekOfMonthChange(parseInt(value))}
+                            disabled={yearlyType !== 'positionBased'}
+                            options={generateWeekOptionsArray()}
+                            className="text-xs"
+                        />
+                      </div>
+                      <div className="w-28 inline-block mx-1">
+                        <Select
+                            value={yearlyDayOfWeek.toString()}
+                            onChange={(value) => handleYearlyDayOfWeekChange(parseInt(value))}
+                            disabled={yearlyType !== 'positionBased'}
+                            options={generateDayOfWeekOptionsArray()}
+                            className="text-xs"
+                        />
+                      </div>
+                      <span className="mx-1 text-sm">of</span>
+                      <div className="w-28 inline-block mx-1">
+                        <Select
+                            value={yearlyMonth.toString()}
+                            onChange={(value) => handleYearlyMonthChange(parseInt(value))}
+                            disabled={yearlyType !== 'positionBased'}
+                            options={generateMonthOptionsArray()}
+                            className="text-xs"
+                        />
+                      </div>
+                    </label>
+                  </div>
+                </div>
+            )}
           </div>
         </div>
       </div>
-    </div>
-  );
-}
+
+
+      {/* 3. Recurrence End Conditions - with checkbox for Never Ends */}
+      <div>
+        <div className="flex items-center mb-2">
+          <div className="text-sm font-medium text-gray-700 mr-4">Recurrence Ends:</div>
+          <label className="inline-flex items-center">
+            <input
+                type="checkbox"
+                id="end-never"
+                checked={endType === 'never'}
+                onChange={() => handleEndTypeChange(endType === 'never' ? 'count' : 'never')}
+                className="mr-2"
+            />
+            <span className="text-sm">Never Ends</span>
+          </label>
+        </div>
+        {endType !== 'never' && (<div className="flex gap-3 pl-3">
+              <label className="inline-flex items-center  p-2 rounded-md">
+                <input
+                    type="radio"
+                    id="end-count"
+                    name="endType"
+                    value="count"
+                    checked={endType === 'count'}
+                    onChange={() => handleEndTypeChange('count')}
+                    className="mr-2"
+                />
+                <span className="mr-2 text-sm">After</span>
+                <div className="w-16">
+                  <FormInput
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={occurrences}
+                      onChange={(e) => handleOccurrencesChange(parseInt(e.target.value) || 1)}
+                      disabled={endType !== 'count'}
+                      className="text-xs"
+                  />
+                </div>
+                <span className="ml-2 text-sm">occurrences</span>
+              </label>
+
+              <label className="inline-flex items-center  p-2 rounded-md">
+                <input
+                    type="radio"
+                    id="end-until"
+                    name="endType"
+                    value="until"
+                    checked={endType === 'until'}
+                    onChange={() => handleEndTypeChange('until')}
+                    className="mr-2"
+                />
+                <span className="mr-2 text-sm">On</span>
+                <div className="w-40">
+                  <FormInput
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
+                      disabled={endType !== 'until'}
+                      className="text-xs"
+                  />
+                </div>
+              </label>
+        </div>)}
+      </div>
+      </div>
+      );
+      }
