@@ -477,9 +477,8 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
       <div>
         <div className="mb-2 text-sm font-medium text-gray-700">Recurrence Settings:</div>
         <div className="pl-3">
-          <div className="text-sm font-medium text-gray-700 mr-2">Recurrence Interval:</div>
           <div className="flex items-center gap-3 mb-4 pl-3">
-            <span className="text-sm">Every</span>
+            <span className="text-sm">Repeat Every</span>
             <div className="w-20">
               <FormInput
                   id="recurrence-interval"
@@ -499,7 +498,6 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
             </span>
           </div>
 
-          <div className="mb-2 text-sm font-medium text-gray-700">Recurrence Options:</div>
           <div className="flex items-start gap-3 pl-4 pr-4">
             {/* Weekly Pattern (days of week) */}
             {recurrenceType === 'WEEKLY' && (
