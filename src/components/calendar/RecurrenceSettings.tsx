@@ -73,8 +73,9 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
   const [monthlyBeforeType, setMonthlyBeforeType] = useState<'starts' | 'ends'>('starts');
 
   // Yearly specific state
-  const [yearlyType, setYearlyType] = useState<'specificDate' | 'positionBased'>(
-    value?.pattern?.weekOfMonth ? 'positionBased' : 'specificDate'
+  const [yearlyType, setYearlyType] = useState<'specificDate' | 'positionBased' | 'beforeMonth'>(
+    value?.pattern?.weekOfMonth ? 'positionBased' : 
+    (value?.pattern?.dayOfMonth && value.pattern.dayOfMonth < 0) ? 'beforeMonth' : 'specificDate'
   );
 
   const [yearlyMonth, setYearlyMonth] = useState<number>(
@@ -82,6 +83,14 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
       ? value.pattern.month
       : initialDate.getMonth() + 1 // Convert JS month (0-11) to calendar month (1-12)
   );
+  
+  const [yearlyDaysBeforeMonth, setYearlyDaysBeforeMonth] = useState<number>(
+    (value?.pattern?.dayOfMonth && value.pattern.dayOfMonth < 0)
+      ? -value.pattern.dayOfMonth
+      : 1
+  );
+  
+  const [yearlyBeforeType, setYearlyBeforeType] = useState<'starts' | 'ends'>('starts');
 
   const [yearlyDay, setYearlyDay] = useState<number>(
     value?.pattern?.day || initialDate.getDate()
@@ -148,6 +157,12 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
         rule.pattern!.dayOfWeek = yearlyDayOfWeek;
         rule.pattern!.weekOfMonth = yearlyWeekOfMonth;
         rule.pattern!.month = yearlyMonth;
+      } else if (yearlyType === 'beforeMonth') {
+        // For "X days before the month starts/ends" pattern
+        rule.pattern!.dayOfMonth = -yearlyDaysBeforeMonth;
+        rule.pattern!.month = yearlyMonth;
+        // Add a custom property to indicate if it's before start or end
+        (rule.pattern as any).beforeType = yearlyBeforeType;
       }
     }
 
@@ -244,7 +259,17 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
   };
 
   const handleYearlyTypeChange = (value: string) => {
-    setYearlyType(value as 'specificDate' | 'positionBased');
+    setYearlyType(value as 'specificDate' | 'positionBased' | 'beforeMonth');
+    onChange(generateRecurrenceRule());
+  };
+  
+  const handleYearlyDaysBeforeMonthChange = (value: number) => {
+    setYearlyDaysBeforeMonth(value);
+    onChange(generateRecurrenceRule());
+  };
+  
+  const handleYearlyBeforeTypeChange = (value: 'starts' | 'ends') => {
+    setYearlyBeforeType(value);
     onChange(generateRecurrenceRule());
   };
 
@@ -642,10 +667,10 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
 
             {/* Yearly Pattern */}
             {recurrenceType === 'YEARLY' && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="inline-flex items-center">
-                      <input
+              <div className="space-y-3">
+                <div>
+                  <label className="inline-flex items-center">
+                    <input
                           type="radio"
                           id="yearly-specific-date"
                           name="yearlyType"
@@ -654,31 +679,31 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
                           onChange={() => handleYearlyTypeChange('specificDate')}
                           className="mr-2"
                       />
-                      <span className="mr-2 text-sm">Every</span>
-                      <div className="w-32 inline-block mx-1">
-                        <Select
+                    <span className="mr-2 text-sm">Every</span>
+                    <div className="w-32 inline-block mx-1">
+                      <Select
                             value={yearlyMonth.toString()}
                             onChange={(value) => handleYearlyMonthChange(parseInt(value))}
                             disabled={yearlyType !== 'specificDate'}
                             options={generateMonthOptionsArray()}
                             className="text-xs"
                         />
-                      </div>
-                      <div className="w-16 inline-block mx-1">
-                        <Select
+                    </div>
+                    <div className="w-16 inline-block mx-1">
+                      <Select
                             value={yearlyDay.toString()}
                             onChange={(value) => handleYearlyDayChange(parseInt(value))}
                             disabled={yearlyType !== 'specificDate'}
                             options={generateDayOptionsArray()}
                             className="text-xs"
                         />
-                      </div>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="inline-flex items-center flex-wrap">
-                      <input
+                    </div>
+                  </label>
+                </div>
+                
+                <div>
+                  <label className="inline-flex items-center flex-wrap">
+                    <input
                           type="radio"
                           id="yearly-position-based"
                           name="yearlyType"
@@ -687,38 +712,86 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
                           onChange={() => handleYearlyTypeChange('positionBased')}
                           className="mr-2"
                       />
-                      <span className="mr-2">On the</span>
-                      <div className="w-28 inline-block mx-1">
-                        <Select
+                    <span className="mr-2 text-sm">On the</span>
+                    <div className="w-28 inline-block mx-1">
+                      <Select
                             value={yearlyWeekOfMonth.toString()}
                             onChange={(value) => handleYearlyWeekOfMonthChange(parseInt(value))}
                             disabled={yearlyType !== 'positionBased'}
                             options={generateWeekOptionsArray()}
                             className="text-xs"
                         />
-                      </div>
-                      <div className="w-28 inline-block mx-1">
-                        <Select
+                    </div>
+                    <div className="w-28 inline-block mx-1">
+                      <Select
                             value={yearlyDayOfWeek.toString()}
                             onChange={(value) => handleYearlyDayOfWeekChange(parseInt(value))}
                             disabled={yearlyType !== 'positionBased'}
                             options={generateDayOfWeekOptionsArray()}
                             className="text-xs"
                         />
-                      </div>
-                      <span className="mx-1 text-sm">of</span>
-                      <div className="w-28 inline-block mx-1">
-                        <Select
+                    </div>
+                    <span className="mx-1 text-sm">of</span>
+                    <div className="w-28 inline-block mx-1">
+                      <Select
                             value={yearlyMonth.toString()}
                             onChange={(value) => handleYearlyMonthChange(parseInt(value))}
                             disabled={yearlyType !== 'positionBased'}
                             options={generateMonthOptionsArray()}
                             className="text-xs"
                         />
-                      </div>
-                    </label>
-                  </div>
+                    </div>
+                  </label>
                 </div>
+                
+                <div>
+                  <label className="inline-flex items-center">
+                    <input
+                          type="radio"
+                          id="yearly-before-month"
+                          name="yearlyType"
+                          value="beforeMonth"
+                          checked={yearlyType === 'beforeMonth'}
+                          onChange={() => handleYearlyTypeChange('beforeMonth')}
+                          className="mr-2"
+                      />
+                    <div className="w-16 inline-block mx-1">
+                      <Select
+                            value={yearlyDaysBeforeMonth.toString()}
+                            onChange={(value) => handleYearlyDaysBeforeMonthChange(parseInt(value))}
+                            disabled={yearlyType !== 'beforeMonth'}
+                            options={[1, 2, 3, 4, 5, 7, 10, 14, 21, 28].map(day => ({
+                              value: day.toString(),
+                              label: day.toString()
+                            }))}
+                            className="text-xs"
+                        />
+                    </div>
+                    <span className="text-sm">{yearlyDaysBeforeMonth === 1 ? 'day' : 'days'} before</span>
+                    <div className="w-32 inline-block mx-1">
+                      <Select
+                            value={yearlyMonth.toString()}
+                            onChange={(value) => handleYearlyMonthChange(parseInt(value))}
+                            disabled={yearlyType !== 'beforeMonth'}
+                            options={generateMonthOptionsArray()}
+                            className="text-xs"
+                        />
+                    </div>
+                    <div className="w-24 inline-block mx-1">
+                      <Select
+                            value={yearlyBeforeType}
+                            onChange={(value) => handleYearlyBeforeTypeChange(value as 'starts' | 'ends')}
+                            disabled={yearlyType !== 'beforeMonth'}
+                            options={[
+                              { value: 'starts', label: 'starts' },
+                              { value: 'ends', label: 'ends' }
+                            ]}
+                            className="text-xs"
+                        />
+                    </div>
+                  </label>
+                </div>
+              </div>
             )}
           </div>
         </div>
