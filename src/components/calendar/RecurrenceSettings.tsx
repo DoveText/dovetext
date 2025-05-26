@@ -69,6 +69,8 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
       ? -value.pattern.dayOfMonth
       : 1
   );
+  
+  const [monthlyBeforeType, setMonthlyBeforeType] = useState<'starts' | 'ends'>('starts');
 
   // Yearly specific state
   const [yearlyType, setYearlyType] = useState<'specificDate' | 'positionBased'>(
@@ -108,14 +110,13 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
 
   // Create a function to generate the recurrence rule based on current settings
   const generateRecurrenceRule = (): RecurrenceRule => {
-    // Create a rule based on current state
     const rule: RecurrenceRule = {
       type: recurrenceType,
       interval: interval,
       pattern: {}
     };
 
-    // Add pattern based on recurrence type
+    // Set pattern based on recurrence type
     if (recurrenceType === 'WEEKLY') {
       // Ensure weekdays is sorted for consistency and not empty
       if (weekdays.length === 0) {
@@ -132,8 +133,10 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
         rule.pattern!.dayOfWeek = monthlyDayOfWeek;
         rule.pattern!.weekOfMonth = monthlyWeekOfMonth;
       } else if (monthlyType === 'beforeMonth') {
-        // For "X days before the month starts" pattern
+        // For "X days before the month starts/ends" pattern
         rule.pattern!.dayOfMonth = -monthlyDaysBeforeMonth;
+        // Add a custom property to indicate if it's before start or end
+        (rule.pattern as any).beforeType = monthlyBeforeType;
       }
     } else if (recurrenceType === 'YEARLY') {
       if (yearlyType === 'specificDate') {
@@ -142,30 +145,25 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
         rule.pattern!.day = yearlyDay;
       } else if (yearlyType === 'positionBased') {
         // For position-based pattern (e.g., fourth Thursday in November)
-        rule.pattern!.month = yearlyMonth;
         rule.pattern!.dayOfWeek = yearlyDayOfWeek;
         rule.pattern!.weekOfMonth = yearlyWeekOfMonth;
+        rule.pattern!.month = yearlyMonth;
       }
     }
 
-    // Add end condition
+    // Set end condition
     if (endType === 'count') {
-      rule.count = occurrences || 10; // Default to 10 if not set
-      rule.until = undefined;
+      rule.count = occurrences;
+      rule.until = null;
     } else if (endType === 'until') {
-      try {
-        rule.until = parseDate(endDate);
-      } catch (e) {
-        // If date parsing fails, set a default date 90 days in the future
-        rule.until = new Date(initialDate.getTime() + 90 * 24 * 60 * 60 * 1000);
-      }
       rule.count = undefined;
+      rule.until = parseDate(endDate);
     } else {
-      // For 'never' end type, don't set count or until
+      // Never end
       rule.count = undefined;
-      rule.until = undefined;
+      rule.until = null;
     }
-
+    
     return rule;
   };
 
@@ -237,6 +235,11 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
 
   const handleMonthlyDaysBeforeMonthChange = (value: number) => {
     setMonthlyDaysBeforeMonth(value);
+    onChange(generateRecurrenceRule());
+  };
+  
+  const handleMonthlyBeforeTypeChange = (value: 'starts' | 'ends') => {
+    setMonthlyBeforeType(value);
     onChange(generateRecurrenceRule());
   };
 
@@ -619,8 +622,19 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
                             className="text-xs"
                         />
                       </div>
-                      <span
-                          className="text-sm">{monthlyDaysBeforeMonth === 1 ? 'day' : 'days'} before month starts</span>
+                      <span className="text-sm">{monthlyDaysBeforeMonth === 1 ? 'day' : 'days'} before month</span>
+                      <div className="w-24 inline-block mx-1">
+                        <Select
+                            value={monthlyBeforeType}
+                            onChange={(value) => handleMonthlyBeforeTypeChange(value as 'starts' | 'ends')}
+                            disabled={monthlyType !== 'beforeMonth'}
+                            options={[
+                              { value: 'starts', label: 'starts' },
+                              { value: 'ends', label: 'ends' }
+                            ]}
+                            className="text-xs"
+                        />
+                      </div>
                     </label>
                   </div>
                 </div>
