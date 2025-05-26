@@ -8,7 +8,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { CalendarIcon, SparklesIcon, ArrowRightIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useAction } from '@/context/ActionContext';
 import ChatInput from '@/components/common/ChatInput';
-import { dashboardApi, DashboardStats } from '@/app/api/dashboard';
+import { dashboardApi, DashboardStats, UpcomingSchedule } from '@/app/api/dashboard';
 
 function DashboardContent() {
   const { user } = useAuth();
@@ -46,6 +46,11 @@ function DashboardContent() {
   // Local state for date range label
   const [dateRangeLabel, setDateRangeLabel] = useState('');
   
+  // State for upcoming schedules
+  const [upcomingSchedules, setUpcomingSchedules] = useState<UpcomingSchedule[]>([]);
+  // Loading state for upcoming schedules
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  
   // Fetch dashboard stats from API
   const fetchDashboardStats = async (timeRange: string) => {
     try {
@@ -70,6 +75,23 @@ function DashboardContent() {
   useEffect(() => {
     fetchDashboardStats(selectedTimeRange);
   }, [selectedTimeRange]);
+  
+  // Fetch upcoming schedules on component mount
+  useEffect(() => {
+    const fetchUpcomingSchedules = async () => {
+      setLoadingSchedules(true);
+      try {
+        const data = await dashboardApi.getUpcomingSchedules();
+        setUpcomingSchedules(data);
+      } catch (error) {
+        console.error('Error fetching upcoming schedules:', error);
+      } finally {
+        setLoadingSchedules(false);
+      }
+    };
+    
+    fetchUpcomingSchedules();
+  }, []);
   
   // The dateRangeLabel is now calculated by the dashboardApi.calculateDateRange function
   // and stored in local state
@@ -162,21 +184,106 @@ function DashboardContent() {
         </div>
         
         <div className="space-y-3">
-          {/* Mock schedule data - would be dynamic in real app */}
-          <div className="p-3 border rounded-lg flex justify-between items-center hover:bg-gray-50">
-            <div>
-              <p className="font-medium">Team Meeting</p>
-              <p className="text-sm text-gray-500">Today, 2:00 PM - 3:00 PM</p>
+          {loadingSchedules ? (
+            <div className="text-center py-4">
+              <p className="text-gray-500">Loading schedules...</p>
             </div>
-            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">Upcoming</span>
-          </div>
-          <div className="p-3 border rounded-lg flex justify-between items-center hover:bg-gray-50">
-            <div>
-              <p className="font-medium">Project Review</p>
-              <p className="text-sm text-gray-500">Tomorrow, 10:00 AM - 11:30 AM</p>
+          ) : upcomingSchedules.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-gray-500">No upcoming schedules found</p>
             </div>
-            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">Upcoming</span>
-          </div>
+          ) : (
+            upcomingSchedules.map((schedule) => {
+              // Format the date and time for display
+              const startDate = new Date(schedule.startTime);
+              const endDate = new Date(schedule.endTime);
+              
+              // Format time (e.g., "2:00 PM - 3:00 PM")
+              const timeFormatter = new Intl.DateTimeFormat('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+              });
+              
+              // Format date (e.g., "Today" or "May 27, 2025")
+              const dateFormatter = new Intl.DateTimeFormat('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              });
+              
+              // Determine if the date is today or tomorrow for display
+              const today = new Date();
+              const tomorrow = new Date(today);
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              
+              let dateDisplay = dateFormatter.format(startDate);
+              if (startDate.toDateString() === today.toDateString()) {
+                dateDisplay = 'Today';
+              } else if (startDate.toDateString() === tomorrow.toDateString()) {
+                dateDisplay = 'Tomorrow';
+              }
+              
+              // Format the time range
+              let timeDisplay = '';
+              if (schedule.isAllDay) {
+                timeDisplay = 'All day';
+              } else {
+                timeDisplay = `${timeFormatter.format(startDate)} - ${timeFormatter.format(endDate)}`;
+              }
+              
+              // Determine tag based on the date
+              let tag = 'Upcoming';
+              if (startDate.toDateString() === today.toDateString()) {
+                tag = 'Today';
+              } else if (startDate.toDateString() === tomorrow.toDateString()) {
+                tag = 'Tomorrow';
+              } else if (startDate < new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000)) {
+                tag = 'Soon';
+              }
+              
+              // Determine tag color based on the tag value
+              let tagColorClass = 'bg-blue-100 text-blue-800';
+              if (tag === 'Today') {
+                tagColorClass = 'bg-green-100 text-green-800';
+              } else if (tag === 'Tomorrow') {
+                tagColorClass = 'bg-purple-100 text-purple-800';
+              } else if (tag === 'Soon') {
+                tagColorClass = 'bg-yellow-100 text-yellow-800';
+              }
+              
+              return (
+                <div key={schedule.id} className="p-3 border rounded-lg hover:bg-gray-50">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{schedule.title}</p>
+                        <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">
+                          {schedule.type === 'EVENT' ? 'Event' : 'Reminder'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">{dateDisplay}, {timeDisplay}</p>
+                    </div>
+                    <span className={`${tagColorClass} text-xs font-medium px-2.5 py-0.5 rounded whitespace-nowrap`}>
+                      {tag}
+                    </span>
+                  </div>
+                  
+                  {/* Additional details section */}
+                  {(schedule.location || schedule.description) && (
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                      {schedule.location && (
+                        <p className="text-xs text-gray-500">📍 {schedule.location}</p>
+                      )}
+                      {schedule.description && (
+                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">{schedule.description}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
       

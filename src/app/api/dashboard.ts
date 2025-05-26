@@ -13,6 +13,18 @@ export interface DateRange {
   dateRangeLabel: string;
 }
 
+export interface UpcomingSchedule {
+  id: number;
+  title: string;
+  startTime: string;
+  endTime: string;
+  type: string;  // "EVENT" or "REMINDER"
+  color?: string;
+  location?: string;
+  description?: string;
+  isAllDay: boolean;
+}
+
 export const dashboardApi = {
   /**
    * Get dashboard statistics for the current user
@@ -22,6 +34,17 @@ export const dashboardApi = {
   async getStats(startTime: number, endTime: number): Promise<DashboardStats> {
     const { data } = await apiClient.get<DashboardStats>(`/api/v1/dashboard/stats`, {
       params: { startTime, endTime }
+    });
+    return data;
+  },
+  
+  /**
+   * Get upcoming schedules for the current user
+   * @param limit Maximum number of schedules to return (default: 5)
+   */
+  async getUpcomingSchedules(limit: number = 5): Promise<UpcomingSchedule[]> {
+    const { data } = await apiClient.get<UpcomingSchedule[]>(`/api/v1/dashboard/upcoming-schedules`, {
+      params: { limit }
     });
     return data;
   },
