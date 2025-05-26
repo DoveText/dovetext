@@ -27,6 +27,7 @@ interface RecurrenceSettingsProps {
 }
 
 export default function RecurrenceSettings({ initialDate, value, onChange }: RecurrenceSettingsProps) {
+  // Initialize all state from the value prop
   const [recurrenceType, setRecurrenceType] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'>(
     value?.type || 'DAILY'
   );
@@ -56,7 +57,12 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
 
     // Add pattern based on recurrence type
     if (recurrenceType === 'WEEKLY') {
-      rule.pattern!.daysOfWeek = weekdays;
+      // Ensure weekdays is sorted for consistency and not empty
+      if (weekdays.length === 0) {
+        rule.pattern!.daysOfWeek = [initialDate.getDay()];
+      } else {
+        rule.pattern!.daysOfWeek = [...weekdays].sort((a, b) => a - b);
+      }
     } else if (recurrenceType === 'MONTHLY') {
       if (monthlyType === 'dayOfMonth') {
         rule.pattern!.dayOfMonth = initialDate.getDate();
@@ -75,10 +81,15 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
 
     // Add end condition
     if (endType === 'count') {
-      rule.count = occurrences;
+      rule.count = occurrences || 10; // Default to 10 if not set
       rule.until = undefined;
     } else if (endType === 'until') {
-      rule.until = parseDate(endDate);
+      try {
+        rule.until = parseDate(endDate);
+      } catch (e) {
+        // If date parsing fails, set a default date 90 days in the future
+        rule.until = new Date(initialDate.getTime() + 90 * 24 * 60 * 60 * 1000);
+      }
       rule.count = undefined;
     } else {
       // For 'never' end type, don't set count or until
@@ -91,72 +102,100 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
   
   // Create handlers for each form field change
   const handleRecurrenceTypeChange = (value: string) => {
-    setRecurrenceType(value as 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY');
-    // Update parent after state change
-    setTimeout(() => {
-      onChange(generateRecurrenceRule());
-    }, 0);
+    const newType = value as 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+    setRecurrenceType(newType);
+    
+    // Reset weekdays when changing to weekly
+    if (newType === 'WEEKLY') {
+      setWeekdays([initialDate.getDay()]);
+    }
+    
+    // Update parent immediately
+    onChange(generateRecurrenceRule());
   };
   
   const handleIntervalChange = (value: number) => {
     setInterval(value);
-    // Update parent after state change
-    setTimeout(() => {
-      onChange(generateRecurrenceRule());
-    }, 0);
+    // Update parent immediately
+    onChange(generateRecurrenceRule());
   };
   
   const handleWeekdayChange = (day: number, checked: boolean) => {
-    const newWeekdays = [...weekdays];
-    if (checked && !newWeekdays.includes(day)) {
-      newWeekdays.push(day);
-    } else if (!checked && newWeekdays.includes(day)) {
-      const index = newWeekdays.indexOf(day);
-      newWeekdays.splice(index, 1);
+    let newWeekdays;
+    if (checked && !weekdays.includes(day)) {
+      // Add the day
+      newWeekdays = [...weekdays, day];
+    } else if (!checked && weekdays.includes(day)) {
+      // Remove the day, but ensure at least one day remains selected
+      if (weekdays.length > 1) {
+        newWeekdays = weekdays.filter(d => d !== day);
+      } else {
+        // Can't remove the last day
+        return;
+      }
+    } else {
+      // No change needed
+      return;
     }
+    
+    // Update state
     setWeekdays(newWeekdays);
-    // Update parent after state change
-    setTimeout(() => {
-      onChange(generateRecurrenceRule());
-    }, 0);
+    
+    // Update parent immediately
+    onChange(generateRecurrenceRule());
   };
   
   const handleMonthlyTypeChange = (value: string) => {
     setMonthlyType(value as 'dayOfMonth' | 'dayOfWeek');
-    // Update parent after state change
-    setTimeout(() => {
-      onChange(generateRecurrenceRule());
-    }, 0);
+    // Update parent immediately
+    onChange(generateRecurrenceRule());
   };
   
   const handleEndTypeChange = (value: string) => {
-    setEndType(value as 'never' | 'count' | 'until');
+    const newEndType = value as 'never' | 'count' | 'until';
+    
+    // Always set the end type immediately
+    setEndType(newEndType);
+    
+    // Set default values when changing end type
+    if (newEndType === 'count') {
+      // Always ensure occurrences has a valid value
+      if (!occurrences || occurrences < 1) {
+        setOccurrences(10);
+      }
+    } else if (newEndType === 'until') {
+      // Always ensure end date has a valid value
+      if (!endDate) {
+        const defaultEndDate = new Date(initialDate.getTime() + 90 * 24 * 60 * 60 * 1000);
+        setEndDate(formatDateForInput(defaultEndDate));
+      }
+    }
+    
     // Update parent after state change
-    setTimeout(() => {
-      onChange(generateRecurrenceRule());
-    }, 0);
+    const rule = generateRecurrenceRule();
+    onChange(rule);
   };
   
   const handleOccurrencesChange = (value: number) => {
     setOccurrences(value);
-    // Update parent after state change
-    setTimeout(() => {
-      onChange(generateRecurrenceRule());
-    }, 0);
+    // Update parent immediately
+    onChange(generateRecurrenceRule());
   };
   
   const handleEndDateChange = (value: string) => {
     setEndDate(value);
-    // Update parent after state change
-    setTimeout(() => {
-      onChange(generateRecurrenceRule());
-    }, 0);
+    // Update parent immediately
+    onChange(generateRecurrenceRule());
   };
+  
+  // IMPORTANT: Completely removed the useEffect that watches for value changes
+  // This was causing the issues with not being able to change settings
   
   // Initial update on mount
   useEffect(() => {
     // Only call once on initial mount
-    onChange(generateRecurrenceRule());
+    const rule = generateRecurrenceRule();
+    onChange(rule);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -229,10 +268,10 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
                   if (weekdays.includes(index)) {
                     // Don't allow removing the last day
                     if (weekdays.length > 1) {
-                      setWeekdays(weekdays.filter(d => d !== index));
+                      handleWeekdayChange(index, false);
                     }
                   } else {
-                    setWeekdays([...weekdays, index]);
+                    handleWeekdayChange(index, true);
                   }
                 }}
               >
@@ -293,6 +332,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
           <div className="flex items-center space-x-2">
             <input
               type="radio"
+              id="end-never"
               name="endType"
               value="never"
               checked={endType === 'never'}
@@ -305,6 +345,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
           <div className="flex items-center space-x-2">
             <input
               type="radio"
+              id="end-count"
               name="endType"
               value="count"
               checked={endType === 'count'}
@@ -319,6 +360,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
               value={occurrences}
               onChange={(e) => handleOccurrencesChange(parseInt(e.target.value) || 1)}
               className="w-16 mx-2"
+              disabled={endType !== 'count'}
             />
             <span>occurrences</span>
           </div>
@@ -326,6 +368,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
           <div className="flex items-center space-x-2">
             <input
               type="radio"
+              id="end-until"
               name="endType"
               value="until"
               checked={endType === 'until'}
@@ -338,6 +381,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
               value={endDate}
               onChange={(e) => handleEndDateChange(e.target.value)}
               className="ml-2"
+              disabled={endType !== 'until'}
             />
           </div>
         </div>
