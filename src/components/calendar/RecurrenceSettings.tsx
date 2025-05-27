@@ -579,7 +579,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
                           className="mr-2"
                       />
                       <span className="mr-2 text-sm">On day</span>
-                      <div className="w-16 inline-block mx-1">
+                      <div className="w-20 inline-block mx-1">
                         <Select
                             value={monthlyDayOfMonth.toString()}
                             onChange={(value) => handleMonthlyDayOfMonthChange(parseInt(value))}
@@ -637,7 +637,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
                           onChange={() => handleMonthlyTypeChange('beforeMonth')}
                           className="mr-2"
                       />
-                      <div className="w-16 inline-block mx-1">
+                      <div className="w-20 inline-block mx-1">
                         <Select
                             value={monthlyDaysBeforeMonth.toString()}
                             onChange={(value) => handleMonthlyDaysBeforeMonthChange(parseInt(value))}
