@@ -167,10 +167,13 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     }
 
     // Set end condition
-    if (endType === 'count') {
+    if (endType === 'count' && occurrences > 0) {
+      // For count-based end condition
       rule.count = occurrences;
       rule.until = null;
-    } else if (endType === 'until') {
+    } else if (endType === 'until' && endDate) {
+      // For date-based end condition
+      // Make sure to clear count and set until
       rule.count = undefined;
       rule.until = parseDate(endDate);
     } else {
@@ -191,15 +194,12 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     if (newType === 'WEEKLY') {
       setWeekdays([jsToIsoDay(initialDate.getDay())]);
     }
-
-    // Update parent immediately
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleIntervalChange = (value: number) => {
     setInterval(value);
-    // Update parent immediately
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleWeekdayChange = (day: number, checked: boolean) => {
@@ -222,75 +222,78 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
 
     // Update state
     setWeekdays(newWeekdays);
-
-    // Update parent immediately
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
+  };
+  
+  // For toggling a weekday with a click
+  const handleWeekdayToggle = (day: number) => {
+    const isSelected = weekdays.includes(day);
+    handleWeekdayChange(day, !isSelected);
   };
 
   const handleMonthlyTypeChange = (value: string) => {
     setMonthlyType(value as 'dayOfMonth' | 'dayOfWeek' | 'beforeMonth');
-    // Update parent immediately
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleMonthlyDayOfMonthChange = (value: number) => {
     setMonthlyDayOfMonth(value);
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleMonthlyDayOfWeekChange = (value: number) => {
     setMonthlyDayOfWeek(value);
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleMonthlyWeekOfMonthChange = (value: number) => {
     setMonthlyWeekOfMonth(value);
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleMonthlyDaysBeforeMonthChange = (value: number) => {
     setMonthlyDaysBeforeMonth(value);
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
   
   const handleMonthlyBeforeTypeChange = (value: 'starts' | 'ends') => {
     setMonthlyBeforeType(value);
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleYearlyTypeChange = (value: string) => {
     setYearlyType(value as 'specificDate' | 'positionBased' | 'beforeMonth');
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
   
   const handleYearlyDaysBeforeMonthChange = (value: number) => {
     setYearlyDaysBeforeMonth(value);
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
   
   const handleYearlyBeforeTypeChange = (value: 'starts' | 'ends') => {
     setYearlyBeforeType(value);
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleYearlyMonthChange = (value: number) => {
     setYearlyMonth(value);
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleYearlyDayChange = (value: number) => {
     setYearlyDay(value);
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleYearlyDayOfWeekChange = (value: number) => {
     setYearlyDayOfWeek(value);
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleYearlyWeekOfMonthChange = (value: number) => {
     setYearlyWeekOfMonth(value);
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleEndTypeChange = (value: string) => {
@@ -312,29 +315,48 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
         setEndDate(formatDateForInput(defaultEndDate));
       }
     }
-
-    // Update parent after state change
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleOccurrencesChange = (value: number) => {
     setOccurrences(value);
-    // Update parent immediately
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
   const handleEndDateChange = (value: string) => {
     setEndDate(value);
-    // Update parent immediately
-    onChange(generateRecurrenceRule());
+    // No need to call onChange here - the useEffect will handle it
   };
 
-  // Initial update on mount
+  // Generate and update the recurrence rule whenever any relevant state changes
   useEffect(() => {
-    // Only call once on initial mount
-    onChange(generateRecurrenceRule());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const rule = generateRecurrenceRule();
+    console.log('Generate rule', rule)
+    onChange(rule);
+  }, [
+    // Dependencies - any state that affects the rule
+    recurrenceType,
+    interval,
+    weekdays,
+    monthlyType,
+    monthlyDayOfMonth,
+    monthlyDayOfWeek,
+    monthlyWeekOfMonth,
+    monthlyDaysBeforeMonth,
+    monthlyBeforeType,
+    yearlyType,
+    yearlyMonth,
+    yearlyDay,
+    yearlyDayOfWeek,
+    yearlyWeekOfMonth,
+    yearlyDaysBeforeMonth,
+    yearlyBeforeType,
+    endType,
+    occurrences,
+    endDate
+  ]);
+
+  // No need for a separate initial update since the dependency-based useEffect above will run on mount
 
   // Helper functions for formatting dates and getting day/month names
   function formatDateForInput(date: Date): string {

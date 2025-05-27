@@ -164,7 +164,7 @@ export default function CreateEventDialog({ isOpen, onClose, onSave, initialDate
         interval: recurrenceRule.interval,
         pattern: recurrenceRule.pattern || {},
         count: recurrenceRule.count,
-        // until is now handled by recurrenceEnd directly in the schedule
+        until: recurrenceRule.until // Include the until date in the recurrenceRule object
       } : undefined,
       // Set recurrenceStart to the event start time for recurring events
       recurrenceStart: recurrenceRule ? startTimestamp : undefined,
