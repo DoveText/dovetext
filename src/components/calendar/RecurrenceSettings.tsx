@@ -70,8 +70,6 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
       : 1
   );
   
-  const [monthlyBeforeType, setMonthlyBeforeType] = useState<'starts' | 'ends'>('starts');
-
   // Yearly specific state
   const [yearlyType, setYearlyType] = useState<'specificDate' | 'positionBased' | 'beforeMonth'>(
     value?.pattern?.weekOfMonth ? 'positionBased' : 
@@ -90,8 +88,6 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
       : 1
   );
   
-  const [yearlyBeforeType, setYearlyBeforeType] = useState<'starts' | 'ends'>('starts');
-
   const [yearlyDay, setYearlyDay] = useState<number>(
     value?.pattern?.day || initialDate.getDate()
   );
@@ -145,7 +141,6 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
         // For "X days before the month starts/ends" pattern
         rule.pattern!.dayOfMonth = -monthlyDaysBeforeMonth;
         // Add a custom property to indicate if it's before start or end
-        (rule.pattern as any).beforeType = monthlyBeforeType;
       }
     } else if (recurrenceType === 'YEARLY') {
       if (yearlyType === 'specificDate') {
@@ -161,8 +156,6 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
         // For "X days before the month starts/ends" pattern
         rule.pattern!.dayOfMonth = -yearlyDaysBeforeMonth;
         rule.pattern!.month = yearlyMonth;
-        // Add a custom property to indicate if it's before start or end
-        (rule.pattern as any).beforeType = yearlyBeforeType;
       }
     }
 
@@ -256,11 +249,6 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     // No need to call onChange here - the useEffect will handle it
   };
   
-  const handleMonthlyBeforeTypeChange = (value: 'starts' | 'ends') => {
-    setMonthlyBeforeType(value);
-    // No need to call onChange here - the useEffect will handle it
-  };
-
   const handleYearlyTypeChange = (value: string) => {
     setYearlyType(value as 'specificDate' | 'positionBased' | 'beforeMonth');
     // No need to call onChange here - the useEffect will handle it
@@ -268,11 +256,6 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
   
   const handleYearlyDaysBeforeMonthChange = (value: number) => {
     setYearlyDaysBeforeMonth(value);
-    // No need to call onChange here - the useEffect will handle it
-  };
-  
-  const handleYearlyBeforeTypeChange = (value: 'starts' | 'ends') => {
-    setYearlyBeforeType(value);
     // No need to call onChange here - the useEffect will handle it
   };
 
@@ -343,14 +326,12 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
     monthlyDayOfWeek,
     monthlyWeekOfMonth,
     monthlyDaysBeforeMonth,
-    monthlyBeforeType,
     yearlyType,
     yearlyMonth,
     yearlyDay,
     yearlyDayOfWeek,
     yearlyWeekOfMonth,
     yearlyDaysBeforeMonth,
-    yearlyBeforeType,
     endType,
     occurrences,
     endDate
@@ -669,19 +650,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
                             className="text-xs"
                         />
                       </div>
-                      <span className="text-sm">{monthlyDaysBeforeMonth === 1 ? 'day' : 'days'} before month</span>
-                      <div className="w-24 inline-block mx-1">
-                        <Select
-                            value={monthlyBeforeType}
-                            onChange={(value) => handleMonthlyBeforeTypeChange(value as 'starts' | 'ends')}
-                            disabled={monthlyType !== 'beforeMonth'}
-                            options={[
-                              { value: 'starts', label: 'starts' },
-                              { value: 'ends', label: 'ends' }
-                            ]}
-                            className="text-xs"
-                        />
-                      </div>
+                      <span className="text-sm">{monthlyDaysBeforeMonth === 1 ? 'day' : 'days'} before month ends</span>
                     </label>
                   </div>
                 </div>
@@ -769,48 +738,37 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
                 <div>
                   <label className="inline-flex items-center">
                     <input
-                          type="radio"
-                          id="yearly-before-month"
-                          name="yearlyType"
-                          value="beforeMonth"
-                          checked={yearlyType === 'beforeMonth'}
-                          onChange={() => handleYearlyTypeChange('beforeMonth')}
-                          className="mr-2"
-                      />
+                        type="radio"
+                        id="yearly-before-month"
+                        name="yearlyType"
+                        value="beforeMonth"
+                        checked={yearlyType === 'beforeMonth'}
+                        onChange={() => handleYearlyTypeChange('beforeMonth')}
+                        className="mr-2"
+                    />
                     <div className="w-16 inline-block mx-1">
                       <Select
-                            value={yearlyDaysBeforeMonth.toString()}
-                            onChange={(value) => handleYearlyDaysBeforeMonthChange(parseInt(value))}
-                            disabled={yearlyType !== 'beforeMonth'}
-                            options={[1, 2, 3, 4, 5, 7, 10, 14, 21, 28].map(day => ({
-                              value: day.toString(),
-                              label: day.toString()
-                            }))}
-                            className="text-xs"
-                        />
+                          value={yearlyDaysBeforeMonth.toString()}
+                          onChange={(value) => handleYearlyDaysBeforeMonthChange(parseInt(value))}
+                          disabled={yearlyType !== 'beforeMonth'}
+                          options={[1, 2, 3, 4, 5, 7, 10, 14, 21, 28].map(day => ({
+                            value: day.toString(),
+                            label: day.toString()
+                          }))}
+                          className="text-xs"
+                      />
                     </div>
                     <span className="text-sm">{yearlyDaysBeforeMonth === 1 ? 'day' : 'days'} before</span>
                     <div className="w-32 inline-block mx-1">
                       <Select
-                            value={yearlyMonth.toString()}
-                            onChange={(value) => handleYearlyMonthChange(parseInt(value))}
-                            disabled={yearlyType !== 'beforeMonth'}
-                            options={generateMonthOptionsArray()}
-                            className="text-xs"
-                        />
+                          value={yearlyMonth.toString()}
+                          onChange={(value) => handleYearlyMonthChange(parseInt(value))}
+                          disabled={yearlyType !== 'beforeMonth'}
+                          options={generateMonthOptionsArray()}
+                          className="text-xs"
+                      />
                     </div>
-                    <div className="w-24 inline-block mx-1">
-                      <Select
-                            value={yearlyBeforeType}
-                            onChange={(value) => handleYearlyBeforeTypeChange(value as 'starts' | 'ends')}
-                            disabled={yearlyType !== 'beforeMonth'}
-                            options={[
-                              { value: 'starts', label: 'starts' },
-                              { value: 'ends', label: 'ends' }
-                            ]}
-                            className="text-xs"
-                        />
-                    </div>
+                    <span className="text-sm">{yearlyDaysBeforeMonth === 1 ? 'day' : 'days'} ends</span>
                   </label>
                 </div>
               </div>
