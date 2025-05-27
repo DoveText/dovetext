@@ -236,6 +236,8 @@ function ScheduleContent() {
       
       // Reload events to get the updated state
       await loadEvents();
+
+      setSelectedEvent(null)
       setShowEventDetailsDialog(false);
     } catch (error) {
       console.error('Error deleting event:', error);

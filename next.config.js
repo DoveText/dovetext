@@ -70,9 +70,10 @@ const nextConfig = {
         "font-src 'self'",
         `connect-src 'self' https://*.googleapis.com https://*.google.com ${allowedDomains.join(' ')}`,
         "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com",
-        "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.googleapis.com https://*.google.com https://*.gstatic.com",
+        "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.googleapis.com https://*.google.com https://*.gstatic.com https://static.cloudflareinsights.com",
         "media-src 'self'",
-        "worker-src 'self' blob:"
+        "worker-src 'self' blob:",
+        "object-src 'self' data:"
       ];
 
       return [
