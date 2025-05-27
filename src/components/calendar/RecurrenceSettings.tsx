@@ -14,7 +14,6 @@ export interface RecurrenceRule {
     dayOfWeek?: number;
     weekOfMonth?: number;
     month?: number;
-    day?: number;
   };
   count?: number;
   until?: Date | null;
@@ -89,7 +88,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
   );
   
   const [yearlyDay, setYearlyDay] = useState<number>(
-    value?.pattern?.day || initialDate.getDate()
+    value?.pattern?.dayOfMonth || initialDate.getDate()
   );
 
   const [yearlyDayOfWeek, setYearlyDayOfWeek] = useState<number>(
@@ -146,7 +145,7 @@ export default function RecurrenceSettings({ initialDate, value, onChange }: Rec
       if (yearlyType === 'specificDate') {
         // For specific date in a year (e.g., January 1st)
         rule.pattern!.month = yearlyMonth;
-        rule.pattern!.day = yearlyDay;
+        rule.pattern!.dayOfMonth = yearlyDay;
       } else if (yearlyType === 'positionBased') {
         // For position-based pattern (e.g., fourth Thursday in November)
         rule.pattern!.dayOfWeek = yearlyDayOfWeek;
