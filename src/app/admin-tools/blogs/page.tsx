@@ -610,7 +610,7 @@ function BlogsManager() {
               <div className="border border-gray-300 rounded-md">
                 <MarkdownEditor
                   initialContent={initialContent}
-                  onChange={(value: string) => handleFormChange('content', value)}
+                  // onChange={(value: string) => handleFormChange('content', value)}
                 />
               </div>
             </div>

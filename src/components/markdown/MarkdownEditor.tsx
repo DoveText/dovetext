@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Spinner } from '@/components/common/Spinner';
 
@@ -105,15 +105,47 @@ export function MarkdownEditor({
   const [dropdownPosition, setDropdownPosition] = useState({ top: 40, right: 10 });
   const editorRef = useRef<HTMLDivElement>(null);
   const aiButtonRef = useRef<HTMLButtonElement>(null);
+  
+  // Store a reference to the SimpleMDE instance
+  const simpleMdeInstanceRef = useRef<any>(null);
+  
+  // Callback to get the SimpleMDE instance
+  const getMdeInstanceCallback = useCallback((simpleMde: any) => {
+    console.log('Got SimpleMDE instance');
+    simpleMdeInstanceRef.current = simpleMde;
+  }, []);
 
   // Handle client-side rendering
   useEffect(() => {
     setIsClient(true);
   }, []);
   
-  // Update local content when initialContent prop changes
+  // We no longer need this effect since we're using getMdeInstance callback
+  // to get the SimpleMDE instance directly
+  
+  // Update editor content directly when initialContent changes significantly
+  const prevInitialContentRef = useRef(initialContent);
+  
   useEffect(() => {
-    setContent(initialContent);
+    // Only update if this is a significant change (like switching blogs)
+    if (initialContent !== prevInitialContentRef.current && simpleMdeInstanceRef.current) {
+      console.log('Updating editor content directly via SimpleMDE API');
+      simpleMdeInstanceRef.current.value(initialContent);
+      
+      // Focus the editor after content change
+      setTimeout(() => {
+        if (simpleMdeInstanceRef.current) {
+          console.log('Focusing editor after initialContent change');
+          simpleMdeInstanceRef.current.codemirror.focus();
+        }
+      }, 10);
+      
+      prevInitialContentRef.current = initialContent;
+    } else if (initialContent !== prevInitialContentRef.current) {
+      // Fallback if SimpleMDE instance isn't available yet
+      setContent(initialContent);
+      prevInitialContentRef.current = initialContent;
+    }
   }, [initialContent]);
 
   // Handle AI button click
@@ -139,30 +171,71 @@ export function MarkdownEditor({
     setAiActionInProgress(actionId);
     
     try {
+      // Get current content directly from the SimpleMDE instance if available
+      const currentContent = simpleMdeInstanceRef.current ? 
+        simpleMdeInstanceRef.current.value() : content;
+      
       // Here you would implement the actual AI functionality
       // For now, we'll just simulate a delay and add some placeholder text
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      let newContent = content;
+      let newContent = currentContent;
+      let insertedText = '';
+      let insertPosition = 0;
+      
       switch (actionId) {
         case 'generate':
-          newContent = content + '\n\n## AI Generated Content\nThis is some AI-generated content that would be created based on your prompt or context.\n';
+          insertedText = '\n\n## AI Generated Content\nThis is some AI-generated content that would be created based on your prompt or context.\n';
+          insertPosition = currentContent.length;
+          newContent = currentContent + insertedText;
           break;
         case 'refine':
-          newContent = content + '\n\n*This content has been refined by AI to improve clarity and readability.*\n';
+          newContent = currentContent + '\n\n*This content has been refined by AI to improve clarity and readability.*\n';
           break;
         case 'schema':
-          newContent = content + '\n\n```json\n{\n  "title": "Sample Schema",\n  "type": "object",\n  "properties": {\n    "name": { "type": "string" },\n    "description": { "type": "string" },\n    "isActive": { "type": "boolean" }\n  }\n}\n```\n';
+          newContent = currentContent + '\n\n```json\n{\n  "title": "Sample Schema",\n  "type": "object",\n  "properties": {\n    "name": { "type": "string" },\n    "description": { "type": "string" },\n    "isActive": { "type": "boolean" }\n  }\n}\n```\n';
           break;
         case 'summarize':
-          newContent = content + '\n\n**Summary:** This is an AI-generated summary of the content above.\n';
+          newContent = currentContent + '\n\n**Summary:** This is an AI-generated summary of the content above.\n';
           break;
         case 'translate':
-          newContent = content + '\n\n*Translated version:*\nThis would be the translated content in another language.\n';
+          newContent = currentContent + '\n\n*Translated version:*\nThis would be the translated content in another language.\n';
           break;
       }
       
-      setContent(newContent);
+      // Update the editor content directly using SimpleMDE's API
+      if (simpleMdeInstanceRef.current) {
+        console.log('Setting content via SimpleMDE API');
+        simpleMdeInstanceRef.current.value(newContent);
+        
+        // Focus the editor after content change
+        setTimeout(() => {
+          if (simpleMdeInstanceRef.current) {
+            const cm = simpleMdeInstanceRef.current.codemirror;
+            console.log('Focusing editor after content change');
+            cm.focus();
+            
+            // For 'generate' action, select the inserted text
+            if (actionId === 'generate' && insertedText) {
+              // Calculate the start and end positions for the selection
+              // We need to convert string position to CodeMirror position (line, ch)
+              const doc = cm.getDoc();
+              const startPos = doc.posFromIndex(insertPosition);
+              const endPos = doc.posFromIndex(insertPosition + insertedText.length);
+              
+              // Set the selection
+              console.log('Selecting inserted text');
+              doc.setSelection(startPos, endPos);
+            }
+          }
+        }, 10);
+      } else {
+        console.log('Falling back to React state');
+        // Fallback to React state if direct manipulation isn't possible
+        setContent(newContent);
+      }
+      
+      // Notify parent component of change
       if (onChange) {
         onChange(newContent);
       }
@@ -192,11 +265,11 @@ export function MarkdownEditor({
         <SimpleMDEEditor
           value={content}
           onChange={(value) => {
-            setContent(value);
             if (onChange) {
               onChange(value);
             }
           }}
+          getMdeInstance={getMdeInstanceCallback}
           options={{
             placeholder,
             spellChecker: false,
