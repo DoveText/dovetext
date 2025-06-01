@@ -216,9 +216,13 @@ export function MarkdownEditor({
         {/* Overlay AI Button */}
         <button
           ref={aiButtonRef}
-          className="absolute top-0 right-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded px-3 py-1 flex items-center space-x-1 my-1 z-10"
+          className="absolute bg-indigo-600 hover:bg-indigo-700 text-white rounded-md px-4 py-1.5 flex items-center space-x-1.5 z-10 shadow-sm"
           onClick={handleAIButtonClick}
-          style={{ height: '30px' }}
+          style={{ 
+            top: '8px',  /* Position to vertically center in toolbar */
+            right: '12px', /* More spacing from the right edge */
+            height: '32px' /* Slightly taller button */
+          }}
         >
           <span className="text-sm">✨</span>
           <span className="text-sm font-medium">AI</span>
