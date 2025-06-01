@@ -37,6 +37,7 @@ function BlogsManager() {
   const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [initialContent, setInitialContent] = useState('');
   const [formData, setFormData] = useState<{
     title: string;
     slug: string;
@@ -68,6 +69,7 @@ function BlogsManager() {
   // Effect to initialize form data when a blog is selected for editing
   useEffect(() => {
     if (selectedBlog) {
+      console.log('selected blog - ' + selectedBlog.slug)
       setFormData({
         title: selectedBlog.title,
         slug: selectedBlog.slug,
@@ -78,6 +80,7 @@ function BlogsManager() {
         tags: selectedBlog.tags.join(', '),
         status: selectedBlog.status
       });
+      setInitialContent(selectedBlog.content);
       setIsCreatingNew(false);
     } else if (isCreatingNew) {
       // Reset form for new blog
@@ -91,6 +94,7 @@ function BlogsManager() {
         tags: '',
         status: 'draft'
       });
+      setInitialContent('')
     }
     setHasUnsavedChanges(false);
   }, [selectedBlog, isCreatingNew, user]);
@@ -605,7 +609,7 @@ function BlogsManager() {
             <div>
               <div className="border border-gray-300 rounded-md">
                 <MarkdownEditor
-                  initialContent={formData.content}
+                  initialContent={initialContent}
                   onChange={(value: string) => handleFormChange('content', value)}
                 />
               </div>
