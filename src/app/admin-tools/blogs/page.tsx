@@ -5,13 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { Spinner } from '@/components/common/Spinner';
 import { Blog, BlogCreateRequest, BlogUpdateRequest, blogsApi } from '../api/blogs';
-import dynamic from 'next/dynamic';
-
-// Dynamically import the MarkdownEditor to avoid SSR issues
-const MarkdownEditor = dynamic(
-  () => import('@/components/markdown/MarkdownEditor'),
-  { ssr: false }
-);
+import MarkdownEditor from '@/components/markdown/MarkdownEditor';
 import { 
   PlusIcon, 
   PencilIcon, 
