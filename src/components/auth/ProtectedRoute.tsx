@@ -10,6 +10,12 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const { user, loading, needsValidation, isActive } = useAuth();
   const router = useRouter();
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  
+  // This ensures we only run client-side code after hydration
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Add a timeout to handle cases where auth state might be stuck
   useEffect(() => {
@@ -27,25 +33,27 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   // Get current path to prevent redirection loops and for context type
   const pathname = usePathname();
   
-  // Handle redirects based on auth state
+  // Handle redirects based on auth state - only run on client side
   useEffect(() => {
+    // Skip this effect during server-side rendering or before hydration is complete
+    if (!isClient) return;
+    
     if (!loading || loadingTimeout) {
       if (!user) {
         // Only redirect if not already on the signin page
         if (pathname !== '/' && pathname !== '/signin') {
           // Store the current path for redirection after login
-          if (typeof window !== 'undefined' && pathname) {
-            localStorage.setItem('auth_redirect_url', pathname);
-          }
+          localStorage.setItem('auth_redirect_url', pathname);
           router.push('/signin');
         }
       } else {
         // Check if there's a stored redirect URL when user is authenticated
-        if (typeof window !== 'undefined' && !needsValidation && isActive) {
+        if (!needsValidation && isActive) {
           const redirectUrl = localStorage.getItem('auth_redirect_url');
           if (redirectUrl) {
             localStorage.removeItem('auth_redirect_url');
-            router.push(redirectUrl);
+            // Fix TypeScript error by ensuring redirectUrl is not null
+            router.push(redirectUrl as string);
             return;
           }
         }
@@ -63,9 +71,22 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
         }
       }
     }
-  }, [user, loading, needsValidation, isActive, router, loadingTimeout, pathname]);
+  }, [user, loading, needsValidation, isActive, router, loadingTimeout, pathname, isClient]);
 
-  // Show loading state
+  // During server-side rendering or before hydration is complete, render a minimal skeleton
+  // This prevents hydration errors by ensuring server and client render the same initial content
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show loading state - only on client side after hydration
   if (loading && !loadingTimeout) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -101,6 +122,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   }
 
   // Don't render children if user isn't properly authenticated
+  // This check only happens on the client side after hydration
   if (!user || needsValidation || !isActive) {
     return null;
   }

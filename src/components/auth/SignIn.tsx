@@ -25,7 +25,8 @@ export function SignIn() {
     // Only attempt redirection if we're on the client side
     if (isClient && user) {
       console.log('User authenticated, redirecting to dashboard');
-      router.push('/dashboard');
+      // Use window.location for a full page navigation to ensure proper loading
+      window.location.href = window.location.origin + '/dashboard';
     }
   }, [user, router, isClient]);
 
@@ -37,8 +38,8 @@ export function SignIn() {
     try {
       const result = await signIn(email, password);
       console.log('Sign-in successful, redirecting to dashboard');
-      // Force the redirect immediately after successful sign-in
-      router.push('/dashboard');
+      // Force the redirect immediately after successful sign-in using window.location
+      window.location.href = window.location.origin + '/dashboard';
     } catch (error: any) {
       console.error('Signin error:', error);
       setError(error.message);
