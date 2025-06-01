@@ -30,7 +30,7 @@ const nextConfig = {
           headers: [
             {
               key: 'Content-Security-Policy',
-              value: "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: https://lh3.googleusercontent.com https://firebasestorage.googleapis.com; font-src 'self'; connect-src 'self' https://*.googleapis.com https://*.google.com http://127.0.0.1:* http://localhost:* http://*.dovetext.cn https://*.cloudflareinsights.com; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.cloudflareinsights.com; media-src 'self'; worker-src 'self' blob:"
+              value: "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: https://lh3.googleusercontent.com https://firebasestorage.googleapis.com; font-src 'self'; connect-src 'self' https://*.googleapis.com https://*.google.com http://127.0.0.1:* http://localhost:* http://*.dovetext.cn https://*.cloudflareinsights.com https://cloudflareinsights.com; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.cloudflareinsights.com https://cloudflareinsights.com; media-src 'self'; worker-src 'self' blob:"
             }
           ]
         }

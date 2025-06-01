@@ -17,7 +17,8 @@ import {
   ChartBarIcon,
   ShieldCheckIcon,
   HomeIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import LoadingIndicator from '@/components/common/LoadingIndicator';
 
@@ -106,6 +107,13 @@ export default function AdminToolsLayout({
       description: 'Configure system notification templates',
       path: '/admin-tools/notifications',
       icon: <BellIcon className="h-5 w-5 text-yellow-500" />
+    },
+    {
+      id: 'blogs',
+      name: 'Blog Management',
+      description: 'Create, edit, and manage blog posts',
+      path: '/admin-tools/blogs',
+      icon: <DocumentTextIcon className="h-5 w-5 text-emerald-500" />
     },
     {
       id: 'scheduler',
