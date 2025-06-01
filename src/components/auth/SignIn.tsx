@@ -14,12 +14,20 @@ export function SignIn() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isSigningInWithGoogle, setIsSigningInWithGoogle] = useState(false);
   const [error, setError] = useState('');
+  const [isClient, setIsClient] = useState(false);
+  
+  // This ensures the component only fully renders on the client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
-    if (user) {
+    // Only attempt redirection if we're on the client side
+    if (isClient && user) {
+      console.log('User authenticated, redirecting to dashboard');
       router.push('/dashboard');
     }
-  }, [user, router]);
+  }, [user, router, isClient]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -27,7 +35,9 @@ export function SignIn() {
     setError('');
 
     try {
-      await signIn(email, password);
+      const result = await signIn(email, password);
+      console.log('Sign-in successful, redirecting to dashboard');
+      // Force the redirect immediately after successful sign-in
       router.push('/dashboard');
     } catch (error: any) {
       console.error('Signin error:', error);
@@ -43,7 +53,9 @@ export function SignIn() {
 
     try {
       await signInWithGoogle();
-      router.push('/dashboard');
+      console.log('Google sign-in successful, redirecting to dashboard');
+      // Force the redirect immediately after successful sign-in
+      window.location.href = '/dashboard';
     } catch (error: any) {
       console.error('Google signin error:', error);
       setError('Failed to sign in with Google. Please try again.');
@@ -52,6 +64,11 @@ export function SignIn() {
     }
   }
 
+  // Only render the full component on the client to avoid hydration mismatch
+  if (!isClient) {
+    return <div className="mx-auto max-w-md"><div className="bg-white shadow sm:rounded-lg"><div className="px-4 py-5 sm:p-6"></div></div></div>;
+  }
+  
   return (
     <div className="mx-auto max-w-md">
       <div className="bg-white shadow sm:rounded-lg">
