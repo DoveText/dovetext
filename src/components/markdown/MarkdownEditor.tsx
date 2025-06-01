@@ -1,8 +1,24 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MDXEditor } from '@mdxeditor/editor';
+import dynamic from 'next/dynamic';
 import { Spinner } from '@/components/common/Spinner';
+
+// Import SimpleMDE dynamically to avoid SSR issues with navigator object
+const SimpleMDEEditor = dynamic(
+  () => import('react-simplemde-editor'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="border rounded-md p-4 w-full h-64 flex items-center justify-center bg-gray-50">
+        <Spinner />
+        <span className="ml-2 text-gray-500">Loading editor...</span>
+      </div>
+    )
+  }
+);
+
+// Note: CSS is imported in globals.css
 
 export interface MarkdownEditorProps {
   initialContent?: string;
@@ -22,17 +38,17 @@ export function MarkdownEditor({
   const [content, setContent] = useState(initialContent);
   const [isClient, setIsClient] = useState(false);
 
+  // Handle client-side rendering
   useEffect(() => {
     setIsClient(true);
   }, []);
+  
+  // Update local content when initialContent prop changes
+  useEffect(() => {
+    setContent(initialContent);
+  }, [initialContent]);
 
-  const handleChange = (value: string) => {
-    setContent(value);
-    if (onChange) {
-      onChange(value);
-    }
-  };
-
+  // Show loading state during server-side rendering or when component is loading
   if (!isClient) {
     return (
       <div className={`border rounded-md p-4 w-full bg-gray-50 ${className}`} style={{ minHeight }}>
@@ -46,14 +62,29 @@ export function MarkdownEditor({
 
   return (
     <div className={`markdown-editor ${className}`} style={{ minHeight }}>
-      {isClient && (
-        <MDXEditor
-          markdown={content}
-          onChange={handleChange}
-          placeholder={placeholder}
-          contentEditableClassName="prose max-w-none p-4 min-h-[300px] focus:outline-none"
-        />
-      )}
+      <SimpleMDEEditor
+        value={content}
+        onChange={(value) => {
+          setContent(value);
+          if (onChange) {
+            onChange(value);
+          }
+        }}
+        options={{
+          placeholder,
+          spellChecker: false,
+          autofocus: false,
+          status: ['lines', 'words'],
+          minHeight,
+          toolbar: [
+            'bold', 'italic', 'heading', '|',
+            'quote', 'unordered-list', 'ordered-list', '|',
+            'link', 'image', '|',
+            'preview', 'side-by-side', 'fullscreen', '|',
+            'guide'
+          ]
+        }}
+      />
     </div>
   );
 }

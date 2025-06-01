@@ -1,5 +1,6 @@
 /* Import third-party CSS files */
 @import 'react-image-crop/dist/ReactCrop.css';
+@import 'easymde/dist/easymde.min.css';
 
 @tailwind base;
 @tailwind components;
