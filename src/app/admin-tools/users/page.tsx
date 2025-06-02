@@ -12,7 +12,9 @@ import {
   ShieldExclamationIcon,
   PlusIcon,
   MagnifyingGlassIcon,
-  XMarkIcon
+  XMarkIcon,
+  UserIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -34,12 +36,14 @@ export default function UsersAdminPage() {
     displayName: string;
     phoneNumber: string;
     isAdmin: boolean;
+    userType: 'personal' | 'business'
   }>({
     email: '',
     password: '',
     displayName: '',
     phoneNumber: '',
-    isAdmin: false
+    isAdmin: false,
+    userType: 'personal'
   });
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [actionInProgress, setActionInProgress] = useState(false);
@@ -78,10 +82,9 @@ export default function UsersAdminPage() {
       setActionInProgress(true);
       setError(null);
       
-      // Validate form data
+      // Validate required fields
       if (!formData.email || !formData.password) {
-        setError('Email and password are required for Firebase user creation.');
-        setActionInProgress(false);
+        setError('Email and password are required.');
         return;
       }
       
@@ -90,7 +93,8 @@ export default function UsersAdminPage() {
         password: formData.password,
         displayName: formData.displayName || undefined,
         phoneNumber: formData.phoneNumber || undefined,
-        isAdmin: formData.isAdmin
+        isAdmin: formData.isAdmin,
+        userType: formData.userType
       };
       
       const newUser = await usersService.createUser(createRequest);
@@ -104,7 +108,8 @@ export default function UsersAdminPage() {
         password: '',
         displayName: '',
         phoneNumber: '',
-        isAdmin: false
+        isAdmin: false,
+        userType: 'personal'
       });
       setIsCreating(false);
     } catch (err: any) {
@@ -122,18 +127,19 @@ export default function UsersAdminPage() {
       setActionInProgress(true);
       setError(null);
       
-      const updateRequest: UpdateUserRequest = {
-        displayName: formData.displayName,
-        phoneNumber: formData.phoneNumber,
-        isAdmin: formData.isAdmin
+      const updateData: UpdateUserRequest = {
+        displayName: formData.displayName || undefined,
+        phoneNumber: formData.phoneNumber || undefined,
+        isAdmin: formData.isAdmin,
+        userType: formData.userType
       };
       
-      // Add password to update request if provided
-      if ((formData as any).password && (formData as any).password.trim() !== '') {
-        updateRequest.password = (formData as any).password;
+      // Only include password if it was provided
+      if (formData.password) {
+        updateData.password = formData.password;
       }
       
-      const updatedUser = await usersService.updateUser(selectedUser.id, updateRequest);
+      const updatedUser = await usersService.updateUser(selectedUser.id, updateData);
       
       // Update the users list
       setUsers(prevUsers => 
@@ -194,13 +200,36 @@ export default function UsersAdminPage() {
     }
   };
 
+  const handleSetUserType = async (id: number, userType: 'personal' | 'business') => {
+    try {
+      setActionInProgress(true);
+      setError(null);
+      
+      const updatedUser = await usersService.setUserType(id, userType);
+      
+      // Update the users list
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.id === updatedUser.id ? updatedUser : user
+        )
+      );
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to update user type. Please try again.');
+      console.error(err);
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
   const handleEditClick = (user: UserDto) => {
     setSelectedUser(user);
     setFormData({
       email: user.email,
       displayName: user.displayName || '',
       phoneNumber: user.phoneNumber || '',
-      isAdmin: user.isAdmin
+      isAdmin: user.isAdmin,
+      userType: user.settings?.type || 'personal',
+      password: ''
     });
     setIsEditing(true);
   };
@@ -289,6 +318,9 @@ export default function UsersAdminPage() {
                   Role
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  User Type
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -353,6 +385,17 @@ export default function UsersAdminPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      {user.settings?.type === 'business' ? (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                          Business
+                        </span>
+                      ) : (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          Personal
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       {user.lastLoginAt ? (
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                           Last login: {format(new Date(user.lastLoginAt), 'MMM d, yyyy')}
@@ -405,6 +448,18 @@ export default function UsersAdminPage() {
                                 <ShieldCheckIcon className="h-5 w-5" />
                               ) : (
                                 <ShieldExclamationIcon className="h-5 w-5" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleSetUserType(user.id, user.settings?.type === 'business' ? 'personal' : 'business')}
+                              disabled={actionInProgress || currentUser?.id === user.id}
+                              className={`${user.settings?.type === 'business' ? 'text-blue-600 hover:text-blue-900' : 'text-green-600 hover:text-green-900'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                              title={user.settings?.type === 'business' ? 'Change to Personal' : 'Change to Business'}
+                            >
+                              {user.settings?.type === 'business' ? (
+                                <UserGroupIcon className="h-5 w-5" />
+                              ) : (
+                                <UserIcon className="h-5 w-5" />
                               )}
                             </button>
                             <button
@@ -503,6 +558,20 @@ export default function UsersAdminPage() {
                           Admin User
                         </label>
                       </div>
+                      <div>
+                        <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
+                          User Type
+                        </label>
+                        <select
+                          id="userType"
+                          value={formData.userType}
+                          onChange={(e) => setFormData({ ...formData, userType: e.target.value as 'personal' | 'business' })}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        >
+                          <option value="personal">Personal</option>
+                          <option value="business">Business</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -599,6 +668,24 @@ export default function UsersAdminPage() {
                             <span className="text-xs text-gray-500 ml-2">(Cannot change your own admin status)</span>
                           )}
                         </label>
+                      </div>
+                      <div>
+                        <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
+                          User Type
+                        </label>
+                        <select
+                          id="userType"
+                          value={formData.userType}
+                          onChange={(e) => setFormData({ ...formData, userType: e.target.value as 'personal' | 'business' })}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          disabled={currentUser?.id === selectedUser.id}
+                        >
+                          <option value="personal">Personal</option>
+                          <option value="business">Business</option>
+                        </select>
+                        {currentUser?.id === selectedUser.id && (
+                          <p className="text-xs text-gray-500 mt-1">(Cannot change your own user type)</p>
+                        )}
                       </div>
                     </div>
                   </div>

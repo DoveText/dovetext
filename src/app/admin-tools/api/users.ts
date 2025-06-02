@@ -11,6 +11,9 @@ export interface UserDto {
   updatedAt: string;
   lastLoginAt?: string;
   firebaseUid?: string;
+  settings?: {
+    type?: 'personal' | 'business';
+  };
 }
 
 export interface CreateUserRequest {
@@ -20,6 +23,7 @@ export interface CreateUserRequest {
   phoneNumber?: string;
   avatarUrl?: string;
   isAdmin?: boolean;
+  userType?: 'personal' | 'business';
 }
 
 export interface UpdateUserRequest {
@@ -28,6 +32,7 @@ export interface UpdateUserRequest {
   avatarUrl?: string;
   isAdmin?: boolean;
   password?: string;  // Optional for updating Firebase user password
+  userType?: 'personal' | 'business';
 }
 
 export const usersApi = {
@@ -92,6 +97,14 @@ export const usersApi = {
   async setAdminStatus(id: number, isAdmin: boolean): Promise<UserDto> {
     const { data } = await apiClient.put(`/api/v1/admin/users/${id}/admin?isAdmin=${isAdmin}`);
     return data;
+  },
+
+  /**
+   * Set user type for a user
+   */
+  async setUserType(id: number, userType: 'personal' | 'business'): Promise<UserDto> {
+    const { data } = await apiClient.put(`/api/v1/admin/users/${id}/type`, { userType });
+    return data;
   }
 };
 
@@ -106,6 +119,7 @@ export function useUsersService() {
     updateUser: usersApi.updateUser,
     deleteUser: usersApi.deleteUser,
     getCurrentUser: usersApi.getCurrentUser,
-    setAdminStatus: usersApi.setAdminStatus
+    setAdminStatus: usersApi.setAdminStatus,
+    setUserType: usersApi.setUserType
   };
 }
