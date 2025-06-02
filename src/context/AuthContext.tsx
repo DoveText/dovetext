@@ -46,7 +46,8 @@ interface AuthContextType {
   needsValidation: boolean;
   isActive: boolean;
   refreshUserStatus: () => Promise<any>;
-  refreshUser: () => Promise<void>; // New method to refresh user data
+  refreshUser: () => Promise<void>; // Method to refresh user data
+  updateUser: (updatedUser: User) => Promise<void>; // Method to update user data
   // For backward compatibility with existing components
   auth: any; // Provider-specific auth instance
   onAuthStateChanged: (auth: any, nextOrObserver: any, error?: any, completed?: any) => () => void;
@@ -202,6 +203,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('Error refreshing user data:', error);
     }
   };
+  
+  // Method to update user data (including settings)
+  const updateUser = async (updatedUser: User) => {
+    try {
+      if (!user) return;
+      
+      // For now, we're just updating the local state
+      // In a real implementation, this would also update the backend
+      setUser(updatedUser);
+      
+      // Simulate API call to update user settings
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('User settings updated:', updatedUser.settings);
+      
+      // In a real implementation, we would call an API endpoint
+      // const token = await user.getIdToken();
+      // await fetch('/api/v1/user/settings', {
+      //   method: 'PUT',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${token}`
+      //   },
+      //   body: JSON.stringify(updatedUser.settings)
+      // });
+      
+    } catch (error) {
+      console.error('Error updating user data:', error);
+      throw error;
+    }
+  };
 
   // Determine if the user needs validation and is active
   const needsValidation = user ? !user.emailVerified || user.settings?.validated === false : false;
@@ -244,6 +276,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     isActive,
     refreshUserStatus,
     refreshUser,
+    updateUser,
     // For backward compatibility with existing components
     auth,
     onAuthStateChanged: wrappedOnAuthStateChanged,

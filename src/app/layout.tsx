@@ -8,6 +8,7 @@ import Navigation from '@/components/Navigation';
 import { AuthProvider } from '@/context/AuthContext';
 import { ActionProvider } from '@/context/ActionContext';
 import { ChatProvider } from '@/context/ChatContext';
+import { UserTypeProvider } from '@/context/UserTypeContext';
 import LoadingIndicator from '@/components/common/LoadingIndicator';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -46,16 +47,18 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <AuthProvider>
-          <ActionProvider>
-            <ChatProvider>
-              <LoadingIndicator />
-              <Navigation />
-              <main className="min-h-screen flex flex-col">
-                {children}
-              </main>
-              <Footer />
-            </ChatProvider>
-          </ActionProvider>
+          <UserTypeProvider>
+            <ActionProvider>
+              <ChatProvider>
+                <LoadingIndicator />
+                <Navigation />
+                <main className="min-h-screen flex flex-col">
+                  {children}
+                </main>
+                <Footer />
+              </ChatProvider>
+            </ActionProvider>
+          </UserTypeProvider>
         </AuthProvider>
       </body>
     </html>

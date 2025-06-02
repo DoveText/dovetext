@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Switch } from '@headlessui/react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Link from 'next/link';
-import { ArrowRightIcon } from '@heroicons/react/24/outline';
+import { ArrowRightIcon, UserIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { useUserType } from '@/context/UserTypeContext';
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
@@ -26,8 +27,15 @@ interface SecuritySetting {
 }
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const { userType } = useUserType();
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedUserType, setSelectedUserType] = useState<'personal' | 'business'>(userType);
+  
+  // Update selected user type when userType from context changes
+  useEffect(() => {
+    setSelectedUserType(userType);
+  }, [userType]);
 
   const [notificationSettings, setNotificationSettings] = useState<NotificationSetting[]>([
     {
@@ -88,7 +96,22 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // TODO: Implement settings save
+      // Save user type setting if it has changed
+      if (selectedUserType !== userType && user) {
+        // Create a copy of the user object with updated settings
+        const updatedUser = {
+          ...user,
+          settings: {
+            ...user.settings,
+            type: selectedUserType
+          }
+        };
+        
+        // Update the user in the auth context
+        await updateUser(updatedUser);
+      }
+      
+      // TODO: Save other settings
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -149,6 +172,71 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* User Type Settings */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:px-6">
+              <h3 className="text-lg font-medium leading-6 text-gray-900">
+                User Type
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Choose how you want to use Dove.text
+              </p>
+            </div>
+            <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
+              <div className="space-y-4">
+                <div 
+                  className={`flex items-center p-4 border rounded-lg cursor-pointer ${selectedUserType === 'personal' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}
+                  onClick={() => setSelectedUserType('personal')}
+                >
+                  <div className="flex-shrink-0 mr-4">
+                    <div className={`p-2 rounded-full ${selectedUserType === 'personal' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                      <UserIcon className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-gray-900">Personal</h4>
+                    <p className="text-sm text-gray-500">Use Dove.text for your personal content and scheduling needs</p>
+                  </div>
+                  <div className="ml-4">
+                    <div className={`h-5 w-5 rounded-full border ${selectedUserType === 'personal' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'} flex items-center justify-center`}>
+                      {selectedUserType === 'personal' && (
+                        <div className="h-2 w-2 rounded-full bg-white" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                <div 
+                  className={`flex items-center p-4 border rounded-lg cursor-pointer ${selectedUserType === 'business' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}
+                  onClick={() => setSelectedUserType('business')}
+                >
+                  <div className="flex-shrink-0 mr-4">
+                    <div className={`p-2 rounded-full ${selectedUserType === 'business' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                      <BuildingOfficeIcon className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-gray-900">Business</h4>
+                    <p className="text-sm text-gray-500">Manage articles, assets, and team content for your business</p>
+                  </div>
+                  <div className="ml-4">
+                    <div className={`h-5 w-5 rounded-full border ${selectedUserType === 'business' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'} flex items-center justify-center`}>
+                      {selectedUserType === 'business' && (
+                        <div className="h-2 w-2 rounded-full bg-white" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {selectedUserType !== userType && (
+                  <p className="text-sm text-yellow-600 mt-2">
+                    You've changed your user type. Click "Save Changes" to apply this change.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          
           {/* Security Settings */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-4 py-5 sm:px-6">
