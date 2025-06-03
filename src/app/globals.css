@@ -1,6 +1,8 @@
 /* Import third-party CSS files */
 @import 'react-image-crop/dist/ReactCrop.css';
 @import 'easymde/dist/easymde.min.css';
+/* Novel editor styles */
+@import 'katex/dist/katex.min.css';
 
 @tailwind base;
 @tailwind components;

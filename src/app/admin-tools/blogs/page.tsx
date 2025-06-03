@@ -6,7 +6,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { Spinner } from '@/components/common/Spinner';
 import { Blog, BlogCreateRequest, BlogUpdateRequest, blogsApi } from '../api/blogs';
 import { aiApi } from '../api/ai';
-import MarkdownEditor from '@/components/markdown/MarkdownEditor';
+import AIMarkdownEditor from '@/components/markdown/AIMarkdownEditor';
 import { 
   PlusIcon, 
   PencilIcon, 
@@ -689,7 +689,7 @@ function BlogsManager() {
                   </div>
                 ) : (
                   <div className="h-full">
-                    <MarkdownEditor
+                    <AIMarkdownEditor
                       initialContent={initialContent}
                       onChange={(content) => handleFormChange('content', content)}
                     />
