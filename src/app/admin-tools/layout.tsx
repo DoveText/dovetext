@@ -251,6 +251,9 @@ export default function AdminToolsLayout({
                 <NavLink href="/admin-tools" exactPath={true}>Dashboard</NavLink>
               </li>
               <li>
+                <NavLink href="/admin-tools/blogs">Blogs</NavLink>
+              </li>
+              <li>
                 <NavLink href="/admin-tools/emails">Email & Templates</NavLink>
               </li>
               <li>
