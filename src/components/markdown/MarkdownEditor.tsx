@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Spinner } from '@/components/common/Spinner';
+import { aiApi } from '@/app/admin-tools/api/ai';
 
 // Import SimpleMDE dynamically to avoid SSR issues with navigator object
 const SimpleMDEEditor = dynamic(
@@ -174,47 +175,59 @@ export function MarkdownEditor({
       // Get current content directly from the SimpleMDE instance if available
       const currentContent = simpleMdeInstanceRef.current ? 
         simpleMdeInstanceRef.current.value() : content;
-      
-      // Here you would implement the actual AI functionality
-      // For now, we'll just simulate a delay and add some placeholder text
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+    
       let newContent = currentContent;
       let insertedText = '';
       let insertPosition = 0;
-      
+    
       switch (actionId) {
         case 'generate':
-          insertedText = '\n\n## AI Generated Content\nThis is some AI-generated content that would be created based on your prompt or context.\n';
+          // Use real AI API to generate content
+          const generateResult = await aiApi.generateContent({ 
+            prompt: "Generate content about: " + currentContent.substring(0, 100) 
+          });
+          insertedText = '\n\n' + generateResult.content;
           insertPosition = currentContent.length;
           newContent = currentContent + insertedText;
           break;
         case 'refine':
-          newContent = currentContent + '\n\n*This content has been refined by AI to improve clarity and readability.*\n';
+          // Use real AI API to refine content
+          const refineResult = await aiApi.refineContent({ 
+            content: currentContent,
+            instructions: "Improve clarity and readability" 
+          });
+          newContent = refineResult.refined_content;
           break;
         case 'schema':
-          newContent = currentContent + '\n\n```json\n{\n  "title": "Sample Schema",\n  "type": "object",\n  "properties": {\n    "name": { "type": "string" },\n    "description": { "type": "string" },\n    "isActive": { "type": "boolean" }\n  }\n}\n```\n';
+          // Use real AI API to generate schema
+          const schemaResult = await aiApi.generateSchema({ 
+            topic: currentContent.substring(0, 100),
+            description: "Create a document outline" 
+          });
+          newContent = currentContent + '\n\n' + schemaResult.schema;
           break;
         case 'summarize':
+          // For now, keep the mock implementation for summarize
           newContent = currentContent + '\n\n**Summary:** This is an AI-generated summary of the content above.\n';
           break;
         case 'translate':
+          // For now, keep the mock implementation for translate
           newContent = currentContent + '\n\n*Translated version:*\nThis would be the translated content in another language.\n';
           break;
       }
-      
+    
       // Update the editor content directly using SimpleMDE's API
       if (simpleMdeInstanceRef.current) {
         console.log('Setting content via SimpleMDE API');
         simpleMdeInstanceRef.current.value(newContent);
-        
+      
         // Focus the editor after content change
         setTimeout(() => {
           if (simpleMdeInstanceRef.current) {
             const cm = simpleMdeInstanceRef.current.codemirror;
             console.log('Focusing editor after content change');
             cm.focus();
-            
+          
             // For 'generate' action, select the inserted text
             if (actionId === 'generate' && insertedText) {
               // Calculate the start and end positions for the selection
@@ -222,7 +235,7 @@ export function MarkdownEditor({
               const doc = cm.getDoc();
               const startPos = doc.posFromIndex(insertPosition);
               const endPos = doc.posFromIndex(insertPosition + insertedText.length);
-              
+            
               // Set the selection
               console.log('Selecting inserted text');
               doc.setSelection(startPos, endPos);
@@ -234,7 +247,7 @@ export function MarkdownEditor({
         // Fallback to React state if direct manipulation isn't possible
         setContent(newContent);
       }
-      
+    
       // Notify parent component of change
       if (onChange) {
         onChange(newContent);
