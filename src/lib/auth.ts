@@ -321,8 +321,13 @@ export class Auth {
         const height = 600;
         const left = window.screenX + (window.outerWidth - width) / 2;
         const top = window.screenY + (window.outerHeight - height) / 2.5;
+        
+        // Construct the OAuth URL pointing to the API server
+        const apiBaseUrl = apiConfig.baseUrl;
+        const oauthUrl = `${apiBaseUrl}/public/auth/oauth/${providerType}`;
+        
         const popup = window.open(
-          `/api/v1/auth/oauth/${providerType}`,
+          oauthUrl,
           `${providerType}-auth`,
           `width=${width},height=${height},left=${left},top=${top}`
         );
@@ -333,8 +338,15 @@ export class Auth {
         
         // Listen for messages from the popup
         const handleMessage = (event: MessageEvent) => {
-          // Verify origin for security
-          if (event.origin !== window.location.origin) return;
+          // Verify origin for security - allow both frontend and API origins
+          const apiBaseUrl = apiConfig.baseUrl;
+          const allowedOrigins = [window.location.origin, apiBaseUrl];
+          const apiOrigin = new URL(apiBaseUrl).origin;
+          
+          if (!allowedOrigins.includes(event.origin) && event.origin !== apiOrigin) {
+            console.warn(`Rejected message from unauthorized origin: ${event.origin}`);
+            return;
+          }
           
           if (event.data?.type === 'oauth-success' && event.data?.token) {
             window.removeEventListener('message', handleMessage);
