@@ -1,86 +1,64 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   EditorRoot,
   EditorContent,
   EditorCommand,
   EditorCommandItem,
   EditorCommandEmpty,
-  type EditorContentProps,
-  HorizontalRule,
-  HighlightExtension,
-  Placeholder,
-  UpdatedImage
+  EditorCommandList,
+  EditorBubble,
+  ImageResizer,
+  handleCommandNavigation,
+  handleImageDrop,
+  handleImagePaste,
+  useEditor
 } from 'novel';
 import { JSONContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
-import Underline from '@tiptap/extension-underline';
-import { aiApi } from '@/app/admin-tools/api/ai';
-import { Spinner } from '@/components/common/Spinner';
+import { useDebouncedCallback } from 'use-debounce';
 
-// Define props interface for our component
-export interface AIMarkdownEditorProps {
-  initialContent?: string;
-  onChange?: (content: string) => void;
+// Import our custom components and extensions
+import { defaultExtensions } from './extensions';
+import { slashCommand, suggestionItems } from './slash-command';
+import { TextButtons } from './components/text-buttons';
+import { LinkSelector } from './components/link-selector';
+import { NodeSelector } from './components/node-selector';
+import { Separator } from './components/separator';
+import AIMenu from './components/ai-menu';
+
+interface EditorProps {
+  initialContent?: string | JSONContent;
+  onChange?: (html: string) => void;
   placeholder?: string;
   className?: string;
   minHeight?: string;
 }
 
-export function AIMarkdownEditor({
+export function Editor({
   initialContent = '',
   onChange,
-  placeholder = 'Start writing...',
+  placeholder = 'Start writing... (Type / for commands)',
   className = '',
-  minHeight = '400px'
-}: AIMarkdownEditorProps) {
-  const [content, setContent] = useState(initialContent);
-  const [isClient, setIsClient] = useState(false);
-  const [aiActionInProgress, setAiActionInProgress] = useState<string | null>(null);
-  const editorRef = useRef<HTMLDivElement>(null);
-
-  // Handle client-side rendering
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Update editor content when initialContent changes significantly
-  const prevInitialContentRef = useRef(initialContent);
+  minHeight = '500px'
+}: EditorProps) {
+  // State for UI elements
+  const [saveStatus, setSaveStatus] = useState('Saved');
+  const [wordCount, setWordCount] = useState<number | null>(null);
+  const [openNode, setOpenNode] = useState(false);
+  const [openLink, setOpenLink] = useState(false);
+  const [openAI, setOpenAI] = useState(false);
   
-  useEffect(() => {
-    if (initialContent !== prevInitialContentRef.current) {
-      setContent(initialContent);
-      prevInitialContentRef.current = initialContent;
-    }
-  }, [initialContent]);
+  // Create extensions array with slash command
+  const extensions = [...defaultExtensions, slashCommand];
   
-  // Define extensions for the editor
-  const extensions = useMemo(() => [
-    StarterKit.configure({
-      heading: {
-        levels: [1, 2, 3, 4, 5, 6],
-      },
-    }),
-    Placeholder.configure({
-      placeholder: placeholder,
-    }),
-    Link.configure({
-      openOnClick: false,
-      HTMLAttributes: {
-        class: 'text-primary underline',
-      },
-    }),
-    Underline,
-    HighlightExtension,
-    HorizontalRule,
-    UpdatedImage,
-  ], [placeholder]);
-  
-  // Convert initial content to JSONContent format
+  // Convert initial content to JSONContent format if it's a string
   const getInitialContent = useCallback((): JSONContent => {
-    if (!content || content.trim() === '') {
+    if (typeof initialContent === 'object') {
+      return initialContent as JSONContent;
+    }
+    
+    if (!initialContent || (typeof initialContent === 'string' && initialContent.trim() === '')) {
       return {
         type: 'doc',
         content: [
@@ -91,216 +69,137 @@ export function AIMarkdownEditor({
       };
     }
     
-    // Simple conversion for plain text
-    // In a production app, you might want to use a proper HTML-to-JSON converter
     return {
       type: 'doc',
       content: [
         {
           type: 'paragraph',
-          content: [{ type: 'text', text: content }]
+          content: [{ type: 'text', text: initialContent as string }]
         }
       ]
     };
-  }, [content]);
-
-  // Handle AI actions
-  const handleGenerateContent = async () => {
-    setAiActionInProgress('generate');
-    try {
-      const generateResult = await aiApi.generateContent({ 
-        prompt: "Generate content about: " + content.substring(0, 100) 
-      });
-      
-      const newContent = content + '\n\n' + generateResult.content;
-      setContent(newContent);
-      
-      if (onChange) {
-        onChange(newContent);
-      }
-    } catch (error) {
-      console.error('AI generation failed:', error);
-    } finally {
-      setAiActionInProgress(null);
-    }
-  };
-
-  const handleRefineContent = async () => {
-    setAiActionInProgress('refine');
-    try {
-      const refineResult = await aiApi.refineContent({ 
-        content: content,
-        instructions: "Improve clarity and readability" 
-      });
-      
-      const newContent = refineResult.refined_content;
-      setContent(newContent);
-      
-      if (onChange) {
-        onChange(newContent);
-      }
-    } catch (error) {
-      console.error('AI refinement failed:', error);
-    } finally {
-      setAiActionInProgress(null);
-    }
-  };
-
-  const handleCreateSchema = async () => {
-    setAiActionInProgress('schema');
-    try {
-      const schemaResult = await aiApi.generateSchema({ 
-        topic: content.substring(0, 100),
-        description: "Create a document outline" 
-      });
-      
-      const newContent = content + '\n\n' + schemaResult.schema;
-      setContent(newContent);
-      
-      if (onChange) {
-        onChange(newContent);
-      }
-    } catch (error) {
-      console.error('AI schema creation failed:', error);
-    } finally {
-      setAiActionInProgress(null);
-    }
-  };
-
-  // Show loading state during server-side rendering
-  if (!isClient) {
-    return (
-      <div className={`border rounded-md p-4 w-full bg-gray-50 ${className}`} style={{ minHeight }}>
-        <div className="flex items-center justify-center h-full">
-          <Spinner />
-          <span className="ml-2 text-gray-500">Loading editor...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // Custom handler for Novel's onChange
-  const handleEditorChange: EditorContentProps['onUpdate'] = ({ editor }) => {
-    const htmlContent = editor.getHTML();
-    const textContent = editor.getText();
-    setContent(htmlContent);
+  }, [initialContent]);
+  
+  // Debounce updates to avoid excessive state changes
+  const debouncedUpdates = useDebouncedCallback(({ editor }) => {
+    // Count words in the editor
+    const text = editor.getText();
+    const words = text.trim() ? text.split(/\s+/).length : 0;
+    setWordCount(words);
     
+    // Call onChange callback if provided
     if (onChange) {
-      onChange(htmlContent);
+      onChange(editor.getHTML());
     }
-  };
+    
+    setSaveStatus('Saved');
+  }, 750);
 
   return (
-    <div className={`ai-markdown-editor relative ${className}`} style={{ minHeight }} ref={editorRef}>
-      <EditorRoot>
-        <div className="flex justify-end mb-2 space-x-2">
-          <button
-            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-md px-3 py-1 text-sm"
-            onClick={handleGenerateContent}
-            disabled={!!aiActionInProgress}
-          >
-            ✨ Generate
-          </button>
-          <button
-            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-md px-3 py-1 text-sm"
-            onClick={handleRefineContent}
-            disabled={!!aiActionInProgress}
-          >
-            🔍 Refine
-          </button>
-          <button
-            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-md px-3 py-1 text-sm"
-            onClick={handleCreateSchema}
-            disabled={!!aiActionInProgress}
-          >
-            📋 Schema
-          </button>
-        </div>
+    <div className={`novel-editor-wrapper ${className}`} style={{ minHeight }}>
+      {/* Custom CSS for placeholder styling */}
+      <style jsx global>{`
+        /* Placeholder for empty paragraphs */
+        .ProseMirror p.is-editor-empty::before,
+        .ProseMirror p.is-empty::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: #adb5bd;
+          pointer-events: none;
+          height: 0;
+          opacity: 0.5;
+        }
         
-        <EditorContent 
+        /* Placeholder for headings */
+        .ProseMirror h1.is-empty::before,
+        .ProseMirror h2.is-empty::before,
+        .ProseMirror h3.is-empty::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: #64748b;
+          pointer-events: none;
+          height: 0;
+          font-style: normal;
+          font-weight: 500;
+          opacity: 0.8;
+        }
+      `}</style>
+      <div className="flex absolute right-5 top-5 z-10 mb-5 gap-2">
+        <div className="rounded-lg bg-stone-100 px-2 py-1 text-sm text-stone-600">
+          {saveStatus}
+        </div>
+        {wordCount !== null && (
+          <div className="rounded-lg bg-stone-100 px-2 py-1 text-sm text-stone-600">
+            {wordCount} words
+          </div>
+        )}
+      </div>
+      
+      <EditorRoot>
+        <EditorContent
           initialContent={getInitialContent()}
-          onUpdate={handleEditorChange}
           extensions={extensions}
-          className="min-h-[300px] prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none"
+          className="relative min-h-[500px] w-full max-w-screen-lg border-stone-200 bg-white sm:mb-[calc(20vh)] sm:rounded-lg sm:border sm:shadow-lg"
           editorProps={{
+            handleDOMEvents: {
+              keydown: (_view, event) => handleCommandNavigation(event),
+            },
             attributes: {
-              class: "prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none p-4",
+              class: "prose prose-lg dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full p-4",
             },
           }}
-        />
-        
-        {/* AI Command Support */}
-        <EditorCommand className="z-50 h-auto max-h-[330px] w-72 overflow-y-auto rounded-md border border-muted bg-background px-1 py-2 shadow-md transition-all">
-          <EditorCommandEmpty>No results</EditorCommandEmpty>
-          <EditorCommandItem
-            onCommand={({ editor }) => {
-              handleGenerateContent();
-            }}
+          onUpdate={({ editor }) => {
+            debouncedUpdates({ editor });
+            setSaveStatus('Unsaved');
+          }}
+          slotAfter={<ImageResizer />}
+        >
+          {/* Slash Command Menu */}
+          <EditorCommand className="z-50 h-auto max-h-[330px] w-72 overflow-y-auto rounded-md border border-stone-200 bg-white px-1 py-2 shadow-md transition-all">
+            <EditorCommandEmpty className="px-2 text-stone-500">
+              No results
+            </EditorCommandEmpty>
+            <EditorCommandList>
+              {suggestionItems.map((item) => (
+                <EditorCommandItem
+                  key={item.title}
+                  value={item.title}
+                  onCommand={(val) => {
+                    if (item.command) {
+                      item.command(val);
+                    }
+                  }}
+                  className="flex w-full items-center space-x-2 rounded-md px-2 py-1 text-left text-sm hover:bg-stone-100 aria-selected:bg-stone-100"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-md border border-stone-200 bg-white">
+                    {item.icon}
+                  </div>
+                  <div>
+                    <p className="font-medium">{item.title}</p>
+                    <p className="text-xs text-stone-500">{item.description}</p>
+                  </div>
+                </EditorCommandItem>
+              ))}
+            </EditorCommandList>
+          </EditorCommand>
+          
+          {/* Bubble Menu - appears when text is selected */}
+          <EditorBubble
+            className="flex w-fit divide-x divide-stone-200 rounded-md border border-stone-200 bg-white shadow-xl"
+            tippyOptions={{ duration: 100 }}
           >
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-muted bg-background">
-                ✨
-              </div>
-              <div>
-                <p className="font-medium">Generate Content</p>
-                <p className="text-sm text-muted-foreground">
-                  Generate content using AI
-                </p>
-              </div>
-            </div>
-          </EditorCommandItem>
-          <EditorCommandItem
-            onCommand={({ editor }) => {
-              handleRefineContent();
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-muted bg-background">
-                🔍
-              </div>
-              <div>
-                <p className="font-medium">Refine Content</p>
-                <p className="text-sm text-muted-foreground">
-                  Improve clarity and readability
-                </p>
-              </div>
-            </div>
-          </EditorCommandItem>
-          <EditorCommandItem
-            onCommand={({ editor }) => {
-              handleCreateSchema();
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-muted bg-background">
-                📋
-              </div>
-              <div>
-                <p className="font-medium">Create Schema</p>
-                <p className="text-sm text-muted-foreground">
-                  Generate a document outline
-                </p>
-              </div>
-            </div>
-          </EditorCommandItem>
-        </EditorCommand>
+            <AIMenu open={openAI} onOpenChange={setOpenAI} />
+            <Separator orientation="vertical" />
+            <NodeSelector open={openNode} onOpenChange={setOpenNode} />
+            <Separator orientation="vertical" />
+            <LinkSelector open={openLink} onOpenChange={setOpenLink} />
+            <Separator orientation="vertical" />
+            <TextButtons />
+          </EditorBubble>
+        </EditorContent>
       </EditorRoot>
-      
-      {/* AI Action Progress Indicator */}
-      {aiActionInProgress && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-20">
-          <div className="bg-white p-4 rounded-lg shadow-lg flex flex-col items-center">
-            <Spinner />
-            <span className="mt-2 text-gray-700">
-              {aiActionInProgress === 'generate' && 'Generating content...'}
-              {aiActionInProgress === 'refine' && 'Refining content...'}
-              {aiActionInProgress === 'schema' && 'Creating schema...'}
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-export default AIMarkdownEditor;
+export default Editor;
