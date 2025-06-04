@@ -36,9 +36,11 @@ export const defaultExtensions = [
       }
       return 'Press "/" for commands...';
     },
-    showOnlyCurrent: false,
+    showOnlyCurrent: true, // Only show placeholder on the current/active node
     showOnlyWhenEditable: true,
     includeChildren: true,
+    emptyNodeClass: 'is-empty',
+    emptyEditorClass: 'is-editor-empty',
   }),
   UpdatedImage,
 ];

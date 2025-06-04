@@ -99,13 +99,18 @@ export function Editor({
     <div className={`novel-editor-wrapper ${className}`} style={{ minHeight }}>
       {/* Custom CSS for placeholder styling */}
       <style jsx global>{`
-        .ProseMirror p.is-editor-empty:first-child::before {
+        /* Placeholder for empty paragraphs */
+        .ProseMirror p.is-editor-empty::before,
+        .ProseMirror p.is-empty::before {
           content: attr(data-placeholder);
           float: left;
           color: #adb5bd;
           pointer-events: none;
           height: 0;
+          opacity: 0.5;
         }
+        
+        /* Placeholder for headings */
         .ProseMirror h1.is-empty::before,
         .ProseMirror h2.is-empty::before,
         .ProseMirror h3.is-empty::before {
@@ -116,6 +121,7 @@ export function Editor({
           height: 0;
           font-style: normal;
           font-weight: 500;
+          opacity: 0.8;
         }
       `}</style>
       <div className="flex absolute right-5 top-5 z-10 mb-5 gap-2">
