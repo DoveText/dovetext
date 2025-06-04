@@ -7,6 +7,7 @@ import {
   renderItems
 } from 'novel';
 import { aiApi } from '@/app/admin-tools/api/ai';
+import { marked } from 'marked';
 
 // Define proper types for suggestion items
 interface CommandItemProps {
@@ -34,8 +35,8 @@ export const suggestionItems = createSuggestionItems([
         // Delete the slash command text
         editor.chain().focus().deleteRange(range).run();
         
-        // Insert a loading text (as plain text, not HTML)
-        const loadingText = "Generating content...";
+        // Insert a loading text with styling
+        const loadingText = "_Generating content..._";
         const { from } = editor.state.selection;
         editor.chain().focus().insertContent(loadingText).run();
         
@@ -52,10 +53,14 @@ export const suggestionItems = createSuggestionItems([
         const startPos = currentPos - loadingText.length;
         
         // Replace the loading text with the generated content
+        // First convert the markdown content to HTML using marked
+        const html = marked.parse(result.content) as string;
+        
+        // Then insert the HTML content
         editor.chain()
           .focus()
           .deleteRange({ from: startPos, to: currentPos })
-          .insertContent(result.content)
+          .insertContent(html)
           .run();
       } catch (error) {
         console.error('Error generating content:', error);
@@ -105,8 +110,8 @@ export const suggestionItems = createSuggestionItems([
           return;
         }
         
-        // Insert a loading text (as plain text, not HTML)
-        const loadingText = "Refining content...";
+        // Insert a loading text with styling
+        const loadingText = "_Refining content..._";
         const { from } = editor.state.selection;
         editor.chain().focus().insertContent(loadingText).run();
         
@@ -123,13 +128,16 @@ export const suggestionItems = createSuggestionItems([
         // Remove the loading text
         editor.chain().focus().deleteRange({ from: startPos, to: currentPos }).run();
         
+        // Convert the markdown content to HTML
+        const html = marked.parse(result.refined_content) as string;
+        
         // Handle the refined content
         if (hasSelection) {
           // Replace selection with refined content
-          editor.chain().focus().deleteSelection().insertContent(result.refined_content).run();
+          editor.chain().focus().deleteSelection().insertContent(html).run();
         } else {
           // Replace entire content
-          editor.commands.setContent(result.refined_content);
+          editor.commands.setContent(html);
         }
       } catch (error) {
         console.error('Error refining content:', error);
@@ -240,8 +248,8 @@ export const suggestionItems = createSuggestionItems([
         // Delete the slash command text
         editor.chain().focus().deleteRange(range).run();
         
-        // Insert a loading text (as plain text, not HTML)
-        const loadingText = "Creating outline...";
+        // Insert a loading text with styling
+        const loadingText = "_Creating outline..._";
         const { from } = editor.state.selection;
         editor.chain().focus().insertContent(loadingText).run();
         
@@ -259,10 +267,13 @@ export const suggestionItems = createSuggestionItems([
         const startPos = currentPos - loadingText.length;
         
         // Replace the loading text with the schema
+        // Convert the markdown schema to HTML
+        const html = marked.parse(result.schema) as string;
+        
         editor.chain()
           .focus()
           .deleteRange({ from: startPos, to: currentPos })
-          .insertContent(result.schema)
+          .insertContent(html)
           .run();
       } catch (error) {
         console.error('Error generating schema:', error);
