@@ -97,6 +97,27 @@ export function Editor({
 
   return (
     <div className={`novel-editor-wrapper ${className}`} style={{ minHeight }}>
+      {/* Custom CSS for placeholder styling */}
+      <style jsx global>{`
+        .ProseMirror p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: #adb5bd;
+          pointer-events: none;
+          height: 0;
+        }
+        .ProseMirror h1.is-empty::before,
+        .ProseMirror h2.is-empty::before,
+        .ProseMirror h3.is-empty::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: #64748b;
+          pointer-events: none;
+          height: 0;
+          font-style: normal;
+          font-weight: 500;
+        }
+      `}</style>
       <div className="flex absolute right-5 top-5 z-10 mb-5 gap-2">
         <div className="rounded-lg bg-stone-100 px-2 py-1 text-sm text-stone-600">
           {saveStatus}

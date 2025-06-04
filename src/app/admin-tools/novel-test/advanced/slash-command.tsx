@@ -69,6 +69,11 @@ export const suggestionItems = createSuggestionItems([
         .deleteRange(range)
         .setNode("heading", { level: 1 })
         .run();
+      
+      // Set cursor to the empty heading to show the placeholder
+      const { state } = editor;
+      const pos = state.selection.$head.pos;
+      editor.commands.setTextSelection(pos);
     },
   },
   {
@@ -83,6 +88,11 @@ export const suggestionItems = createSuggestionItems([
         .deleteRange(range)
         .setNode("heading", { level: 2 })
         .run();
+      
+      // Set cursor to the empty heading to show the placeholder
+      const { state } = editor;
+      const pos = state.selection.$head.pos;
+      editor.commands.setTextSelection(pos);
     },
   },
   {

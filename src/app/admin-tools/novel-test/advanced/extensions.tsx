@@ -30,7 +30,15 @@ export const defaultExtensions = [
   HighlightExtension,
   HorizontalRule,
   Placeholder.configure({
-    placeholder: 'Start writing... (Type / for commands)',
+    placeholder: ({ node }) => {
+      if (node.type.name === 'heading') {
+        return `Heading ${node.attrs.level}`;
+      }
+      return 'Press "/" for commands...';
+    },
+    showOnlyCurrent: false,
+    showOnlyWhenEditable: true,
+    includeChildren: true,
   }),
   UpdatedImage,
 ];
