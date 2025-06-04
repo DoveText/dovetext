@@ -6,6 +6,7 @@ import {
   createSuggestionItems,
   renderItems
 } from 'novel';
+import { aiApi } from '@/app/admin-tools/api/ai';
 
 // Define proper types for suggestion items
 interface CommandItemProps {
@@ -28,16 +29,57 @@ export const suggestionItems = createSuggestionItems([
     description: "Generate content using AI",
     searchTerms: ["generate", "ai", "content"],
     icon: <span className="flex h-6 w-6 items-center justify-center text-lg">✨</span>,
-    command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).run();
-      // Simulate AI generation
-      setTimeout(() => {
-        editor
-          .chain()
+    command: async ({ editor, range }) => {
+      try {
+        // Delete the slash command text
+        editor.chain().focus().deleteRange(range).run();
+        
+        // Insert a loading text (as plain text, not HTML)
+        const loadingText = "Generating content...";
+        const { from } = editor.state.selection;
+        editor.chain().focus().insertContent(loadingText).run();
+        
+        // Get the current content for context
+        const currentContent = editor.getText().replace(loadingText, "");
+        
+        // Call the AI API
+        const result = await aiApi.generateContent({ 
+          prompt: "Generate content about: " + currentContent.substring(0, 100) 
+        });
+        
+        // Find and remove the loading text
+        const currentPos = editor.state.selection.from;
+        const startPos = currentPos - loadingText.length;
+        
+        // Replace the loading text with the generated content
+        editor.chain()
           .focus()
-          .insertContent("**AI Generated Content:** This is simulated AI-generated content.")
+          .deleteRange({ from: startPos, to: currentPos })
+          .insertContent(result.content)
           .run();
-      }, 1000);
+      } catch (error) {
+        console.error('Error generating content:', error);
+        // Find and remove any loading text that might still be there
+        const doc = editor.state.doc;
+        let loadingPos = -1;
+        
+        doc.descendants((node, pos) => {
+          if (node.type.name === 'text' && node.text?.includes('Generating content...')) {
+            loadingPos = pos;
+            return false;
+          }
+          return true;
+        });
+        
+        if (loadingPos >= 0) {
+          editor.chain().focus()
+            .deleteRange({ from: loadingPos, to: loadingPos + 'Generating content...'.length })
+            .insertContent('**Error:** Failed to generate content.')
+            .run();
+        } else {
+          editor.chain().focus().insertContent('\n\n**Error:** Failed to generate content.').run();
+        }
+      }
     },
   },
   {
@@ -45,16 +87,73 @@ export const suggestionItems = createSuggestionItems([
     description: "Improve clarity and readability",
     searchTerms: ["refine", "improve", "clarity"],
     icon: <span className="flex h-6 w-6 items-center justify-center text-lg">🔍</span>,
-    command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).run();
-      // Simulate AI refinement
-      setTimeout(() => {
-        editor
-          .chain()
-          .focus()
-          .insertContent("**AI Refined Content:** This content has been refined for clarity and impact.")
-          .run();
-      }, 1000);
+    command: async ({ editor, range }) => {
+      try {
+        // Delete the slash command text
+        editor.chain().focus().deleteRange(range).run();
+        
+        // Get the current selection or all content
+        const selection = editor.state.selection;
+        const hasSelection = !selection.empty;
+        
+        const contentToRefine = hasSelection 
+          ? editor.state.doc.textBetween(selection.from, selection.to)
+          : editor.getText();
+        
+        if (!contentToRefine.trim()) {
+          editor.chain().focus().insertContent('Please add some content to refine.').run();
+          return;
+        }
+        
+        // Insert a loading text (as plain text, not HTML)
+        const loadingText = "Refining content...";
+        const { from } = editor.state.selection;
+        editor.chain().focus().insertContent(loadingText).run();
+        
+        // Call the AI API
+        const result = await aiApi.refineContent({ 
+          content: contentToRefine.replace(loadingText, ""),
+          instructions: "Improve clarity and readability" 
+        });
+        
+        // Find and remove the loading text
+        const currentPos = editor.state.selection.from;
+        const startPos = currentPos - loadingText.length;
+        
+        // Remove the loading text
+        editor.chain().focus().deleteRange({ from: startPos, to: currentPos }).run();
+        
+        // Handle the refined content
+        if (hasSelection) {
+          // Replace selection with refined content
+          editor.chain().focus().deleteSelection().insertContent(result.refined_content).run();
+        } else {
+          // Replace entire content
+          editor.commands.setContent(result.refined_content);
+        }
+      } catch (error) {
+        console.error('Error refining content:', error);
+        // Find and remove any loading text that might still be there
+        const doc = editor.state.doc;
+        let loadingPos = -1;
+        
+        doc.descendants((node, pos) => {
+          if (node.type.name === 'text' && node.text?.includes('Refining content...')) {
+            loadingPos = pos;
+            return false;
+          }
+          return true;
+        });
+        
+        if (loadingPos >= 0) {
+          editor.chain().focus()
+            .deleteRange({ from: loadingPos, to: loadingPos + 'Refining content...'.length })
+            .insertContent('**Error:** Failed to refine content.')
+            .run();
+        } else {
+          editor.chain().focus().insertContent('\n\n**Error:** Failed to refine content.').run();
+        }
+      }
     },
   },
   {
@@ -129,6 +228,65 @@ export const suggestionItems = createSuggestionItems([
     icon: <span className="flex h-6 w-6 items-center justify-center">"</span>,
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleBlockquote().run();
+    },
+  },
+  {
+    title: "Create Outline",
+    description: "Generate a document outline",
+    searchTerms: ["outline", "schema", "structure"],
+    icon: <span className="flex h-6 w-6 items-center justify-center">📋</span>,
+    command: async ({ editor, range }) => {
+      try {
+        // Delete the slash command text
+        editor.chain().focus().deleteRange(range).run();
+        
+        // Insert a loading text (as plain text, not HTML)
+        const loadingText = "Creating outline...";
+        const { from } = editor.state.selection;
+        editor.chain().focus().insertContent(loadingText).run();
+        
+        // Get the current content for context
+        const currentContent = editor.getText().replace(loadingText, "");
+        
+        // Call the AI API
+        const result = await aiApi.generateSchema({ 
+          topic: currentContent.substring(0, 100),
+          description: "Create a document outline" 
+        });
+        
+        // Find and remove the loading text
+        const currentPos = editor.state.selection.from;
+        const startPos = currentPos - loadingText.length;
+        
+        // Replace the loading text with the schema
+        editor.chain()
+          .focus()
+          .deleteRange({ from: startPos, to: currentPos })
+          .insertContent(result.schema)
+          .run();
+      } catch (error) {
+        console.error('Error generating schema:', error);
+        // Find and remove any loading text that might still be there
+        const doc = editor.state.doc;
+        let loadingPos = -1;
+        
+        doc.descendants((node, pos) => {
+          if (node.type.name === 'text' && node.text?.includes('Creating outline...')) {
+            loadingPos = pos;
+            return false;
+          }
+          return true;
+        });
+        
+        if (loadingPos >= 0) {
+          editor.chain().focus()
+            .deleteRange({ from: loadingPos, to: loadingPos + 'Creating outline...'.length })
+            .insertContent('**Error:** Failed to generate outline.')
+            .run();
+        } else {
+          editor.chain().focus().insertContent('\n\n**Error:** Failed to generate outline.').run();
+        }
+      }
     },
   },
 ]);

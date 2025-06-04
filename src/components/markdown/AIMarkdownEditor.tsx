@@ -35,7 +35,7 @@ interface EditorProps {
   minHeight?: string;
 }
 
-export function Editor({
+export function AIMarkdownEditor({
   initialContent = '',
   onChange,
   placeholder = 'Start writing... (Type / for commands)',
@@ -97,7 +97,7 @@ export function Editor({
 
   return (
     <div className={`novel-editor-wrapper ${className}`} style={{ minHeight }}>
-      {/* Custom CSS for placeholder styling */}
+      {/* Custom CSS for placeholder styling and editor appearance */}
       <style jsx global>{`
         /* Placeholder for empty paragraphs */
         .ProseMirror p.is-editor-empty::before,
@@ -123,7 +123,81 @@ export function Editor({
           font-weight: 500;
           opacity: 0.8;
         }
+        
+        /* Basic editor styling */
+        .ProseMirror {
+          padding: 1rem;
+          min-height: ${minHeight};
+          outline: none;
+        }
+        
+        /* Typography */
+        .ProseMirror h1 {
+          font-size: 2rem;
+          font-weight: 700;
+          margin-top: 1.5rem;
+          margin-bottom: 1rem;
+        }
+        
+        .ProseMirror h2 {
+          font-size: 1.5rem;
+          font-weight: 600;
+          margin-top: 1.25rem;
+          margin-bottom: 0.75rem;
+        }
+        
+        .ProseMirror h3 {
+          font-size: 1.25rem;
+          font-weight: 600;
+          margin-top: 1rem;
+          margin-bottom: 0.5rem;
+        }
+        
+        .ProseMirror p {
+          margin-top: 0.75rem;
+          margin-bottom: 0.75rem;
+          line-height: 1.6;
+        }
+        
+        /* Lists */
+        .ProseMirror ul,
+        .ProseMirror ol {
+          padding-left: 1.5rem;
+          margin-top: 0.5rem;
+          margin-bottom: 0.5rem;
+        }
+        
+        .ProseMirror li {
+          margin-top: 0.25rem;
+          margin-bottom: 0.25rem;
+        }
+        
+        /* Links */
+        .ProseMirror a {
+          color: #2563eb;
+          text-decoration: underline;
+          cursor: pointer;
+        }
+        
+        /* Code blocks */
+        .ProseMirror pre {
+          background-color: #f1f5f9;
+          border-radius: 0.375rem;
+          padding: 0.75rem 1rem;
+          overflow-x: auto;
+          margin: 1rem 0;
+        }
+        
+        /* Blockquotes */
+        .ProseMirror blockquote {
+          border-left: 4px solid #e2e8f0;
+          padding-left: 1rem;
+          font-style: italic;
+          margin: 1rem 0;
+        }
       `}</style>
+      
+      {/* Status indicators */}
       <div className="flex absolute right-5 top-5 z-10 mb-5 gap-2">
         <div className="rounded-lg bg-stone-100 px-2 py-1 text-sm text-stone-600">
           {saveStatus}
@@ -139,13 +213,13 @@ export function Editor({
         <EditorContent
           initialContent={getInitialContent()}
           extensions={extensions}
-          className="relative min-h-[500px] w-full max-w-screen-lg border-stone-200 bg-white sm:mb-[calc(20vh)] sm:rounded-lg sm:border sm:shadow-lg"
+          className="relative w-full border border-gray-200 bg-white rounded-lg shadow-sm overflow-hidden"
           editorProps={{
             handleDOMEvents: {
               keydown: (_view, event) => handleCommandNavigation(event),
             },
             attributes: {
-              class: "prose prose-lg dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full p-4",
+              class: "prose prose-lg prose-stone dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full",
             },
           }}
           onUpdate={({ editor }) => {
@@ -202,4 +276,4 @@ export function Editor({
   );
 }
 
-export default Editor;
+export default AIMarkdownEditor;
