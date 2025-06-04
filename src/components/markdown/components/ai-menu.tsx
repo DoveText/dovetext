@@ -12,7 +12,7 @@ interface AIMenuProps {
 
 const AIMenu = ({ onGenerateContent, onRefineContent, onCreateSchema }: AIMenuProps) => {
   return (
-    <div className="flex flex-nowrap min-w-fit whitespace-nowrap">
+    <div className="flex flex-nowrap min-w-fit whitespace-nowrap pt-1 pl-1">
       <button
         className="inline-flex h-8 w-8 items-center justify-center rounded-md p-1 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-500 flex-shrink-0"
         onClick={onGenerateContent}
