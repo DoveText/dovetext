@@ -428,18 +428,18 @@ export function AIMarkdownEditor({
                 }
               }}
             >
+              <AIMenu 
+                editor={editorInstance!} 
+                onGenerateContent={() => { setAiCommandType('generate'); setAiDialogOpen(true); }} 
+                onRefineContent={() => { setAiCommandType('refine'); setAiDialogOpen(true); }} 
+                onCreateSchema={() => { setAiCommandType('schema'); setAiDialogOpen(true); }} 
+              />
+              <Separator orientation="vertical" />
               <NodeSelector open={openNode} onOpenChange={setOpenNode} />
               <Separator orientation="vertical" />
               <TextButtons />
               <Separator orientation="vertical" />
               <LinkSelector open={openLink} onOpenChange={setOpenLink} />
-              <Separator orientation="vertical" />
-                <AIMenu 
-                  editor={editorInstance!} 
-                  onGenerateContent={() => { setAiCommandType('generate'); setAiDialogOpen(true); }} 
-                  onRefineContent={() => { setAiCommandType('refine'); setAiDialogOpen(true); }} 
-                  onCreateSchema={() => { setAiCommandType('schema'); setAiDialogOpen(true); }} 
-                />
             </EditorBubble>
           )}
       </EditorContent>
