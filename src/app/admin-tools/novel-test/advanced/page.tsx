@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { Editor } from './editor';
+import Editor from './editor';
 
 export default function AdvancedNovelTestPage() {
   return (
@@ -19,18 +19,59 @@ function AdvancedNovelTest() {
     setContent(html);
   };
 
+  // Initial content for the editor
+  const initialContent = {
+    type: 'doc',
+    content: [
+      {
+        type: 'heading',
+        attrs: { level: 1 },
+        content: [{ type: 'text', text: 'Advanced Novel Editor' }]
+      },
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'This is a full-featured editor with slash commands and a formatting toolbar.' }]
+      },
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'Try the following:' }]
+      },
+      {
+        type: 'bulletList',
+        content: [
+          {
+            type: 'listItem',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Type / to see available commands' }] }]
+          },
+          {
+            type: 'listItem',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Select text to see the formatting toolbar' }] }]
+          },
+          {
+            type: 'listItem',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Click on the AI menu to generate content' }] }]
+          }
+        ]
+      },
+      {
+        type: 'paragraph',
+      }
+    ]
+  };
+
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Advanced Novel Editor Test</h1>
+      <h1 className="text-2xl font-bold mb-4">Advanced Novel Editor</h1>
       
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4">Novel Editor with Best Practices</h2>
+        <h2 className="text-xl font-semibold mb-4">Full-Featured Editor with Slash Commands and Toolbar</h2>
         
-        <div className="border rounded-md p-4">
+        <div className="border rounded-md">
           <Editor 
-            initialContent="This is a test of the Novel editor with best practices. Try typing here..."
+            initialContent={initialContent}
             onChange={handleContentChange}
-            placeholder="Start writing..."
+            placeholder="Start writing... (Type / for commands)"
+            minHeight="600px"
           />
         </div>
         
