@@ -31,6 +31,8 @@ import { LinkSelector } from './components/link-selector';
 import { NodeSelector } from './components/node-selector';
 import { Separator } from './components/separator';
 import AIMenu from './components/ai-menu';
+import AICommandDialog, { AICommandType } from './components/ai-command-dialog';
+import { AICommandService } from './services/ai-command-service';
 
 interface EditorProps {
   initialContent?: string | JSONContent;
@@ -52,9 +54,25 @@ export function AIMarkdownEditor({
   // State for UI elements
   const [saveStatus, setSaveStatus] = useState('Saved');
   const [wordCount, setWordCount] = useState<number | null>(null);
+  
+  // AI command dialog state
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiCommandType, setAiCommandType] = useState<AICommandType>(null);
+  const [aiCommandLoading, setAiCommandLoading] = useState(false);
+  const [aiService, setAiService] = useState<AICommandService | null>(null);
   const [openNode, setOpenNode] = useState(false);
   const [openLink, setOpenLink] = useState(false);
   const [openAI, setOpenAI] = useState(false);
+  
+  // Editor reference
+  const [editorInstance, setEditorInstance] = useState<any>(null);
+  
+  // Initialize AI service when editor is ready
+  useEffect(() => {
+    if (editorInstance) {
+      setAiService(new AICommandService(editorInstance));
+    }
+  }, [editorInstance]);
   
   // Create extensions array with slash command
   const extensions = [...defaultExtensions, slashCommand];
@@ -161,6 +179,46 @@ export function AIMarkdownEditor({
     500
   );
 
+  // Handle AI command dialog submission
+  const handleAiCommandSubmit = async (commandType: AICommandType, params: Record<string, any>) => {
+    if (!aiService || !editorInstance) return;
+    
+    try {
+      setAiCommandLoading(true);
+      
+      // Get the current selection if any
+      const { from, to } = editorInstance.state.selection;
+      const hasSelection = from !== to;
+      
+      // Execute the AI command
+      const result = await aiService.executeCommand(commandType, params);
+      
+      // Insert the result based on command type and selection
+      if (commandType === 'refine' && hasSelection) {
+        aiService.replaceSelection(result);
+      } else if (commandType === 'refine' && !hasSelection) {
+        aiService.replaceAll(result);
+      } else {
+        // For generate and schema, insert at current position
+        aiService.insertContent(result);
+      }
+      
+    } catch (error) {
+      console.error('Error executing AI command:', error);
+      if (editorInstance) {
+        editorInstance.chain().focus().insertContent('\n\n**Error:** Failed to execute AI command.').run();
+      }
+    } finally {
+      setAiCommandLoading(false);
+    }
+  };
+  
+  // Open AI command dialog
+  const openAiCommandDialog = (type: AICommandType) => {
+    setAiCommandType(type);
+    setAiDialogOpen(true);
+  };
+  
   return (
     <div className={`novel-editor-wrapper ${className}`} style={{ minHeight }}>
       {/* Custom CSS for placeholder styling and editor appearance */}
@@ -289,6 +347,7 @@ export function AIMarkdownEditor({
             },
           }}
           onUpdate={({ editor }) => {
+            setEditorInstance(editor);
             debouncedUpdates({ editor });
             setSaveStatus('Unsaved');
           }}
@@ -328,7 +387,12 @@ export function AIMarkdownEditor({
             className="flex w-fit divide-x divide-stone-200 rounded-md border border-stone-200 bg-white shadow-xl"
             tippyOptions={{ duration: 100 }}
           >
-            <AIMenu open={openAI} onOpenChange={setOpenAI} />
+            <AIMenu 
+              editor={editorInstance!} 
+              onGenerateContent={() => openAiCommandDialog('generate')} 
+              onRefineContent={() => openAiCommandDialog('refine')} 
+              onCreateSchema={() => openAiCommandDialog('schema')} 
+            />
             <Separator orientation="vertical" />
             <NodeSelector open={openNode} onOpenChange={setOpenNode} />
             <Separator orientation="vertical" />
@@ -338,6 +402,15 @@ export function AIMarkdownEditor({
           </EditorBubble>
         </EditorContent>
       </EditorRoot>
+      
+      {/* AI Command Dialog */}
+      <AICommandDialog 
+        isOpen={aiDialogOpen}
+        onClose={() => setAiDialogOpen(false)}
+        onSubmit={handleAiCommandSubmit}
+        commandType={aiCommandType}
+        initialContent={editorInstance?.getText() || ''}
+      />
     </div>
   );
 }
