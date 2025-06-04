@@ -74,6 +74,23 @@ export function AIMarkdownEditor({
     }
   }, [editorInstance]);
   
+  // Listen for custom events from slash commands
+  useEffect(() => {
+    const handleAiCommandDialogEvent = (event: CustomEvent) => {
+      const { commandType, initialContent, hasSelection } = event.detail;
+      setAiCommandType(commandType);
+      setAiDialogOpen(true);
+    };
+    
+    // Add event listener
+    document.addEventListener('openAiCommandDialog', handleAiCommandDialogEvent as EventListener);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('openAiCommandDialog', handleAiCommandDialogEvent as EventListener);
+    };
+  }, []);
+  
   // Create extensions array with slash command
   const extensions = [...defaultExtensions, slashCommand];
   
@@ -382,35 +399,60 @@ export function AIMarkdownEditor({
             </EditorCommandList>
           </EditorCommand>
           
-          {/* Bubble Menu - appears when text is selected */}
-          <EditorBubble
-            className="flex w-fit divide-x divide-stone-200 rounded-md border border-stone-200 bg-white shadow-xl"
-            tippyOptions={{ duration: 100 }}
-          >
-            <AIMenu 
-              editor={editorInstance!} 
-              onGenerateContent={() => openAiCommandDialog('generate')} 
-              onRefineContent={() => openAiCommandDialog('refine')} 
-              onCreateSchema={() => openAiCommandDialog('schema')} 
-            />
-            <Separator orientation="vertical" />
-            <NodeSelector open={openNode} onOpenChange={setOpenNode} />
-            <Separator orientation="vertical" />
-            <LinkSelector open={openLink} onOpenChange={setOpenLink} />
-            <Separator orientation="vertical" />
-            <TextButtons />
-          </EditorBubble>
-        </EditorContent>
-      </EditorRoot>
-      
-      {/* AI Command Dialog */}
-      <AICommandDialog 
-        isOpen={aiDialogOpen}
-        onClose={() => setAiDialogOpen(false)}
-        onSubmit={handleAiCommandSubmit}
-        commandType={aiCommandType}
-        initialContent={editorInstance?.getText() || ''}
-      />
+          {/* Bubble Menu - appears when text is selected, hidden when AI dialog is open */}
+          {!aiDialogOpen && (
+            <EditorBubble
+              className="flex w-fit divide-x divide-stone-200 rounded-md border border-stone-200 bg-white shadow-xl max-w-[98vw] overflow-x-auto"
+              tippyOptions={{ 
+                duration: 100,
+                placement: 'bottom-end',
+                offset: [0, 10],
+                maxWidth: 'none',
+                popperOptions: {
+                  modifiers: [
+                    {
+                      name: 'flip',
+                      options: {
+                        fallbackPlacements: ['top-end', 'bottom-start', 'top-start']
+                      }
+                    },
+                    {
+                      name: 'preventOverflow',
+                      options: {
+                        padding: 5,
+                        boundary: 'viewport',
+                        altAxis: true
+                      }
+                    }
+                  ]
+                }
+              }}
+            >
+              <NodeSelector open={openNode} onOpenChange={setOpenNode} />
+              <Separator orientation="vertical" />
+              <TextButtons />
+              <Separator orientation="vertical" />
+              <LinkSelector open={openLink} onOpenChange={setOpenLink} />
+              <Separator orientation="vertical" />
+                <AIMenu 
+                  editor={editorInstance!} 
+                  onGenerateContent={() => { setAiCommandType('generate'); setAiDialogOpen(true); }} 
+                  onRefineContent={() => { setAiCommandType('refine'); setAiDialogOpen(true); }} 
+                  onCreateSchema={() => { setAiCommandType('schema'); setAiDialogOpen(true); }} 
+                />
+            </EditorBubble>
+          )}
+      </EditorContent>
+    </EditorRoot>
+    
+    {/* AI Command Dialog */}
+    <AICommandDialog 
+      isOpen={aiDialogOpen}
+      onClose={() => setAiDialogOpen(false)}
+      onSubmit={handleAiCommandSubmit}
+      commandType={aiCommandType}
+      initialContent={editorInstance?.getText() || ''}
+    />
     </div>
   );
 }

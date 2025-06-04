@@ -12,24 +12,27 @@ interface AIMenuProps {
 
 const AIMenu = ({ onGenerateContent, onRefineContent, onCreateSchema }: AIMenuProps) => {
   return (
-    <div className="flex">
+    <div className="flex flex-nowrap min-w-fit whitespace-nowrap">
       <button
-        className="flex h-9 w-9 items-center justify-center rounded-md p-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-500"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md p-1 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-500 flex-shrink-0"
         onClick={onGenerateContent}
+        title="Generate Content"
       >
         ✨
         <span className="sr-only">Generate Content</span>
       </button>
       <button
-        className="flex h-9 w-9 items-center justify-center rounded-md p-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-500"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md p-1 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-500 flex-shrink-0"
         onClick={onRefineContent}
+        title="Refine Content"
       >
         ✏️
         <span className="sr-only">Refine Content</span>
       </button>
       <button
-        className="flex h-9 w-9 items-center justify-center rounded-md p-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-500"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md p-1 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-500 flex-shrink-0"
         onClick={onCreateSchema}
+        title="Create Outline"
       >
         📋
         <span className="sr-only">Create Outline</span>

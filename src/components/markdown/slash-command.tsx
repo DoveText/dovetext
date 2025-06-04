@@ -30,61 +30,21 @@ export const suggestionItems = createSuggestionItems([
     description: "Generate content using AI",
     searchTerms: ["generate", "ai", "content"],
     icon: <span className="flex h-6 w-6 items-center justify-center text-lg">✨</span>,
-    command: async ({ editor, range }) => {
-      try {
-        // Delete the slash command text
-        editor.chain().focus().deleteRange(range).run();
-        
-        // Insert a loading text with styling
-        const loadingText = "_Generating content..._";
-        const { from } = editor.state.selection;
-        editor.chain().focus().insertContent(loadingText).run();
-        
-        // Get the current content for context
-        const currentContent = editor.getText().replace(loadingText, "");
-        
-        // Call the AI API
-        const result = await aiApi.generateContent({ 
-          prompt: "Generate content about: " + currentContent.substring(0, 100) 
-        });
-        
-        // Find and remove the loading text
-        const currentPos = editor.state.selection.from;
-        const startPos = currentPos - loadingText.length;
-        
-        // Replace the loading text with the generated content
-        // First convert the markdown content to HTML using marked
-        const html = marked.parse(result.content) as string;
-        
-        // Then insert the HTML content
-        editor.chain()
-          .focus()
-          .deleteRange({ from: startPos, to: currentPos })
-          .insertContent(html)
-          .run();
-      } catch (error) {
-        console.error('Error generating content:', error);
-        // Find and remove any loading text that might still be there
-        const doc = editor.state.doc;
-        let loadingPos = -1;
-        
-        doc.descendants((node, pos) => {
-          if (node.type.name === 'text' && node.text?.includes('Generating content...')) {
-            loadingPos = pos;
-            return false;
-          }
-          return true;
-        });
-        
-        if (loadingPos >= 0) {
-          editor.chain().focus()
-            .deleteRange({ from: loadingPos, to: loadingPos + 'Generating content...'.length })
-            .insertContent('**Error:** Failed to generate content.')
-            .run();
-        } else {
-          editor.chain().focus().insertContent('\n\n**Error:** Failed to generate content.').run();
+    command: ({ editor, range }) => {
+      // Delete the slash command text
+      editor.chain().focus().deleteRange(range).run();
+      
+      // Get the current content for context
+      const currentContent = editor.getText();
+      
+      // Dispatch a custom event to open the AI command dialog
+      const event = new CustomEvent('openAiCommandDialog', {
+        detail: {
+          commandType: 'generate',
+          initialContent: currentContent
         }
-      }
+      });
+      document.dispatchEvent(event);
     },
   },
   {
@@ -92,76 +52,32 @@ export const suggestionItems = createSuggestionItems([
     description: "Improve clarity and readability",
     searchTerms: ["refine", "improve", "clarity"],
     icon: <span className="flex h-6 w-6 items-center justify-center text-lg">🔍</span>,
-    command: async ({ editor, range }) => {
-      try {
-        // Delete the slash command text
-        editor.chain().focus().deleteRange(range).run();
-        
-        // Get the current selection or all content
-        const selection = editor.state.selection;
-        const hasSelection = !selection.empty;
-        
-        const contentToRefine = hasSelection 
-          ? editor.state.doc.textBetween(selection.from, selection.to)
-          : editor.getText();
-        
-        if (!contentToRefine.trim()) {
-          editor.chain().focus().insertContent('Please add some content to refine.').run();
-          return;
-        }
-        
-        // Insert a loading text with styling
-        const loadingText = "_Refining content..._";
-        const { from } = editor.state.selection;
-        editor.chain().focus().insertContent(loadingText).run();
-        
-        // Call the AI API
-        const result = await aiApi.refineContent({ 
-          content: contentToRefine.replace(loadingText, ""),
-          instructions: "Improve clarity and readability" 
-        });
-        
-        // Find and remove the loading text
-        const currentPos = editor.state.selection.from;
-        const startPos = currentPos - loadingText.length;
-        
-        // Remove the loading text
-        editor.chain().focus().deleteRange({ from: startPos, to: currentPos }).run();
-        
-        // Convert the markdown content to HTML
-        const html = marked.parse(result.refined_content) as string;
-        
-        // Handle the refined content
-        if (hasSelection) {
-          // Replace selection with refined content
-          editor.chain().focus().deleteSelection().insertContent(html).run();
-        } else {
-          // Replace entire content
-          editor.commands.setContent(html);
-        }
-      } catch (error) {
-        console.error('Error refining content:', error);
-        // Find and remove any loading text that might still be there
-        const doc = editor.state.doc;
-        let loadingPos = -1;
-        
-        doc.descendants((node, pos) => {
-          if (node.type.name === 'text' && node.text?.includes('Refining content...')) {
-            loadingPos = pos;
-            return false;
-          }
-          return true;
-        });
-        
-        if (loadingPos >= 0) {
-          editor.chain().focus()
-            .deleteRange({ from: loadingPos, to: loadingPos + 'Refining content...'.length })
-            .insertContent('**Error:** Failed to refine content.')
-            .run();
-        } else {
-          editor.chain().focus().insertContent('\n\n**Error:** Failed to refine content.').run();
-        }
+    command: ({ editor, range }) => {
+      // Delete the slash command text
+      editor.chain().focus().deleteRange(range).run();
+      
+      // Get the current selection or all content
+      const selection = editor.state.selection;
+      const hasSelection = !selection.empty;
+      
+      const contentToRefine = hasSelection 
+        ? editor.state.doc.textBetween(selection.from, selection.to)
+        : editor.getText();
+      
+      if (!contentToRefine.trim()) {
+        editor.chain().focus().insertContent('Please add some content to refine.').run();
+        return;
       }
+      
+      // Dispatch a custom event to open the AI command dialog
+      const event = new CustomEvent('openAiCommandDialog', {
+        detail: {
+          commandType: 'refine',
+          initialContent: contentToRefine,
+          hasSelection
+        }
+      });
+      document.dispatchEvent(event);
     },
   },
   {
@@ -243,61 +159,26 @@ export const suggestionItems = createSuggestionItems([
     description: "Generate a document outline",
     searchTerms: ["outline", "schema", "structure"],
     icon: <span className="flex h-6 w-6 items-center justify-center">📋</span>,
-    command: async ({ editor, range }) => {
-      try {
-        // Delete the slash command text
-        editor.chain().focus().deleteRange(range).run();
-        
-        // Insert a loading text with styling
-        const loadingText = "_Creating outline..._";
-        const { from } = editor.state.selection;
-        editor.chain().focus().insertContent(loadingText).run();
-        
-        // Get the current content for context
-        const currentContent = editor.getText().replace(loadingText, "");
-        
-        // Call the AI API
-        const result = await aiApi.generateSchema({ 
-          topic: currentContent.substring(0, 100),
-          description: "Create a document outline" 
-        });
-        
-        // Find and remove the loading text
-        const currentPos = editor.state.selection.from;
-        const startPos = currentPos - loadingText.length;
-        
-        // Replace the loading text with the schema
-        // Convert the markdown schema to HTML
-        const html = marked.parse(result.schema) as string;
-        
-        editor.chain()
-          .focus()
-          .deleteRange({ from: startPos, to: currentPos })
-          .insertContent(html)
-          .run();
-      } catch (error) {
-        console.error('Error generating schema:', error);
-        // Find and remove any loading text that might still be there
-        const doc = editor.state.doc;
-        let loadingPos = -1;
-        
-        doc.descendants((node, pos) => {
-          if (node.type.name === 'text' && node.text?.includes('Creating outline...')) {
-            loadingPos = pos;
-            return false;
-          }
-          return true;
-        });
-        
-        if (loadingPos >= 0) {
-          editor.chain().focus()
-            .deleteRange({ from: loadingPos, to: loadingPos + 'Creating outline...'.length })
-            .insertContent('**Error:** Failed to generate outline.')
-            .run();
-        } else {
-          editor.chain().focus().insertContent('\n\n**Error:** Failed to generate outline.').run();
-        }
+    command: ({ editor, range }) => {
+      // Delete the slash command text
+      editor.chain().focus().deleteRange(range).run();
+      
+      // Get the current content for context
+      const currentContent = editor.getText();
+      
+      if (!currentContent.trim()) {
+        editor.chain().focus().insertContent('Please add some content to create a schema for.').run();
+        return;
       }
+      
+      // Dispatch a custom event to open the AI command dialog
+      const event = new CustomEvent('openAiCommandDialog', {
+        detail: {
+          commandType: 'schema',
+          initialContent: currentContent
+        }
+      });
+      document.dispatchEvent(event);
     },
   },
 ]);
