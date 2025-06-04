@@ -18,6 +18,11 @@ import {
 import { JSONContent } from '@tiptap/react';
 import { useDebouncedCallback } from 'use-debounce';
 
+// Import markdown conversion libraries
+import { marked } from 'marked';
+import TurndownService from 'turndown';
+import { generateJSON } from '@tiptap/html';
+
 // Import our custom components and extensions
 import { defaultExtensions } from './extensions';
 import { slashCommand, suggestionItems } from './slash-command';
@@ -29,10 +34,11 @@ import AIMenu from './components/ai-menu';
 
 interface EditorProps {
   initialContent?: string | JSONContent;
-  onChange?: (html: string) => void;
+  onChange?: (content: string) => void;
   placeholder?: string;
   className?: string;
   minHeight?: string;
+  format?: 'markdown' | 'html' | 'json';
 }
 
 export function AIMarkdownEditor({
@@ -40,7 +46,8 @@ export function AIMarkdownEditor({
   onChange,
   placeholder = 'Start writing... (Type / for commands)',
   className = '',
-  minHeight = '500px'
+  minHeight = '500px',
+  format = 'markdown'
 }: EditorProps) {
   // State for UI elements
   const [saveStatus, setSaveStatus] = useState('Saved');
@@ -52,7 +59,7 @@ export function AIMarkdownEditor({
   // Create extensions array with slash command
   const extensions = [...defaultExtensions, slashCommand];
   
-  // Convert initial content to JSONContent format if it's a string
+  // Function to normalize initial content to JSONContent
   const getInitialContent = useCallback((): JSONContent => {
     if (typeof initialContent === 'object') {
       return initialContent as JSONContent;
@@ -61,14 +68,23 @@ export function AIMarkdownEditor({
     if (!initialContent || (typeof initialContent === 'string' && initialContent.trim() === '')) {
       return {
         type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-          }
-        ]
+        content: [{ type: 'paragraph' }]
       };
     }
     
+    // If format is markdown, convert markdown to HTML first, then to JSON
+    if (format === 'markdown' && typeof initialContent === 'string') {
+      try {
+        // Convert markdown to HTML
+        const html = marked.parse(initialContent as string) as string;
+        // Convert HTML to JSON
+        return generateJSON(html, extensions);
+      } catch (error) {
+        console.error('Error converting markdown to JSON:', error);
+      }
+    }
+    
+    // Fallback or if format is not markdown
     return {
       type: 'doc',
       content: [
@@ -78,22 +94,72 @@ export function AIMarkdownEditor({
         }
       ]
     };
-  }, [initialContent]);
+  }, [initialContent, format, extensions]);
   
-  // Debounce updates to avoid excessive state changes
-  const debouncedUpdates = useDebouncedCallback(({ editor }) => {
-    // Count words in the editor
-    const text = editor.getText();
-    const words = text.trim() ? text.split(/\s+/).length : 0;
-    setWordCount(words);
+  // Convert editor content to the specified format
+  const getFormattedContent = useCallback((editor: any) => {
+    if (!editor) return '';
     
-    // Call onChange callback if provided
-    if (onChange) {
-      onChange(editor.getHTML());
+    switch (format) {
+      case 'markdown': {
+        const html = editor.getHTML();
+        const turndownService = new TurndownService({
+          headingStyle: 'atx',
+          codeBlockStyle: 'fenced'
+        });
+        // Add rules for better markdown conversion
+        turndownService.addRule('codeBlocks', {
+          filter: (node) => {
+            return node.nodeName === 'PRE' && 
+              node.firstChild && 
+              node.firstChild.nodeName === 'CODE';
+          },
+          replacement: (content, node) => {
+            if (node.firstChild) {
+              const code = node.firstChild.textContent || '';
+              let lang = '';
+              
+              // Safe type checking for getAttribute
+              if (node.firstChild.nodeType === 1) { // Element node
+                const element = node.firstChild as Element;
+                lang = element.getAttribute?.('class')?.replace('language-', '') || '';
+              }
+              
+              return '\n```' + lang + '\n' + code + '\n```\n';
+            }
+            return content;
+          }
+        });
+        return turndownService.turndown(html);
+      }
+      case 'json':
+        return JSON.stringify(editor.getJSON());
+      case 'html':
+      default:
+        return editor.getHTML();
     }
-    
-    setSaveStatus('Saved');
-  }, 750);
+  }, [format]);
+  
+  // Debounced update function
+  const debouncedUpdates = useDebouncedCallback(
+    ({ editor }) => {
+      // Calculate word count
+      const text = editor.getText();
+      setWordCount(text.split(/\s+/).filter(Boolean).length);
+      
+      // Update save status
+      setSaveStatus('Saving...');
+      setTimeout(() => {
+        setSaveStatus('Saved');
+      }, 500);
+      
+      if (onChange) {
+        const formattedContent = getFormattedContent(editor);
+        onChange(formattedContent);
+      }
+    },
+    500
+  );
 
   return (
     <div className={`novel-editor-wrapper ${className}`} style={{ minHeight }}>
