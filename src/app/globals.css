@@ -4,6 +4,96 @@
 /* Novel editor styles */
 @import 'katex/dist/katex.min.css';
 
+/* Novel editor custom styles */
+.novel-editor-wrapper {
+  position: relative;
+  background-color: white;
+  border-radius: 0.5rem;
+}
+
+.novel-editor-wrapper .ProseMirror {
+  min-height: 300px;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  outline: none;
+}
+
+.novel-editor-wrapper .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+}
+
+.novel-editor-wrapper .ProseMirror h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin-top: 0.67em;
+  margin-bottom: 0.67em;
+}
+
+.novel-editor-wrapper .ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin-top: 0.83em;
+  margin-bottom: 0.83em;
+}
+
+.novel-editor-wrapper .ProseMirror h3 {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.novel-editor-wrapper .ProseMirror ul,
+.novel-editor-wrapper .ProseMirror ol {
+  padding-left: 2rem;
+}
+
+.novel-editor-wrapper .ProseMirror ul {
+  list-style-type: disc;
+}
+
+.novel-editor-wrapper .ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.novel-editor-wrapper .ProseMirror a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.novel-editor-wrapper .ProseMirror blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1rem;
+  font-style: italic;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.novel-editor-wrapper .ProseMirror pre {
+  background-color: #f3f4f6;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.novel-editor-wrapper .ProseMirror code {
+  font-family: monospace;
+  background-color: #f3f4f6;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+.novel-editor-wrapper .ProseMirror hr {
+  border: none;
+  border-top: 2px solid #e5e7eb;
+  margin: 2rem 0;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

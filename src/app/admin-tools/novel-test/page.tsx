@@ -34,7 +34,7 @@ function NovelTest() {
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-semibold mb-4">Basic Novel Editor</h2>
         
-        <div className="border rounded-md p-4">
+        <div className="novel-editor-wrapper border rounded-md">
           <EditorRoot>
             <EditorContent
               initialContent={{
