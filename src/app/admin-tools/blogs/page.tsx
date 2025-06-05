@@ -358,10 +358,24 @@ function BlogsManager() {
       return;
     }
     
+    // Directly update content states to avoid lag in content display
+    setInitialContent(blog.content);
+    setFormData(prevData => ({
+      ...prevData,
+      title: blog.title,
+      slug: blog.slug,
+      content: blog.content,
+      excerpt: blog.excerpt,
+      author: blog.author,
+      coverImage: blog.coverImage || '',
+      tags: blog.tags.join(', '),
+      status: blog.status
+    }));
+    
     setSelectedBlog(blog);
     setIsCreatingNew(false);
   };
-  
+
   // Handle save button click
   const handleSave = async () => {
     if (isCreatingNew) {
@@ -370,7 +384,6 @@ function BlogsManager() {
       await updateBlog();
     }
   };
-  console.log('Selected blog', selectedBlog, initialContent)
   // Render the component UI
   return (
     <div className="flex flex-col h-full">
