@@ -402,31 +402,8 @@ export function MarkdownEditor({
           {/* Bubble Menu - appears when text is selected, hidden when AI dialog is open */}
           {!aiDialogOpen && (
             <EditorBubble
-              className="flex w-fit divide-x divide-stone-200 rounded-md border border-stone-200 bg-white shadow-xl max-w-[98vw] overflow-x-auto"
-              tippyOptions={{ 
-                duration: 100,
-                placement: 'bottom-end',
-                offset: [0, 10],
-                maxWidth: 'none',
-                popperOptions: {
-                  modifiers: [
-                    {
-                      name: 'flip',
-                      options: {
-                        fallbackPlacements: ['top-end', 'bottom-start', 'top-start']
-                      }
-                    },
-                    {
-                      name: 'preventOverflow',
-                      options: {
-                        padding: 5,
-                        boundary: 'viewport',
-                        altAxis: true
-                      }
-                    }
-                  ]
-                }
-              }}
+              className="flex w-fit divide-x divide-stone-200 rounded-md border border-stone-200 bg-white shadow-xl"
+              tippyOptions={{ duration: 100 }}
             >
               <AIMenu 
                 editor={editorInstance!} 
