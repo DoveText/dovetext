@@ -690,6 +690,7 @@ function BlogsManager() {
                 ) : (
                   <div className="h-full">
                     <AIMarkdownEditor
+                      key={selectedBlog ? `blog-content-${selectedBlog.id}` : 'new-blog-content'}
                       initialContent={initialContent}
                       onChange={(content) => handleFormChange('content', content)}
                     />
