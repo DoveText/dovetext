@@ -10,7 +10,8 @@ import {
   ChevronDownIcon, 
   HomeIcon, 
   DocumentTextIcon, 
-  FolderIcon 
+  FolderIcon,
+  BuildingOfficeIcon 
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 
@@ -102,6 +103,14 @@ export default function BusinessNavigation() {
               >
                 <FolderIcon className="h-4 w-4 mr-2" />
                 Assets Management
+              </Link>
+              <Link
+                href="/business-info"
+                onClick={(e) => handleNavigation('/business-info', e)}
+                className="text-sm font-medium text-gray-900 hover:text-gray-700 flex items-center px-3 py-2 rounded-md hover:bg-gray-50"
+              >
+                <BuildingOfficeIcon className="h-4 w-4 mr-2" />
+                Business Info
               </Link>
             </div>
           )}
