@@ -6,7 +6,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { Spinner } from '@/components/common/Spinner';
 import { Blog, BlogCreateRequest, BlogUpdateRequest, blogsApi } from '../api/blogs';
 import { aiApi } from '../api/ai';
-import AIMarkdownEditor from '@/components/markdown/AIMarkdownEditor';
+import MarkdownEditor from '@/components/markdown/MarkdownEditor';
 import { 
   PlusIcon, 
   PencilIcon, 
@@ -370,7 +370,7 @@ function BlogsManager() {
       await updateBlog();
     }
   };
-  
+  console.log('Selected blog', selectedBlog, initialContent)
   // Render the component UI
   return (
     <div className="flex flex-col h-full">
@@ -689,7 +689,7 @@ function BlogsManager() {
                   </div>
                 ) : (
                   <div className="h-full">
-                    <AIMarkdownEditor
+                    <MarkdownEditor
                       key={selectedBlog ? `blog-content-${selectedBlog.id}` : 'new-blog-content'}
                       initialContent={initialContent}
                       onChange={(content) => handleFormChange('content', content)}

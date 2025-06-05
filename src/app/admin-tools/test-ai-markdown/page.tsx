@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import AIMarkdownEditor from '@/components/markdown/AIMarkdownEditor';
+import MarkdownEditor from '@/components/markdown/MarkdownEditor';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
@@ -81,7 +81,7 @@ function TestAIMarkdown() {
       </div>
       
       <div className="border border-gray-200 rounded-lg p-4 bg-white">
-        <AIMarkdownEditor 
+        <MarkdownEditor
           initialContent={sampleMarkdown}
           onChange={handleContentChange}
           placeholder="Start typing or use / commands..."
