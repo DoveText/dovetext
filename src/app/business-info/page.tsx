@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { 
   ArrowPathIcon, 
@@ -10,9 +10,12 @@ import {
   EnvelopeIcon,
   MapPinIcon,
   ArrowTopRightOnSquareIcon,
-  PlusCircleIcon, // Added
-  TrashIcon, // Added
-  InformationCircleIcon // Added
+  PlusCircleIcon,
+  TrashIcon,
+  InformationCircleIcon,
+  PencilIcon, // Added for edit
+  CheckIcon, // Added for save
+  XMarkIcon // Added for cancel
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -37,19 +40,15 @@ interface KeyValuePair {
 interface BusinessInfo {
   name: string;
   description: string;
-  logo: string;
   website: string;
-  phone: string;
-  email: string;
-  address: string;
+  industry: string;
+  keywords: string;
   socialMedia: {
     facebook: string;
     twitter: string;
     instagram: string;
     linkedin: string;
   };
-  hours: string;
-  industry: string;
   otherInformation?: KeyValuePair[];
 }
 
@@ -63,41 +62,30 @@ export default function BusinessInfoPage() {
   const [retrievedContent, setRetrievedContent] = useState<{content: string, contentType: string, url: string} | null>(null);
   const [extractedBusinessData, setExtractedBusinessData] = useState<Partial<BusinessInfo> | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null);
+  const [tempEditValues, setTempEditValues] = useState<{key: string, value: string}>({key: '', value: ''});
   const [businessInfo, setBusinessInfo] = useState<BusinessInfo>({
     name: '',
     description: '',
-    logo: '',
     website: '',
-    phone: '',
-    email: '',
-    address: '',
+    industry: '',
+    keywords: '',
     socialMedia: {
       facebook: '',
       twitter: '',
       instagram: '',
-      linkedin: '',
+      linkedin: ''
     },
-    hours: '',
-    industry: '',
+    otherInformation: []
   });
   
   const { register, handleSubmit, setValue, watch, control, getValues, formState: { errors } } = useForm<BusinessInfo & { websiteUrl: string }>({
     defaultValues: {
       name: '',
       description: '',
-      logo: '',
       website: '',
-      phone: '',
-      email: '',
-      address: '',
-      socialMedia: {
-        facebook: '',
-        twitter: '',
-        instagram: '',
-        linkedin: '',
-      },
-      hours: '',
       industry: '',
+      keywords: '',
       otherInformation: [],
       websiteUrl: ''
     }
@@ -181,8 +169,9 @@ export default function BusinessInfoPage() {
     const { metadata, ...dataToApply } = extractedBusinessData as any; // metadata might be part of response
 
     const knownFormFields: (keyof BusinessInfo)[] = [
-      'name', 'description', 'logo', 'website', 'phone', 'email', 'address', 'hours', 'industry'
+      'name', 'description', 'website', 'industry', 'keywords'
     ];
+    
     const knownSocialFields: (keyof BusinessInfo['socialMedia'])[] = [
       'facebook', 'twitter', 'instagram', 'linkedin'
     ];
@@ -190,29 +179,40 @@ export default function BusinessInfoPage() {
     const currentOtherInfo = getValues('otherInformation') || [];
     const newOtherInfoItems: KeyValuePair[] = [];
 
-    for (const [key, value] of Object.entries(dataToApply)) {
-      if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) continue;
+    Object.entries(dataToApply).forEach(([key, value]) => {
 
       if (knownFormFields.includes(key as keyof BusinessInfo)) {
         setValue(key as keyof BusinessInfo, value as string);
       } else if (key === 'socialMedia' && typeof value === 'object' && value !== null) {
-        for (const [socialKey, socialValue] of Object.entries(value as BusinessInfo['socialMedia'])) {
-          if (socialValue && typeof socialValue === 'string' && socialValue.trim() !== '' && knownSocialFields.includes(socialKey as keyof BusinessInfo['socialMedia'])) {
-            setValue(`socialMedia.${socialKey}` as `socialMedia.${keyof BusinessInfo['socialMedia']}`, socialValue as string);
-          } else if (socialValue && typeof socialValue === 'string' && socialValue.trim() !== '') {
-            newOtherInfoItems.push({ key: `socialMedia.${socialKey}`, value: socialValue as string });
+        // Handle social media fields
+        Object.entries(value as Record<string, any>).forEach(([socialKey, socialValue]) => {
+          if (knownSocialFields.includes(socialKey as keyof BusinessInfo['socialMedia']) && 
+              typeof socialValue === 'string' && socialValue.trim() !== '') {
+            setValue(`socialMedia.${socialKey}`, socialValue as string);
           }
-        }
+        });
+      } else if (key === 'otherInformation' && Array.isArray(value)) {
+        // Handle otherInformation array directly if it exists in the response
+        value.forEach((item: KeyValuePair) => {
+          if (item.key && item.value && typeof item.value === 'string' && item.value.trim() !== '') {
+            newOtherInfoItems.push(item);
+          }
+        });
       } else {
+        // For any other fields, add to otherInformation
         if (typeof value === 'string' && value.trim() !== '') {
           newOtherInfoItems.push({ key, value });
-        } else if (typeof value === 'object' && value !== null) {
-          newOtherInfoItems.push({ key, value: JSON.stringify(value) });
+        } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          // Handle nested objects by flattening them
+          Object.entries(value as Record<string, any>).forEach(([nestedKey, nestedValue]) => {
+            if (typeof nestedValue === 'string' && nestedValue.trim() !== '') {
+              newOtherInfoItems.push({ key: `${key}.${nestedKey}`, value: nestedValue });
+            }
+          });
         }
       }
-    }
-    
-    // Merge newOtherInfoItems with existingOtherInfo, updating if key exists, else adding
+    });
+
     const finalOtherInfo = [...currentOtherInfo];
     newOtherInfoItems.forEach(newItem => {
         const existingIndex = finalOtherInfo.findIndex(item => item.key === newItem.key);
@@ -429,158 +429,162 @@ export default function BusinessInfoPage() {
             
             <div className="p-6">
         
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Basic Information */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
-                    <input
-                      type="text"
-                      className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      {...register('name', { required: 'Business name is required' })}
-                    />
-                    {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
-                  </div>
+              <div className="w-full">
+                {/* Business Info */}
+                <div className="w-full">
+                  <h2 className="text-xl font-semibold mb-4">Business Info</h2>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Business Description</label>
-                    <textarea
-                      rows={4}
-                      className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      {...register('description')}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-                    <input
-                      type="url"
-                      className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      {...register('logo')}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Enter the URL of your logo image. For best results, use a square image.</p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
-                    <input
-                      type="text"
-                      className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      {...register('industry')}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Business Hours</label>
-                    <input
-                      type="text"
-                      className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., Monday - Friday: 9AM - 5PM"
-                      {...register('hours')}
-                    />
-                  </div>
-                </div>
-                
-                {/* Contact Information */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                    <div className="flex items-center">
-                      <GlobeAltIcon className="h-5 w-5 text-gray-400 mr-2" />
-                      <input
-                        type="url"
-                        className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        {...register('website')}
-                      />
+                  {/* Line 1: Website, Business Name, Industry */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 w-full">
+                    {/* Website */}
+                    <div>
+                      <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
+                        <div className="flex items-center">
+                          <GlobeAltIcon className="h-5 w-5 mr-1 text-gray-500" />
+                          Website
+                        </div>
+                      </label>
+                      <div className="flex">
+                        <input
+                          {...register('website')}
+                          id="website"
+                          type="url"
+                          className="w-full border border-gray-300 rounded-l-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="https://example.com"
+                        />
+                        {watch('website') && (
+                          <a 
+                            href={watch('website')} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="bg-gray-100 border border-gray-300 border-l-0 rounded-r-md px-3 flex items-center hover:bg-gray-200"
+                          >
+                            <ArrowTopRightOnSquareIcon className="h-5 w-5 text-gray-500" />
+                          </a>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                    <div className="flex items-center">
-                      <PhoneIcon className="h-5 w-5 text-gray-400 mr-2" />
+
+                    {/* Business Name */}
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                        <div className="flex items-center">
+                          <BuildingOfficeIcon className="h-5 w-5 mr-1 text-gray-500" />
+                          Business Name
+                        </div>
+                      </label>
                       <input
-                        type="tel"
-                        className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        {...register('phone')}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                    <div className="flex items-center">
-                      <EnvelopeIcon className="h-5 w-5 text-gray-400 mr-2" />
-                      <input
-                        type="email"
-                        className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        {...register('email', {
-                          pattern: {
-                            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                            message: 'Invalid email address'
-                          }
-                        })}
-                      />
-                    </div>
-                    {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Business Address</label>
-                    <div className="flex items-center">
-                      <MapPinIcon className="h-5 w-5 text-gray-400 mr-2" />
-                      <input
+                        {...register('name', { required: 'Business name is required' })}
+                        id="name"
                         type="text"
                         className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        {...register('address')}
+                        placeholder="Enter business name"
+                      />
+                      {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
+                    </div>
+
+                    {/* Industry */}
+                    <div>
+                      <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-1">
+                        <div className="flex items-center">
+                          <InformationCircleIcon className="h-5 w-5 mr-1 text-gray-500" />
+                          Industry
+                        </div>
+                      </label>
+                      <input
+                        {...register('industry')}
+                        id="industry"
+                        type="text"
+                        className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter industry"
                       />
                     </div>
                   </div>
-                </div>
-              </div>
-              
-              {/* Social Media */}
-              <div className="mt-6">
-                <h3 className="text-md font-medium mb-3">Social Media Profiles</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Facebook</label>
+                  
+                  {/* Line 2: Keywords */}
+                  <div className="mb-4">
+                    <label htmlFor="keywords" className="block text-sm font-medium text-gray-700 mb-1">
+                      <div className="flex items-center">
+                        <InformationCircleIcon className="h-5 w-5 mr-1 text-gray-500" />
+                        Keywords
+                      </div>
+                    </label>
                     <input
-                      type="url"
+                      {...register('keywords')}
+                      id="keywords"
+                      type="text"
                       className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://facebook.com/yourbusiness"
-                      {...register('socialMedia.facebook')}
+                      placeholder="Enter keywords separated by commas"
                     />
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Twitter</label>
-                    <input
-                      type="url"
+                  {/* Line 3: Description */}
+                  <div className="mb-4">
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                      Business Description
+                    </label>
+                    <textarea
+                      {...register('description')}
+                      id="description"
+                      rows={4}
                       className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://twitter.com/yourbusiness"
-                      {...register('socialMedia.twitter')}
-                    />
+                      placeholder="Enter a brief description of your business"
+                    ></textarea>
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
-                    <input
-                      type="url"
-                      className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://instagram.com/yourbusiness"
-                      {...register('socialMedia.instagram')}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn</label>
-                    <input
-                      type="url"
-                      className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://linkedin.com/company/yourbusiness"
-                      {...register('socialMedia.linkedin')}
-                    />
+                  {/* Social Media */}
+                  <div className="mt-6 pt-4 border-t border-gray-200 w-full">
+                    <h3 className="text-md font-medium mb-3">Social Media</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                      <div>
+                        <label htmlFor="facebook" className="block text-sm font-medium text-gray-700 mb-1">
+                          Facebook
+                        </label>
+                        <input
+                          {...register('socialMedia.facebook')}
+                          id="facebook"
+                          type="url"
+                          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="https://facebook.com/yourbusiness"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="twitter" className="block text-sm font-medium text-gray-700 mb-1">
+                          Twitter
+                        </label>
+                        <input
+                          {...register('socialMedia.twitter')}
+                          id="twitter"
+                          type="url"
+                          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="https://twitter.com/yourbusiness"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="instagram" className="block text-sm font-medium text-gray-700 mb-1">
+                          Instagram
+                        </label>
+                        <input
+                          {...register('socialMedia.instagram')}
+                          id="instagram"
+                          type="url"
+                          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="https://instagram.com/yourbusiness"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-1">
+                          LinkedIn
+                        </label>
+                        <input
+                          {...register('socialMedia.linkedin')}
+                          id="linkedin"
+                          type="url"
+                          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="https://linkedin.com/company/yourbusiness"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -605,43 +609,128 @@ export default function BusinessInfoPage() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {otherInfoFields.map((field, index) => (
-                        <tr key={field.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <input
-                              {...register(`otherInformation.${index}.key` as const, { required: 'Key is required' })}
-                              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
-                              placeholder="e.g., VAT Number"
-                            />
-                            {errors.otherInformation?.[index]?.key && 
-                              <p className="text-red-500 text-xs mt-1">{errors.otherInformation[index]?.key?.message}</p>}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <input
-                              {...register(`otherInformation.${index}.value` as const, { required: 'Value is required' })}
-                              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
-                              placeholder="Enter value"
-                            />
-                            {errors.otherInformation?.[index]?.value && 
-                              <p className="text-red-500 text-xs mt-1">{errors.otherInformation[index]?.value?.message}</p>}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button 
-                              type="button" 
-                              onClick={() => removeOtherInfo(index)}
-                              className="text-red-600 hover:text-red-800 p-1"
-                              aria-label="Remove item"
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                            </button>
-                          </td>
+                        <tr key={field.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          {editingRowIndex === index ? (
+                            // Editing mode
+                            <>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <input
+                                  value={tempEditValues.key}
+                                  onChange={(e) => setTempEditValues({...tempEditValues, key: e.target.value})}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
+                                  placeholder="e.g., VAT Number"
+                                />
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <input
+                                  value={tempEditValues.value}
+                                  onChange={(e) => setTempEditValues({...tempEditValues, value: e.target.value})}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
+                                  placeholder="Enter value"
+                                />
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex space-x-2 justify-end">
+                                  <button 
+                                    type="button" 
+                                    onClick={() => {
+                                      // Save the edited values
+                                      setValue(`otherInformation.${index}.key`, tempEditValues.key);
+                                      setValue(`otherInformation.${index}.value`, tempEditValues.value);
+                                      setEditingRowIndex(null);
+                                    }}
+                                    className="text-green-600 hover:text-green-800 p-1"
+                                    aria-label="Save changes"
+                                  >
+                                    <CheckIcon className="h-5 w-5" />
+                                  </button>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => {
+                                      // Cancel editing
+                                      setEditingRowIndex(null);
+                                    }}
+                                    className="text-gray-600 hover:text-gray-800 p-1"
+                                    aria-label="Cancel editing"
+                                  >
+                                    <XMarkIcon className="h-5 w-5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            // Display mode
+                            <>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {watch(`otherInformation.${index}.key`) || <span className="text-gray-400 italic">No key</span>}
+                                  <input
+                                    {...register(`otherInformation.${index}.key` as const, { required: 'Key is required' })}
+                                    type="hidden"
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {watch(`otherInformation.${index}.value`) || <span className="text-gray-400 italic">No value</span>}
+                                  <input
+                                    {...register(`otherInformation.${index}.value` as const, { required: 'Value is required' })}
+                                    type="hidden"
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex space-x-2 justify-end">
+                                  <button 
+                                    type="button" 
+                                    onClick={() => {
+                                      // Start editing this row
+                                      setTempEditValues({
+                                        key: watch(`otherInformation.${index}.key`) || '',
+                                        value: watch(`otherInformation.${index}.value`) || ''
+                                      });
+                                      setEditingRowIndex(index);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 p-1"
+                                    aria-label="Edit item"
+                                  >
+                                    <PencilIcon className="h-5 w-5" />
+                                  </button>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => removeOtherInfo(index)}
+                                    className="text-red-600 hover:text-red-800 p-1"
+                                    aria-label="Remove item"
+                                  >
+                                    <TrashIcon className="h-5 w-5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
                         </tr>
                       ))}
+                      {otherInfoFields.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-6 py-4 text-center text-sm text-gray-500">
+                            No additional information available. Click "Add Row" to add some.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
                 <button
                   type="button"
-                  onClick={() => appendOtherInfo({ key: '', value: '' })}
+                  onClick={() => {
+                    appendOtherInfo({ key: '', value: '' });
+                    // Start editing the newly added row
+                    setTimeout(() => {
+                      const newIndex = otherInfoFields.length;
+                      setTempEditValues({ key: '', value: '' });
+                      setEditingRowIndex(newIndex);
+                    }, 0);
+                  }}
                   className="mt-4 text-sm text-blue-600 hover:text-blue-800 flex items-center"
                 >
                   <PlusCircleIcon className="h-5 w-5 mr-1" />
