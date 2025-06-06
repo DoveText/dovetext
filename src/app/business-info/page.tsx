@@ -391,11 +391,12 @@ export default function BusinessInfoPage() {
     }
   };
   
-  // Redirect personal users to dashboard
-  if (userType === 'personal') {
-    router.push('/dashboard');
-    return null;
-  }
+  // Redirect personal users to dashboard using useEffect to avoid React warnings
+  useEffect(() => {
+    if (userType === 'personal') {
+      router.push('/dashboard');
+    }
+  }, [userType, router]);
 
   return (
     <ProtectedRoute>
