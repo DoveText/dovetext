@@ -22,6 +22,7 @@ import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useUserType } from '@/context/UserTypeContext';
 import { useRouter } from 'next/navigation';
+import { businessInfoApi, UserBusinessInfoDto } from '@/app/api/business-info';
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,7 @@ import {
 interface KeyValuePair {
   key: string;
   value: string;
+  id?: number;
 }
 
 interface BusinessInfo {
@@ -51,6 +53,8 @@ interface BusinessInfo {
   };
   otherInformation?: KeyValuePair[];
 }
+
+// Using types from the business-info API file
 
 export default function BusinessInfoPage() {
   const { user } = useAuth();
@@ -188,7 +192,7 @@ export default function BusinessInfoPage() {
         Object.entries(value as Record<string, any>).forEach(([socialKey, socialValue]) => {
           if (knownSocialFields.includes(socialKey as keyof BusinessInfo['socialMedia']) && 
               typeof socialValue === 'string' && socialValue.trim() !== '') {
-            setValue(`socialMedia.${socialKey}`, socialValue as string);
+            setValue(`socialMedia.${socialKey}` as any, socialValue as string);
           }
         });
       } else if (key === 'otherInformation' && Array.isArray(value)) {
@@ -238,23 +242,150 @@ export default function BusinessInfoPage() {
     setValue('websiteUrl', ''); // Clear URL input in dialog
   };
   
+  // Load business info from backend
+  const loadBusinessInfo = useCallback(async () => {
+    if (!user) return null;
+    
+    try {
+      setLoading(true);
+      const businessInfoData = await businessInfoApi.getAll();
+      
+      // Process the data into our BusinessInfo structure
+      const formData: BusinessInfo = {
+        name: '',
+        description: '',
+        website: '',
+        industry: '',
+        keywords: '',
+        socialMedia: {
+          facebook: '',
+          twitter: '',
+          instagram: '',
+          linkedin: ''
+        },
+        otherInformation: []
+      };
+      
+      // Map the flat key-value pairs to our structured form
+      businessInfoData.forEach(item => {
+        if (item.key === 'name') formData.name = item.value;
+        else if (item.key === 'description') formData.description = item.value;
+        else if (item.key === 'website') formData.website = item.value;
+        else if (item.key === 'industry') formData.industry = item.value;
+        else if (item.key === 'keywords') formData.keywords = item.value;
+        else if (item.key === 'socialMedia.facebook') formData.socialMedia.facebook = item.value;
+        else if (item.key === 'socialMedia.twitter') formData.socialMedia.twitter = item.value;
+        else if (item.key === 'socialMedia.instagram') formData.socialMedia.instagram = item.value;
+        else if (item.key === 'socialMedia.linkedin') formData.socialMedia.linkedin = item.value;
+        else {
+          // Add to otherInformation
+          formData.otherInformation.push({
+            key: item.key,
+            value: item.value,
+            id: item.id
+          });
+        }
+      });
+      
+      // Update the form with loaded data
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key !== 'otherInformation' && key !== 'socialMedia') {
+          setValue(key as keyof BusinessInfo, value as string);
+        }
+      });
+      
+      // Set social media fields
+      Object.entries(formData.socialMedia).forEach(([key, value]) => {
+        setValue(`socialMedia.${key}` as any, value);
+      });
+      
+      // Set other information fields
+      formData.otherInformation.forEach((item, index) => {
+        if (index >= otherInfoFields.length) {
+          appendOtherInfo(item);
+        } else {
+          setValue(`otherInformation.${index}.key` as any, item.key);
+          setValue(`otherInformation.${index}.value` as any, item.value);
+          if (item.id) {
+            setValue(`otherInformation.${index}.id` as any, item.id);
+          }
+        }
+      });
+      
+      setBusinessInfo(formData);
+    } catch (error) {
+      console.error('Error loading business info:', error);
+      toast.error('Failed to load business information');
+    } finally {
+      setLoading(false);
+    }
+  }, [user, setValue, appendOtherInfo, otherInfoFields.length]);
+
+  useEffect(() => {
+    if (user) {
+      loadBusinessInfo();
+    }
+  }, [user, loadBusinessInfo]);
+  
   // Function to save business info
   const saveBusinessInfo = async (data: BusinessInfo) => {
+    if (!user) {
+      toast.error('You must be logged in to save business information');
+      return;
+    }
+    
     setLoading(true);
     try {
-      // This would be an API call to your backend service
-      // For now, we'll simulate a response after a delay
       toast.loading('Saving business information...', { id: 'saving' });
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Convert our structured data to flat key-value pairs for the API
+      const batchItems: UserBusinessInfoDto[] = [
+        { key: 'name', value: data.name },
+        { key: 'description', value: data.description },
+        { key: 'website', value: data.website },
+        { key: 'industry', value: data.industry },
+        { key: 'keywords', value: data.keywords },
+      ];
+      
+      // Add social media fields if they have values
+      if (data.socialMedia.facebook) {
+        batchItems.push({ key: 'socialMedia.facebook', value: data.socialMedia.facebook });
+      }
+      if (data.socialMedia.twitter) {
+        batchItems.push({ key: 'socialMedia.twitter', value: data.socialMedia.twitter });
+      }
+      if (data.socialMedia.instagram) {
+        batchItems.push({ key: 'socialMedia.instagram', value: data.socialMedia.instagram });
+      }
+      if (data.socialMedia.linkedin) {
+        batchItems.push({ key: 'socialMedia.linkedin', value: data.socialMedia.linkedin });
+      }
+      
+      // Add other information items
+      if (data.otherInformation && data.otherInformation.length > 0) {
+        data.otherInformation.forEach(item => {
+          if (item.key && item.value) {
+            batchItems.push({
+              id: item.id,
+              key: item.key,
+              value: item.value
+            });
+          }
+        });
+      }
+      
+      // Send batch update to backend using the API client
+      await businessInfoApi.batchUpdate(batchItems);
       
       // Update state with form data
       setBusinessInfo(data);
       toast.success('Business information saved successfully!', { id: 'saving' });
-    } catch (error) {
+      
+      // Reload the data to get the updated IDs
+      loadBusinessInfo();
+    } catch (error: any) {
       console.error('Error saving business info:', error);
-      toast.error('Failed to save business information. Please try again.', { id: 'saving' });
+      toast.error(`Failed to save business information: ${error.message || 'Unknown error'}`, { id: 'saving' });
     } finally {
       setLoading(false);
     }
@@ -287,31 +418,31 @@ export default function BusinessInfoPage() {
               </DialogHeader>
               
               {/* URL Input - visible in 'idle', 'errorRetrieving' states */}
-              {(extractionStep === 'idle' || extractionStep === 'errorRetrieving') && (
-                <div className="mt-4">
-                  <label htmlFor="websiteUrlDialog" className="block text-sm font-medium text-gray-700">
-                    Website URL
-                  </label>
-                  <input
-                    type="url"
-                    id="websiteUrlDialog"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="https://example.com"
-                    {...register('websiteUrl', { required: 'Website URL is required' })}
-                  />
-                  {errors.websiteUrl && <p className="text-red-500 text-sm mt-1">{errors.websiteUrl.message}</p>}
-                </div>
-              )}
-
-              {/* Progress/Status Display */}
-              <div className="mt-4 space-y-2">
-                {extractionStep === 'retrieving' && (
-                  <div className="flex items-center text-blue-600">
-                    <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-                    <span>Step 1: Retrieving website content...</span>
+                {(['idle', 'errorRetrieving'] as const).includes(extractionStep) && (
+                  <div className="mt-4">
+                    <label htmlFor="websiteUrlDialog" className="block text-sm font-medium text-gray-700">
+                      Website URL
+                    </label>
+                    <input
+                      type="url"
+                      id="websiteUrlDialog"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="https://example.com"
+                      {...register('websiteUrl', { required: 'Website URL is required' })}
+                    />
+                    {errors.websiteUrl && <p className="text-red-500 text-sm mt-1">{errors.websiteUrl.message}</p>}
                   </div>
                 )}
-                {retrievedContent && (extractionStep === 'extracting' || extractionStep === 'completed' || extractionStep === 'errorExtracting') && (
+
+                {/* Progress/Status Display */}
+                <div className="mt-4 space-y-2">
+                  {(extractionStep === 'retrieving') && (
+                    <div className="flex items-center text-blue-600">
+                      <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
+                      <span>Step 1: Retrieving website content...</span>
+                    </div>
+                  )}
+                  {retrievedContent && ['extracting', 'completed', 'errorExtracting'].includes(extractionStep) && (
                   <div className="flex items-center text-green-600">
                     <InformationCircleIcon className="h-5 w-5 mr-2" />
                     <span>Step 1: Website content retrieved successfully.</span>
@@ -346,10 +477,10 @@ export default function BusinessInfoPage() {
                 </button>
 
                 {/* Initial Extract Button */}
-                {(extractionStep === 'idle' || extractionStep === 'errorRetrieving') && (
+                {(['idle', 'errorRetrieving'] as const).includes(extractionStep) && (
                   <button
                     type="button"
-                    disabled={!websiteUrl || extractionStep === 'retrieving' || extractionStep === 'extracting'}
+                    disabled={!websiteUrl || ['retrieving', 'extracting'].includes(extractionStep as string)}
                     onClick={() => handleExtractFromUrl(websiteUrl)}
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 disabled:bg-gray-400 flex items-center"
                   >
