@@ -10,6 +10,8 @@ import {
   DocumentIcon
 } from '@heroicons/react/24/outline';
 
+import { AssetDto } from '@/app/api/assets';
+
 export interface Asset {
   id: string;
   name: string;
@@ -22,6 +24,8 @@ export interface Asset {
   url?: string;
   tags?: string[];
   description?: string;
+  file?: File;  // For file uploads
+  originalAsset?: AssetDto; // Original asset data from API
 }
 
 // Helper function to get icon based on asset type

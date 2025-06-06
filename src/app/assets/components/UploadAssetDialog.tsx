@@ -86,7 +86,8 @@ export default function UploadAssetDialog({
         tags,
         uploadDate: new Date().toISOString().split('T')[0],
         url: uploadMethod === 'url' ? urlInput : undefined,
-        // In a real app, we would upload the file to a server and get a URL back
+        // Include the file for API upload
+        file: uploadMethod === 'file' && fileInput ? fileInput : undefined,
       };
       
       await onUpload(assetData);
