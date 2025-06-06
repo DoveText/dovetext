@@ -57,10 +57,11 @@ interface BusinessInfo {
 // Using types from the business-info API file
 
 export default function BusinessInfoPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { userType } = useUserType();
   const [loading, setLoading] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [extractionStep, setExtractionStep] = useState<'idle' | 'retrieving' | 'extracting' | 'completed' | 'errorRetrieving' | 'errorExtracting'>('idle');
   const [extractionError, setExtractionError] = useState<string | null>(null);
   const [retrievedContent, setRetrievedContent] = useState<{content: string, contentType: string, url: string} | null>(null);
@@ -170,50 +171,61 @@ export default function BusinessInfoPage() {
   const applyExtractedDataToForm = () => {
     if (!extractedBusinessData) return;
 
-    const { metadata, ...dataToApply } = extractedBusinessData as any; // metadata might be part of response
-
+    // Handle the structure of the extracted data
+    const extractedData = extractedBusinessData as any;
+    
+    // Apply main fields directly
     const knownFormFields: (keyof BusinessInfo)[] = [
       'name', 'description', 'website', 'industry', 'keywords'
     ];
+    
+    // Apply each known field if it exists in the extracted data
+    knownFormFields.forEach(field => {
+      if (extractedData[field] && typeof extractedData[field] === 'string') {
+        setValue(field, extractedData[field]);
+      }
+    });
     
     const knownSocialFields: (keyof BusinessInfo['socialMedia'])[] = [
       'facebook', 'twitter', 'instagram', 'linkedin'
     ];
     
+    // Handle social media if present
+    if (extractedData.socialMedia) {
+      Object.entries(extractedData.socialMedia).forEach(([key, value]) => {
+        if (knownSocialFields.includes(key as any) && typeof value === 'string') {
+          setValue(`socialMedia.${key}` as any, value as string);
+        }
+      });
+    }
+    
+    // Handle otherInformation array
     const currentOtherInfo = getValues('otherInformation') || [];
     const newOtherInfoItems: KeyValuePair[] = [];
 
-    Object.entries(dataToApply).forEach(([key, value]) => {
-
-      if (knownFormFields.includes(key as keyof BusinessInfo)) {
-        setValue(key as keyof BusinessInfo, value as string);
-      } else if (key === 'socialMedia' && typeof value === 'object' && value !== null) {
-        // Handle social media fields
-        Object.entries(value as Record<string, any>).forEach(([socialKey, socialValue]) => {
-          if (knownSocialFields.includes(socialKey as keyof BusinessInfo['socialMedia']) && 
-              typeof socialValue === 'string' && socialValue.trim() !== '') {
-            setValue(`socialMedia.${socialKey}` as any, socialValue as string);
-          }
-        });
-      } else if (key === 'otherInformation' && Array.isArray(value)) {
-        // Handle otherInformation array directly if it exists in the response
-        value.forEach((item: KeyValuePair) => {
-          if (item.key && item.value && typeof item.value === 'string' && item.value.trim() !== '') {
-            newOtherInfoItems.push(item);
-          }
-        });
-      } else {
-        // For any other fields, add to otherInformation
-        if (typeof value === 'string' && value.trim() !== '') {
-          newOtherInfoItems.push({ key, value });
-        } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-          // Handle nested objects by flattening them
-          Object.entries(value as Record<string, any>).forEach(([nestedKey, nestedValue]) => {
-            if (typeof nestedValue === 'string' && nestedValue.trim() !== '') {
-              newOtherInfoItems.push({ key: `${key}.${nestedKey}`, value: nestedValue });
-            }
-          });
+    // Handle otherInformation array if it exists in the extracted data
+    if (extractedData.otherInformation && Array.isArray(extractedData.otherInformation)) {
+      extractedData.otherInformation.forEach((item: KeyValuePair) => {
+        if (item.key && item.value && typeof item.value === 'string' && item.value.trim() !== '') {
+          newOtherInfoItems.push(item);
         }
+      });
+    }
+    
+    // Process any remaining fields that aren't in the known fields
+    const { metadata, name, description, website, industry, keywords, socialMedia, otherInformation, ...remainingFields } = extractedData;
+    
+    // Add any remaining fields to otherInformation
+    Object.entries(remainingFields).forEach(([key, value]) => {
+      if (typeof value === 'string' && value.trim() !== '') {
+        newOtherInfoItems.push({ key, value: value as string });
+      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        // Handle nested objects by flattening them
+        Object.entries(value as Record<string, any>).forEach(([nestedKey, nestedValue]) => {
+          if (typeof nestedValue === 'string' && nestedValue.trim() !== '') {
+            newOtherInfoItems.push({ key: `${key}.${nestedKey}`, value: nestedValue });
+          }
+        });
       }
     });
 
@@ -228,7 +240,14 @@ export default function BusinessInfoPage() {
     });
 
     setValue('otherInformation', finalOtherInfo);
-    setBusinessInfo(prev => ({ ...prev, ...getValues() })); // Update local state for rendering if needed
+    
+    // Update local state with the extracted data to prevent it from being overwritten
+    const updatedFormData = getValues();
+    setBusinessInfo(prev => ({ ...prev, ...updatedFormData }));
+    
+    // Prevent the automatic reload of business info by setting a flag
+    setInitialLoadComplete(true);
+    
     toast.success('Extracted data applied to form.');
     setDialogOpen(false);
     resetDialogState();
@@ -391,12 +410,20 @@ export default function BusinessInfoPage() {
     }
   };
   
-  // Redirect personal users to dashboard using useEffect to avoid React warnings
+  // Track when initial data load is complete
   useEffect(() => {
-    if (userType === 'personal') {
+    if (!authLoading && user) {
+      setInitialLoadComplete(true);
+    }
+  }, [authLoading, user]);
+
+  // Redirect personal users to dashboard only after auth is loaded and user type is confirmed
+  useEffect(() => {
+    // Only redirect if auth is not loading and we've completed initial data load
+    if (!authLoading && initialLoadComplete && userType === 'personal') {
       router.push('/dashboard');
     }
-  }, [userType, router]);
+  }, [authLoading, userType, router, initialLoadComplete]);
 
   return (
     <ProtectedRoute>
