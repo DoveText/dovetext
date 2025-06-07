@@ -44,19 +44,29 @@ export default function UploadAssetDialog({
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Reset form state
   const resetForm = () => {
+    setUploadMethod('file');
     setFileInput(null);
     setUrlInput('');
     setNameInput('');
     setDescriptionInput('');
     setTagsInput('');
-    setUploadMethod('file');
     setUploadStage('initial');
     setUploadProgress(0);
     setMd5Hash(null);
     setDuplicateAsset(null);
     setErrorMessage(null);
     setIsLoading(false);
+  };
+
+  // Check if the form is ready to submit
+  const isFormReadyToSubmit = () => {
+    if (uploadMethod === 'file') {
+      return fileInput && md5Hash && nameInput && !isLoading;
+    } else {
+      return urlInput && nameInput && !isLoading;
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,19 +90,30 @@ export default function UploadAssetDialog({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    
+    if (uploadMethod === 'file' && !fileInput) {
+      return;
+    }
+    
+    if (uploadMethod === 'url' && !urlInput) {
+      return;
+    }
+    
+    setIsLoading(true);
     setUploadStage('uploading');
-    setUploadProgress(0);
-
+    setUploadProgress(50); // Start at 50% since validation is already done
+    
     try {
-      // Prepare the asset data
-      const tags = tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag);
-      
-      // Determine asset type based on file or URL
-      let assetType: 'image' | 'document' | 'video' | 'audio' = 'document';
-      let assetSize = '0 KB';
-      
-      if (uploadMethod === 'file' && fileInput) {
-        const fileExt = fileInput.name.split('.').pop()?.toLowerCase();
+      if (uploadMethod === 'file') {
+        // MD5 hash and duplicate check should already be done at this point
+        if (!md5Hash) {
+          throw new Error('File validation not completed. Please validate the file first.');
+        }
+        
+        // Determine asset type based on file extension
+        const fileExt = fileInput!.name.split('.').pop()?.toLowerCase();
+        let assetType: 'image' | 'document' | 'video' | 'audio' = 'document';
+        
         if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt || '')) {
           assetType = 'image';
         } else if (['mp4', 'webm', 'mov'].includes(fileExt || '')) {
@@ -101,82 +122,43 @@ export default function UploadAssetDialog({
           assetType = 'audio';
         }
         
-        // Format file size
-        assetSize = formatFileSize(fileInput.size);
-        
-        // Step 1: Calculate MD5 hash on the server
-        setUploadProgress(10);
-        try {
-          const md5Response = await assetsApi.calculateMd5(fileInput);
-          setMd5Hash(md5Response.md5);
-          setUploadProgress(30);
-          
-          // Step 2: Check if this is a duplicate
-          const duplicateResponse = await assetsApi.checkDuplicate(md5Response.md5);
-          if (duplicateResponse.isDuplicate && duplicateResponse.duplicateAsset) {
-            setDuplicateAsset(duplicateResponse.duplicateAsset);
-            setUploadStage('duplicate-found');
-            setUploadProgress(50);
-            return; // Stop here and wait for user decision
-          }
-          
-          // Step 3: Upload the asset with the calculated MD5
-          setUploadProgress(70);
-          const assetData = {
-            name: nameInput,
-            description: descriptionInput,
-            type: assetType,
-            size: assetSize,
-            tags,
-          };
-          
-          await onUpload(assetData, md5Response.md5, false);
-          setUploadProgress(100);
-          setUploadStage('complete');
-          resetForm();
-          onClose();
-        } catch (error) {
-          console.error('Error during file upload process:', error);
-          setErrorMessage('Failed to process file. Please try again.');
-          setUploadStage('error');
-        }
-      } else if (uploadMethod === 'url') {
-        const urlExt = urlInput.split('.').pop()?.toLowerCase();
-        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(urlExt || '')) {
-          assetType = 'image';
-        } else if (['mp4', 'webm', 'mov'].includes(urlExt || '')) {
-          assetType = 'video';
-        } else if (['mp3', 'wav', 'ogg'].includes(urlExt || '')) {
-          assetType = 'audio';
-        }
-        
-        // For URL uploads, we don't do MD5 calculation or duplicate detection
-        // since the file isn't available on the client side
-        setUploadProgress(70);
-        const assetData = {
+        const assetData: Partial<Asset> = {
           name: nameInput,
           description: descriptionInput,
           type: assetType,
-          size: assetSize,
-          tags,
-          url: urlInput
+          size: formatFileSize(fileInput!.size),
+          tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag),
         };
         
-        try {
-          await onUpload(assetData);
-          setUploadProgress(100);
-          setUploadStage('complete');
-          resetForm();
-          onClose();
-        } catch (error) {
-          console.error('Error uploading URL asset:', error);
-          setErrorMessage('Failed to upload URL. Please try again.');
-          setUploadStage('error');
-        }
+        // Upload the asset with MD5 hash
+        setUploadProgress(70);
+        await onUpload(assetData, md5Hash);
+      } else {
+        // Handle URL upload
+        // For URL uploads, we don't do MD5 calculation or duplicate checking
+        const assetData: Partial<Asset> = {
+          name: nameInput,
+          description: descriptionInput,
+          type: 'document', // Default type for URL uploads
+          url: urlInput,
+          tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag),
+        };
+        
+        await onUpload(assetData);
       }
+      
+      setUploadProgress(100);
+      setUploadStage('complete');
+      resetForm();
+      
+      // Auto-close after successful upload
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+      
     } catch (error) {
-      console.error('Error in upload process:', error);
-      setErrorMessage('An unexpected error occurred. Please try again.');
+      console.error('Upload error:', error);
+      setErrorMessage('Failed to upload asset. Please try again.');
       setUploadStage('error');
     } finally {
       setIsLoading(false);
@@ -263,16 +245,71 @@ export default function UploadAssetDialog({
 
               {uploadMethod === 'file' ? (
                   <div className="mb-4">
-                    <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-1">Select
-                      File</label>
-                    <input
-                        type="file"
-                        id="file-upload"
-                        onChange={handleFileChange}
-                        required={uploadMethod === 'file'}
-                        className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    />
-                    {fileInput && <p className="text-xs text-gray-500 mt-1">Selected: {fileInput.name}</p>}
+                    <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-1">Select File</label>
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex items-center">
+                        <input
+                          type="file"
+                          id="file-upload"
+                          onChange={handleFileChange}
+                          required={uploadMethod === 'file'}
+                          className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                      </div>
+                      {fileInput && (
+                        <div className="flex items-center justify-between bg-gray-50 p-2 rounded-md">
+                          <span className="text-sm text-gray-700 truncate max-w-xs">{fileInput.name}</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!fileInput) return;
+                              
+                              setIsLoading(true);
+                              setUploadProgress(10);
+                              
+                              try {
+                                // Calculate MD5 hash
+                                const md5Response = await assetsApi.calculateMd5(fileInput);
+                                setMd5Hash(md5Response.md5);
+                                setUploadProgress(40);
+                                
+                                // Check for duplicates
+                                if (md5Response.isDuplicate && md5Response.duplicateAsset) {
+                                  setDuplicateAsset(md5Response.duplicateAsset);
+                                  setUploadStage('duplicate-found');
+                                  setUploadProgress(0);
+                                } else {
+                                  setUploadProgress(50);
+                                }
+                              } catch (error) {
+                                console.error('Error during file validation:', error);
+                                setErrorMessage('Failed to validate file. Please try again.');
+                                setUploadStage('error');
+                              } finally {
+                                setIsLoading(false);
+                              }
+                            }}
+                            disabled={isLoading}
+                            className="px-3 py-1 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 flex items-center"
+                          >
+                            {isLoading ? <ArrowPathIcon className="h-4 w-4 animate-spin mr-1"/> : 'Validate'}
+                          </button>
+                        </div>
+                      )}
+                      {isLoading && uploadProgress > 0 && uploadProgress < 50 && (
+                        <div className="mt-2">
+                          <div className="text-xs text-gray-500 mb-1">
+                            {uploadProgress < 30 ? 'Calculating MD5 hash...' : 'Checking for duplicates...'}
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div 
+                              className="bg-blue-600 h-1.5 rounded-full transition-all duration-300 ease-out" 
+                              style={{width: `${uploadProgress}%`}}
+                            ></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
               ) : (
                   <div className="mb-4">
@@ -344,7 +381,7 @@ export default function UploadAssetDialog({
                 >
                   {isLoading ? <ArrowPathIcon className="h-4 w-4 animate-spin mr-2"/> :
                       <ArrowUpTrayIcon className="h-5 w-5 inline mr-1"/>}
-                  {isLoading ? 'Uploading...' : 'Upload Asset'}
+                  {isLoading ? 'Adding...' : 'Add Asset'}
                 </button>
               </div>
             </form>
@@ -352,20 +389,26 @@ export default function UploadAssetDialog({
 
       case 'uploading':
         return (
-            <div className="text-center py-6">
-              <ArrowPathIcon className="h-12 w-12 animate-spin mx-auto text-blue-500 mb-4"/>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {uploadProgress < 30 ? 'Calculating MD5 hash...' :
-                    uploadProgress < 50 ? 'Checking for duplicates...' :
-                        'Uploading asset...'}
-              </h3>
-              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+            <div className="py-6">
+              <div className="flex items-center mb-4">
+                <ArrowPathIcon className="h-8 w-8 animate-spin text-blue-500 mr-3"/>
+                <h3 className="text-lg font-medium text-gray-900">
+                  {uploadProgress < 50 ? 'Processing file...' : 'Uploading asset...'}
+                </h3>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
                 <div
                     className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out"
                     style={{width: `${uploadProgress}%`}}
                 ></div>
               </div>
               <p className="text-sm text-gray-500">{uploadProgress}% complete</p>
+              <p className="text-sm text-gray-500 mt-2">
+                {uploadProgress < 30 ? 'Calculating MD5 hash...' :
+                 uploadProgress < 50 ? 'Checking for duplicates...' :
+                 uploadProgress < 80 ? 'Uploading asset content...' :
+                 'Finalizing upload...'}
+              </p>
             </div>
         );
 
@@ -463,7 +506,7 @@ export default function UploadAssetDialog({
 
   return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">
               {uploadStage === 'initial' ? 'Upload Asset' :
