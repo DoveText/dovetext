@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { 
   PlusIcon, 
-  FunnelIcon,
   MagnifyingGlassIcon,
   ArrowPathIcon,
   XMarkIcon,
@@ -15,6 +14,7 @@ import TaggedListView from './TaggedListView';
 import UploadAssetDialog from './UploadAssetDialog';
 import { assetsApi, AssetDto } from '@/app/api/assets';
 import { toast } from 'react-hot-toast';
+import TaggedSelect from '@/components/common/TaggedSelect';
 
 export default function AssetsManagement() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -23,6 +23,13 @@ export default function AssetsManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'image' | 'document' | 'video' | 'audio'>('all');
+  const typeOptions = [
+    { value: 'all', label: 'All Types' },
+    { value: 'image', label: 'Images' },
+    { value: 'document', label: 'Documents' },
+    { value: 'video', label: 'Videos' },
+    { value: 'audio', label: 'Audio' },
+  ];
   const [isEditing, setIsEditing] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   
@@ -388,20 +395,14 @@ export default function AssetsManagement() {
           <div className="lg:col-span-1 bg-white rounded-lg shadow">
             <div className="p-4 border-b border-gray-200">
               <div className="mb-4">
-                <div className="flex items-center space-x-2 mb-4">
-                  <FunnelIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                  <select
-                    value={filterType}
-                    onChange={(e) => setFilterType(e.target.value as 'all' | 'image' | 'document' | 'video' | 'audio')}
-                    className="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="image">Images</option>
-                    <option value="document">Documents</option>
-                    <option value="video">Videos</option>
-                    <option value="audio">Audio</option>
-                  </select>
-                </div>
+                <div className="text-sm font-medium text-gray-700 mb-2">Filter by Category</div>
+                <TaggedSelect
+                  value={filterType}
+                  onChange={(value) => setFilterType(value as 'all' | 'image' | 'document' | 'video' | 'audio')}
+                  options={typeOptions}
+                  placeholder="Select type"
+                  className="w-full"
+                />
               </div>
               
               <div className="mb-4">
@@ -432,49 +433,23 @@ export default function AssetsManagement() {
               
               {/* Tag filter section */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Tags</label>
-                
-                {/* Selected tags */}
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {selectedTags.length > 0 ? (
-                    selectedTags.map(tag => (
-                      <span 
-                        key={tag} 
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                      >
-                        {tag}
-                        <button 
-                          type="button" 
-                          onClick={() => handleRemoveTagFilter(tag)}
-                          className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-600 focus:outline-none"
-                        >
-                          <XMarkIcon className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-gray-500">No tags selected</span>
-                  )}
-                </div>
-                
-                {/* Available tags dropdown */}
-                {availableTags.length > 0 && (
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        handleAddTagFilter(e.target.value);
-                        e.target.value = '';
-                      }
-                    }}
-                    className="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Add a tag filter...</option>
-                    {availableTags.map(tag => (
-                      <option key={tag} value={tag}>{tag}</option>
-                    ))}
-                  </select>
-                )}
+                <div className="text-sm font-medium text-gray-700 mb-2">Filter by Tags</div>
+                <TaggedSelect
+                  value={selectedTags}
+                  onChange={(value) => setSelectedTags(value as string[])}
+                  options={availableTags.map(tag => ({ value: tag, label: tag }))}
+                  placeholder="Add a tag filter..."
+                  className="w-full"
+                  multiple={true}
+                  editable={true}
+                  onCreateOption={(label) => {
+                    // Add the new tag to available tags if it doesn't exist
+                    if (!availableTags.includes(label) && !selectedTags.includes(label)) {
+                      setAvailableTags(prev => [...prev, label]);
+                      handleAddTagFilter(label);
+                    }
+                  }}
+                />
               </div>
             </div>
             
