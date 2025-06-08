@@ -106,15 +106,19 @@ export const assetsApi = {
     const queryParams = forceDuplicate ? '?forceDuplicate=true' : '';
     
     try {
-      // Create request body with MD5 and metadata
-      const requestBody = {
-        md5,
-        meta: metadata // Send as object, not stringified
-      };
+      // Create FormData with MD5 and metadata
+      const formData = new FormData();
+      formData.append('md5', md5);
+      formData.append('meta', JSON.stringify(metadata));
       
       const response = await apiClient.post<AssetDto>(
         `/api/v1/assets/uuid/${encodeURIComponent(uuid)}${queryParams}`, 
-        requestBody
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
       );
       
       return response.data;

@@ -147,10 +147,12 @@ export default function UploadAssetDialog({
         setUploadProgress(75);
         
         // Create the asset using the UUID and MD5 from verification step
+        // Pass forceDuplicate=true if it's a duplicate
         const asset = await assetsApi.createAsset(
           fileUuid!,
           md5Hash!,
-          metadata
+          metadata,
+          isDuplicate // Automatically pass true if it's a duplicate
         );
         
         // Call the onUpload callback with the asset data
@@ -338,8 +340,9 @@ export default function UploadAssetDialog({
                                 // Check for duplicates
                                 if (verifyResponse.isDuplicate && verifyResponse.duplicateInfo) {
                                   setDuplicateInfo(verifyResponse.duplicateInfo);
-                                  setUploadStage('duplicate-found');
-                                  setUploadProgress(0);
+                                  // Instead of changing stage, just set the duplicate flag
+                                  setIsDuplicate(true);
+                                  setUploadProgress(50);
                                 } else {
                                   setUploadProgress(50);
                                 }
@@ -371,6 +374,24 @@ export default function UploadAssetDialog({
                               className="bg-blue-600 h-1.5 rounded-full transition-all duration-300 ease-out" 
                               style={{width: `${uploadProgress}%`}}
                             ></div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Show duplicate warning inline */}
+                      {isDuplicate && duplicateInfo && isVerified && !isLoading && (
+                        <div className="mt-2 bg-red-50 border border-red-200 rounded-md p-3">
+                          <div className="flex items-start">
+                            <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-red-800">Duplicate asset detected</p>
+                              <p className="text-xs text-red-700 mt-1">
+                                This file already exists in your library as "{duplicateInfo.filename}" (uploaded on {duplicateInfo.uploadDate ? new Date(duplicateInfo.uploadDate).toLocaleDateString() : 'Unknown'}).
+                              </p>
+                              <p className="text-xs text-red-700 mt-1">
+                                Continuing with the upload will create a duplicate copy.
+                              </p>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -477,50 +498,7 @@ export default function UploadAssetDialog({
             </div>
         );
 
-      case 'duplicate-found':
-        return (
-            <div className="py-4">
-              <div className="flex items-center justify-center mb-4">
-                <ExclamationTriangleIcon className="h-12 w-12 text-amber-500 mr-3"/>
-                <h3 className="text-lg font-medium text-gray-900">Duplicate Asset Detected</h3>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-6">
-                <p className="text-sm text-amber-800 mb-2">
-                  An asset with the same content already exists in your library.
-                </p>
-                {duplicateInfo && (
-                    <div className="mt-2 text-sm">
-                      <p><span
-                          className="font-medium">Name:</span> {duplicateInfo.filename}
-                      </p>
-                      <p><span className="font-medium">UUID:</span> {duplicateInfo.uuid}</p>
-                      <p><span
-                          className="font-medium">Upload Date:</span> {duplicateInfo.uploadDate ? new Date(duplicateInfo.uploadDate).toLocaleDateString() : 'Unknown'}
-                      </p>
-                    </div>
-                )}
-              </div>
-
-              <div className="flex justify-end space-x-3">
-                <button
-                    type="button"
-                    onClick={handleCancelDuplicate}
-                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                >
-                  Cancel Upload
-                </button>
-                <button
-                    type="button"
-                    onClick={handleForceDuplicate}
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 flex items-center"
-                >
-                  <ArrowUpTrayIcon className="h-5 w-5 inline mr-1"/>
-                  Upload Anyway
-                </button>
-              </div>
-            </div>
-        );
+      // Removed duplicate-found case as we now handle duplicates inline
 
       case 'error':
         return (
