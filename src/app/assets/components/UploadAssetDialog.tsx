@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { 
   ArrowPathIcon, 
   ArrowUpTrayIcon, 
@@ -34,6 +34,7 @@ export default function UploadAssetDialog({
   const [urlInput, setUrlInput] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [tagsInput, setTagsInput] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [descriptionInput, setDescriptionInput] = useState('');
   
   // Upload progress state
@@ -79,6 +80,34 @@ export default function UploadAssetDialog({
     setIsVerified(true);
   };
 
+  // Effect to reset form and fetch available tags when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+      
+      // Fetch all available tags from existing assets
+      const fetchAvailableTags = async () => {
+        try {
+          const assets = await assetsApi.getAll();
+          const allTags = new Set<string>();
+          
+          // Collect all unique tags from assets
+          assets.forEach(asset => {
+            if (asset.meta.tags && Array.isArray(asset.meta.tags)) {
+              asset.meta.tags.forEach(tag => allTags.add(tag));
+            }
+          });
+          
+          setAvailableTags(Array.from(allTags));
+        } catch (error) {
+          console.error('Failed to fetch tags:', error);
+        }
+      };
+      
+      fetchAvailableTags();
+    }
+  }, [isOpen]);
+  
   // Reset form state
   const resetForm = () => {
     setUploadMethod('file');
@@ -292,15 +321,56 @@ export default function UploadAssetDialog({
                 <TaggedSelect
                   id="upload-tags"
                   value={tagsInput}
-                  onChange={(value) => setTagsInput(value as string[])}
-                  options={tagsInput.map(tag => ({ value: tag, label: tag }))} 
+                  onChange={(value) => {
+                    // Ensure no duplicates in the selected tags
+                    if (Array.isArray(value)) {
+                      // Create a case-insensitive Set to track unique tags
+                      const uniqueTags = new Set<string>();
+                      const uniqueTagsArray: string[] = [];
+                      
+                      // Process each tag to ensure uniqueness
+                      (value as string[]).forEach(tag => {
+                        const lowerTag = tag.toLowerCase();
+                        if (!uniqueTags.has(lowerTag)) {
+                          uniqueTags.add(lowerTag);
+                          uniqueTagsArray.push(tag);
+                        }
+                      });
+                      
+                      setTagsInput(uniqueTagsArray);
+                    } else if (value) {
+                      // Handle single value case (should not happen with multiple=true)
+                      setTagsInput([value as string]);
+                    } else {
+                      // Handle empty case
+                      setTagsInput([]);
+                    }
+                  }}
+                  options={availableTags.map(tag => ({ value: tag, label: tag }))} 
                   multiple={true}
                   editable={true}
                   placeholder="Type and press Enter to add tags"
                   onCreateOption={(label) => {
-                    // Add the new tag if it doesn't already exist
-                    if (!tagsInput.includes(label)) {
-                      setTagsInput([...tagsInput, label]);
+                    const normalizedLabel = label.trim();
+                    if (!normalizedLabel) return;
+                    
+                    // Check if tag already exists in selected tags
+                    if (tagsInput.some(tag => tag.toLowerCase() === normalizedLabel.toLowerCase())) {
+                      return; // Tag already selected, do nothing
+                    }
+                    
+                    // Check if tag exists in available tags but with different case
+                    const existingTag = availableTags.find(
+                      tag => tag.toLowerCase() === normalizedLabel.toLowerCase()
+                    );
+                    
+                    if (existingTag) {
+                      // Use the existing tag with its original casing
+                      setTagsInput([...tagsInput, existingTag]);
+                    } else {
+                      // Add as a new tag
+                      setTagsInput([...tagsInput, normalizedLabel]);
+                      setAvailableTags([...availableTags, normalizedLabel]);
                     }
                   }}
                 />
