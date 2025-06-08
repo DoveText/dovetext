@@ -83,7 +83,8 @@ export default function TaggedSelect<T extends string>({
       const newValue = selectedValues.filter(val => val !== optionValue) as T[];
       onChange(newValue);
     } else {
-      onChange('' as T);
+      // For single select, we don't allow clearing the selection completely
+      // Instead, we keep the current selection
     }
   };
 
@@ -134,7 +135,7 @@ export default function TaggedSelect<T extends string>({
             className="flex items-center bg-blue-100 text-blue-800 rounded-full px-2 py-0.5 m-0.5 text-sm"
           >
             <span className="mr-1">{option.label}</span>
-            {!disabled && (
+            {!disabled && multiple && (
               <button
                 type="button"
                 onClick={(e) => {

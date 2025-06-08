@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, FormEvent } from 'react';
+import React, { useState, FormEvent } from 'react';
 import { 
   ArrowPathIcon, 
   ArrowUpTrayIcon, 
@@ -10,6 +10,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { Asset } from './AssetItem';
 import { assetsApi, AssetDto } from '@/app/api/assets';
+import FileAssetUpload from './FileAssetUpload';
+import URLAssetUpload from './URLAssetUpload';
 
 interface UploadAssetDialogProps {
   isOpen: boolean;
@@ -46,8 +48,35 @@ export default function UploadAssetDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   
-  // Refs
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Handle file verification callback
+  const handleFileVerified = (data: {
+    file: File;
+    md5: string;
+    uuid: string;
+    size: number;
+    contentType: string;
+    isDuplicate: boolean;
+    duplicateInfo?: { filename: string; uploadDate: string; uuid: string };
+    filename?: string;
+  }) => {
+    setFileInput(data.file);
+    setMd5Hash(data.md5);
+    setFileUuid(data.uuid);
+    setFileSize(data.size);
+    setContentType(data.contentType);
+    setIsDuplicate(data.isDuplicate);
+    
+    if (!nameInput && data.filename) {
+      setNameInput(data.filename);
+    }
+    
+    if (data.isDuplicate && data.duplicateInfo) {
+      setDuplicateInfo(data.duplicateInfo);
+    }
+    
+    // Mark as verified
+    setIsVerified(true);
+  };
 
   // Reset form state
   const resetForm = () => {
@@ -70,24 +99,6 @@ export default function UploadAssetDialog({
     setIsVerified(false);
   };
 
-  // Check if the form is ready to submit
-  const isFormReadyToSubmit = () => {
-    if (uploadMethod === 'file') {
-      return fileInput && md5Hash && nameInput && !isLoading;
-    } else {
-      return urlInput && nameInput && !isLoading;
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setFileInput(file);
-      if (!nameInput) {
-        setNameInput(file.name);
-      }
-    }
-  };
 
   // Helper function to format file size
   const formatFileSize = (bytes: number): string => {
@@ -209,95 +220,6 @@ export default function UploadAssetDialog({
     }
   };
 
-  // Handle force upload of a duplicate asset
-  const handleForceDuplicate = async () => {
-    if (!fileInput || !md5Hash || !fileUuid) return;
-    
-    setIsLoading(true);
-    setUploadStage('uploading');
-    setUploadProgress(50);
-    
-    try {
-      // Determine asset type based on content type
-      let assetType: 'image' | 'document' | 'video' | 'audio' = 'document';
-      
-      if (contentType?.startsWith('image/')) {
-        assetType = 'image';
-      } else if (contentType?.startsWith('video/')) {
-        assetType = 'video';
-      } else if (contentType?.startsWith('audio/')) {
-        assetType = 'audio';
-      }
-      
-      // Prepare metadata for the asset
-      const metadata = {
-        filename: fileInput.name,
-        contentType: contentType || fileInput.type,
-        description: descriptionInput,
-        name: nameInput || fileInput.name,
-        type: assetType,
-        tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
-        // Include both raw size (in bytes) for backend compatibility
-        size: fileSize || fileInput.size,
-        // And formatted size for display
-        fileSize: formatFileSize(fileSize || fileInput.size),
-      };
-      
-      setUploadProgress(75);
-      
-      // Create the asset using the UUID and MD5 from verification step with force flag
-      const asset = await assetsApi.createAsset(
-        fileUuid,
-        md5Hash,
-        metadata,
-        true // Force duplicate upload
-      );
-      
-      setUploadProgress(100);
-      setUploadStage('complete');
-      
-      // Call the onUpload callback with the created asset
-      if (onUpload) {
-        // Pass the complete asset data to the parent component
-        onUpload({
-          // Include the original file for compatibility with AssetsManagement.handleUploadAsset
-          file: fileInput, 
-          // Include all the metadata from the API response
-          originalAsset: asset,
-          // Map the API response to the expected Asset format
-          id: asset.uuid,
-          name: asset.meta.filename || nameInput || fileInput.name,
-          type: assetType,
-          size: asset.meta.fileSize || formatFileSize(fileSize || fileInput.size),
-          description: asset.meta.description || descriptionInput,
-          tags: asset.meta.tags || tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
-          uploadedBy: 'You',
-          uploadDate: new Date(asset.createdAt).toLocaleDateString(),
-          url: assetsApi.getAssetContentUrl(asset.uuid)
-        });
-      }
-      
-      // Auto-close after successful upload with a short delay to show completion
-      setTimeout(() => {
-        resetForm();
-        onClose();
-      }, 1500);
-    } catch (error) {
-      console.error('Error during force upload:', error);
-      setErrorMessage('Failed to upload asset. Please try again.');
-      setUploadStage('error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle cancellation of duplicate upload
-  const handleCancelDuplicate = () => {
-    setUploadStage('initial');
-    setDuplicateInfo(null);
-    setIsDuplicate(false);
-  };
-
   if (!isOpen) return null;
 
 // Render different content based on upload stage
@@ -326,120 +248,30 @@ export default function UploadAssetDialog({
               </div>
 
               {uploadMethod === 'file' ? (
-                  <div className="mb-4">
-                    <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-1">Select File</label>
-                    <div className="flex flex-col space-y-2">
-                      <div className="flex items-center">
-                        <input
-                          type="file"
-                          id="file-upload"
-                          onChange={handleFileChange}
-                          required={uploadMethod === 'file'}
-                          className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
-                      </div>
-                      {fileInput && (
-                        <div className="flex items-center justify-between bg-gray-50 p-2 rounded-md">
-                          <span className="text-sm text-gray-700 truncate max-w-xs">{fileInput.name}</span>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (!fileInput) return;
-                              
-                              setIsLoading(true);
-                              setUploadProgress(10);
-                              
-                              try {
-                                // Verify file and calculate MD5 hash
-                                const verifyResponse = await assetsApi.verify(fileInput);
-                                
-                                // Store all the verification data
-                                setMd5Hash(verifyResponse.md5);
-                                setFileUuid(verifyResponse.uuid);
-                                setFileSize(verifyResponse.size);
-                                setContentType(verifyResponse.contentType);
-                                setIsDuplicate(verifyResponse.isDuplicate);
-                                
-                                if (!nameInput && verifyResponse.filename) {
-                                  setNameInput(verifyResponse.filename);
-                                }
-                                
-                                setUploadProgress(40);
-                                
-                                // Check for duplicates
-                                if (verifyResponse.isDuplicate && verifyResponse.duplicateInfo) {
-                                  setDuplicateInfo(verifyResponse.duplicateInfo);
-                                  // Instead of changing stage, just set the duplicate flag
-                                  setIsDuplicate(true);
-                                  setUploadProgress(50);
-                                } else {
-                                  setUploadProgress(50);
-                                }
-                                
-                                // Mark as verified
-                                setIsVerified(true);
-                              } catch (error) {
-                                console.error('Error during file validation:', error);
-                                setErrorMessage('Failed to validate file. Please try again.');
-                                setUploadStage('error');
-                              } finally {
-                                setIsLoading(false);
-                              }
-                            }}
-                            disabled={isLoading}
-                            className="px-3 py-1 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 flex items-center"
-                          >
-                            {isLoading ? <ArrowPathIcon className="h-4 w-4 animate-spin mr-1"/> : 'Upload'}
-                          </button>
-                        </div>
-                      )}
-                      {isLoading && uploadProgress > 0 && uploadProgress < 50 && (
-                        <div className="mt-2">
-                          <div className="text-xs text-gray-500 mb-1">
-                            {uploadProgress < 30 ? 'Calculating MD5 hash...' : 'Checking for duplicates...'}
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5">
-                            <div 
-                              className="bg-blue-600 h-1.5 rounded-full transition-all duration-300 ease-out" 
-                              style={{width: `${uploadProgress}%`}}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Show duplicate warning inline */}
-                      {isDuplicate && duplicateInfo && isVerified && !isLoading && (
-                        <div className="mt-2 bg-red-50 border border-red-200 rounded-md p-3">
-                          <div className="flex items-start">
-                            <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium text-red-800">Duplicate asset detected</p>
-                              <p className="text-xs text-red-700 mt-1">
-                                This file already exists in your library as "{duplicateInfo.filename}" (uploaded on {duplicateInfo.uploadDate ? new Date(duplicateInfo.uploadDate).toLocaleDateString() : 'Unknown'}).
-                              </p>
-                              <p className="text-xs text-red-700 mt-1">
-                                Continuing with the upload will create a duplicate copy.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                <FileAssetUpload
+                  onFileVerified={handleFileVerified}
+                  isLoading={isLoading}
+                  setIsLoading={setIsLoading}
+                  uploadProgress={uploadProgress}
+                  setUploadProgress={setUploadProgress}
+                  nameInput={nameInput}
+                  setNameInput={setNameInput}
+                  errorMessage={errorMessage}
+                  setErrorMessage={setErrorMessage}
+                />
               ) : (
-                  <div className="mb-4">
-                    <label htmlFor="url-upload" className="block text-sm font-medium text-gray-700 mb-1">Asset
-                      URL</label>
-                    <input
-                        type="url"
-                        id="url-upload"
-                        value={urlInput}
-                        onChange={(e) => setUrlInput(e.target.value)}
-                        placeholder="https://example.com/asset.jpg"
-                        required={uploadMethod === 'url'}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    />
-                  </div>
+                <URLAssetUpload
+                  urlInput={urlInput}
+                  setUrlInput={setUrlInput}
+                  isLoading={isLoading}
+                  setIsLoading={setIsLoading}
+                  uploadProgress={uploadProgress}
+                  setUploadProgress={setUploadProgress}
+                  nameInput={nameInput}
+                  setNameInput={setNameInput}
+                  errorMessage={errorMessage}
+                  setErrorMessage={setErrorMessage}
+                />
               )}
 
               <div className="mb-4">
@@ -454,18 +286,6 @@ export default function UploadAssetDialog({
                 />
               </div>
 
-              <div className="mb-4">
-                <label htmlFor="upload-description" className="block text-sm font-medium text-gray-700 mb-1">Description
-                  (Optional)</label>
-                <textarea
-                    id="upload-description"
-                    value={descriptionInput}
-                    onChange={(e) => setDescriptionInput(e.target.value)}
-                    rows={3}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                ></textarea>
-              </div>
-
               <div className="mb-6">
                 <label htmlFor="upload-tags" className="block text-sm font-medium text-gray-700 mb-1">Tags
                   (comma-separated)</label>
@@ -476,6 +296,18 @@ export default function UploadAssetDialog({
                     onChange={(e) => setTagsInput(e.target.value)}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="upload-description" className="block text-sm font-medium text-gray-700 mb-1">Description
+                  (Optional)</label>
+                <textarea
+                    id="upload-description"
+                    value={descriptionInput}
+                    onChange={(e) => setDescriptionInput(e.target.value)}
+                    rows={3}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                ></textarea>
               </div>
 
               <div className="flex justify-end space-x-3">
