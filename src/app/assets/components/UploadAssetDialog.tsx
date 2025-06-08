@@ -141,91 +141,128 @@ export default function UploadAssetDialog({
     setIsVerified(false);
   };
 
-
   // Helper function to format file size
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     
-    if (uploadStage === 'uploading') {
-      return; // Prevent multiple submissions
-    }
+    if (isLoading) return;
     
-    // Validate required fields
+    // Basic validation
     if (!nameInput.trim()) {
-      setErrorMessage('Please provide a name for the asset.');
-      setUploadStage('error');
+      setErrorMessage('Please provide a name for the asset');
       return;
     }
     
-    try {
+    // For file uploads, we need a verified file (only if not in edit mode)
+    if (uploadMethod === 'file' && !isVerified && !editMode) {
+      setErrorMessage('Please select and verify a file first');
+      return;
+    }
+    
+    // For URL uploads, we need a URL (only if not in edit mode)
+    if (uploadMethod === 'url' && !urlInput.trim() && !editMode) {
+      setErrorMessage('Please enter a valid URL');
+      return;
+    }
+    
+    setIsLoading(true);
+    let progressInterval: NodeJS.Timeout | undefined;
+    
+    // Only show upload progress if not in edit mode
+    if (!editMode) {
       setUploadStage('uploading');
-      setIsLoading(true);
+      setUploadProgress(0);
       
-      // Start progress simulation
-      let progress = 0;
-      const progressInterval = setInterval(() => {
-        progress += Math.random() * 10;
-        if (progress > 95) {
-          progress = 95; // Cap at 95% until actual completion
+      // Simulate upload progress
+      progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          const newProgress = prev + Math.floor(Math.random() * 10);
+          return newProgress > 90 ? 90 : newProgress;
+        });
+      }, 300);
+    }
+    
+    // Prepare asset data
+    const assetData: Partial<Asset> = {
+      name: nameInput.trim(),
+      description: descriptionInput.trim(),
+      tags: tagsInput,
+    };
+    
+    // Add file or URL based on upload method (only if not in edit mode)
+    if (uploadMethod === 'file' && fileInput && !editMode) {
+      assetData.file = fileInput;
+    } else if (uploadMethod === 'url' && urlInput && !editMode) {
+      assetData.url = urlInput.trim();
+    }
+    
+    // If we're in edit mode and have an asset to edit, include the ID
+    if (editMode && assetToEdit) {
+      assetData.id = assetToEdit.id;
+    }
+    
+    // Call the onUpload callback
+    onUpload(assetData, md5Hash || undefined, isDuplicate)
+      .then(() => {
+        if (!editMode && progressInterval) {
+          // Only clear interval if we're not in edit mode
+          clearInterval(progressInterval);
+          setUploadProgress(100);
+          setUploadStage('complete');
+        } else {
+          // In edit mode, just close the dialog on success
+          onClose();
+        }
+        // Don't reset form here as we show a success message first
+      })
+      .catch(error => {
+        if (!editMode && progressInterval) {
+          // Only clear interval if we're not in edit mode
           clearInterval(progressInterval);
         }
-        setUploadProgress(Math.min(Math.round(progress), 95));
-      }, 500);
-      
-      // Prepare asset data
-      const assetData: Partial<Asset> = {
-        name: nameInput.trim(),
-        description: descriptionInput.trim(),
-        tags: tagsInput.map(tag => tag.trim())
-      };
-      
-      // If in edit mode and we have an asset to edit, add the id
-      if (editMode && assetToEdit) {
-        assetData.id = assetToEdit.id;
-        assetData.type = assetToEdit.type;
-        assetData.url = assetToEdit.url;
-        assetData.size = assetToEdit.size;
-        assetData.uploadedBy = assetToEdit.uploadedBy;
-        assetData.uploadDate = assetToEdit.uploadDate;
-        assetData.originalAsset = assetToEdit.originalAsset;
         
-        // Call onUpload with the updated asset data
-        await onUpload(assetData);
-      } else if (uploadMethod === 'file' && fileInput && md5Hash) {
-        // Use file upload method
-        await onUpload(assetData, md5Hash, isDuplicate);
-      } else if (uploadMethod === 'url' && urlInput) {
-        // Use URL upload method
-        assetData.url = urlInput.trim();
-        await onUpload(assetData);
-      } else {
-        throw new Error('Invalid upload method or missing required data');
-      }
-      
-      // Complete upload
-      setUploadProgress(100);
-      setUploadStage('complete');
-      
-      // Auto-close after successful upload with a short delay to show completion
-      setTimeout(() => {
-        resetForm();
-        onClose();
-      }, 1500);
-    } catch (error) {
-      console.error('Upload error:', error);
-      setErrorMessage('Failed to upload asset. Please try again.');
-      setUploadStage('error');
-    } finally {
-      setIsLoading(false);
-    }
+        // Extract more detailed error information
+        let errorMsg = 'Failed to update asset';
+        
+        if (error.response) {
+          // Server responded with an error status
+          const status = error.response.status;
+          errorMsg = `Server error (${status}): `;
+          
+          if (status === 500) {
+            errorMsg += 'Internal server error. Please try again later.';
+          } else if (status === 400) {
+            errorMsg += 'Invalid data provided.';
+          } else if (status === 401 || status === 403) {
+            errorMsg += 'Not authorized to perform this action.';
+          } else if (status === 404) {
+            errorMsg += 'Asset not found.';
+          } else {
+            errorMsg += error.response.data?.message || 'Unknown error';
+          }
+        } else if (error.request) {
+          // Request was made but no response received
+          errorMsg = 'No response from server. Please check your network connection.';
+        } else if (error.message) {
+          // Error setting up the request
+          errorMsg = error.message;
+        }
+        
+        console.error('Asset update error:', error);
+        setErrorMessage(errorMsg);
+        setUploadStage('error');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   };
 
   if (!isOpen) return null;
@@ -256,31 +293,34 @@ export default function UploadAssetDialog({
               </div>
             )}
             
-            {uploadMethod === 'file' ? (
-              <FileAssetUpload
-                onFileVerified={handleFileVerified}
-                isLoading={isLoading}
-                setIsLoading={setIsLoading}
-                uploadProgress={uploadProgress}
-                setUploadProgress={setUploadProgress}
-                nameInput={nameInput}
-                setNameInput={setNameInput}
-                errorMessage={errorMessage}
-                setErrorMessage={setErrorMessage}
-              />
-            ) : (
-              <URLAssetUpload
-                urlInput={urlInput}
-                setUrlInput={setUrlInput}
-                isLoading={isLoading}
-                setIsLoading={setIsLoading}
-                uploadProgress={uploadProgress}
-                setUploadProgress={setUploadProgress}
-                nameInput={nameInput}
-                setNameInput={setNameInput}
-                errorMessage={errorMessage}
-                setErrorMessage={setErrorMessage}
-              />
+            {/* Hide file selection section when in edit mode */}
+            {!editMode && (
+              uploadMethod === 'file' ? (
+                <FileAssetUpload
+                  onFileVerified={handleFileVerified}
+                  isLoading={isLoading}
+                  setIsLoading={setIsLoading}
+                  uploadProgress={uploadProgress}
+                  setUploadProgress={setUploadProgress}
+                  nameInput={nameInput}
+                  setNameInput={setNameInput}
+                  errorMessage={errorMessage}
+                  setErrorMessage={setErrorMessage}
+                />
+              ) : (
+                <URLAssetUpload
+                  urlInput={urlInput}
+                  setUrlInput={setUrlInput}
+                  isLoading={isLoading}
+                  setIsLoading={setIsLoading}
+                  uploadProgress={uploadProgress}
+                  setUploadProgress={setUploadProgress}
+                  nameInput={nameInput}
+                  setNameInput={setNameInput}
+                  errorMessage={errorMessage}
+                  setErrorMessage={setErrorMessage}
+                />
+              )
             )}
             
             <div className="mb-4">
@@ -421,9 +461,9 @@ export default function UploadAssetDialog({
         return (
             <div className="text-center py-6">
               <XMarkIcon className="h-12 w-12 mx-auto text-red-500 mb-4"/>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Failed</h3>
-              <p className="text-sm text-gray-500 mb-6">{errorMessage || 'An error occurred during upload. Please try again.'}</p>
-              <div className="flex justify-center">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{editMode ? 'Update Failed' : 'Upload Failed'}</h3>
+              <p className="text-sm text-gray-500 mb-6">{errorMessage || 'An error occurred. Please try again.'}</p>
+              <div className="flex justify-center space-x-4">
                 <button
                     type="button"
                     onClick={() => {
@@ -433,14 +473,26 @@ export default function UploadAssetDialog({
                       setIsVerified(false);
                       setIsDuplicate(false);
                       setDuplicateInfo(null);
-                      setMd5Hash('');
-                      setFileUuid('');
-                      setUploadProgress(0);
+                      if (!editMode) {
+                        setMd5Hash('');
+                        setFileUuid('');
+                        setUploadProgress(0);
+                      }
                       // Don't reset the file input or other form fields
                     }}
                     className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   Try Again
+                </button>
+                <button
+                    type="button"
+                    onClick={() => {
+                      resetForm();
+                      onClose();
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Cancel
                 </button>
               </div>
             </div>
