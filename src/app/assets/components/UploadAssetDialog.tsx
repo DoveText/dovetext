@@ -141,6 +141,9 @@ export default function UploadAssetDialog({
           name: nameInput,
           type: assetType,
           tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
+          // Include both raw size (in bytes) for backend compatibility
+          size: fileSize || fileInput!.size,
+          // And formatted size for display
           fileSize: formatFileSize(fileSize || fileInput!.size),
         };
         
@@ -148,43 +151,54 @@ export default function UploadAssetDialog({
         
         // Create the asset using the UUID and MD5 from verification step
         // Pass forceDuplicate=true if it's a duplicate
-        const asset = await assetsApi.createAsset(
+        const createdAsset = await assetsApi.createAsset(
           fileUuid!,
           md5Hash!,
           metadata,
           isDuplicate // Automatically pass true if it's a duplicate
         );
         
-        // Call the onUpload callback with the asset data
-        const assetData: Partial<Asset> = {
-          id: asset.id,
-          uuid: asset.uuid,
-          name: nameInput,
-          description: descriptionInput,
-          type: assetType,
-          tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
-          fileSize: formatFileSize(fileSize || fileInput!.size),
-          fileType: contentType || fileInput!.type,
-          fileName: fileInput!.name,
-        };
-        
-        await onUpload(assetData);
         
         setUploadProgress(100);
         setUploadStage('complete');
+        
+        // Call the onUpload callback with the created asset
+        if (onUpload) {
+          // Pass the complete asset data to the parent component
+          onUpload({
+            // Include the original file for compatibility with AssetsManagement.handleUploadAsset
+            file: fileInput!, // Non-null assertion is safe here because we've verified file exists
+            // Include all the metadata from the API response
+            originalAsset: createdAsset,
+            // Map the API response to the expected Asset format
+            id: createdAsset.uuid,
+            name: createdAsset.meta.filename || metadata.name,
+            type: assetType,
+            size: createdAsset.meta.fileSize || formatFileSize(fileSize || fileInput!.size),
+            description: createdAsset.meta.description || descriptionInput,
+            tags: createdAsset.meta.tags || [],
+            uploadedBy: 'You',
+            uploadDate: new Date(createdAsset.createdAt).toLocaleDateString(),
+            url: assetsApi.getAssetContentUrl(createdAsset.uuid)
+          });
+        }
+        
+        // Auto-close after successful upload with a short delay to show completion
+        setTimeout(() => {
+          resetForm();
+          onClose();
+        }, 1500);
       } else if (uploadMethod === 'url') {
         // URL upload logic here (if implemented)
         setUploadProgress(100);
         setUploadStage('complete');
+        
+        // Auto-close after successful upload
+        setTimeout(() => {
+          resetForm();
+          onClose();
+        }, 1500);
       }
-      setUploadProgress(100);
-      setUploadStage('complete');
-      resetForm();
-      
-      // Auto-close after successful upload
-      setTimeout(() => {
-        onClose();
-      }, 2000);
       
     } catch (error) {
       console.error('Upload error:', error);
@@ -223,7 +237,10 @@ export default function UploadAssetDialog({
         name: nameInput || fileInput.name,
         type: assetType,
         tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
-        fileSize: fileSize || fileInput.size,
+        // Include both raw size (in bytes) for backend compatibility
+        size: fileSize || fileInput.size,
+        // And formatted size for display
+        fileSize: formatFileSize(fileSize || fileInput.size),
       };
       
       setUploadProgress(75);
@@ -236,23 +253,35 @@ export default function UploadAssetDialog({
         true // Force duplicate upload
       );
       
-      // Call the onUpload callback with the asset data
-      const assetData: Partial<Asset> = {
-        id: asset.id,
-        uuid: asset.uuid,
-        name: nameInput || fileInput.name,
-        description: descriptionInput,
-        type: assetType,
-        tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
-        fileSize: fileSize || fileInput.size,
-        fileType: contentType || fileInput.type,
-        fileName: fileInput.name,
-      };
-      
-      await onUpload(assetData);
-      
       setUploadProgress(100);
       setUploadStage('complete');
+      
+      // Call the onUpload callback with the created asset
+      if (onUpload) {
+        // Pass the complete asset data to the parent component
+        onUpload({
+          // Include the original file for compatibility with AssetsManagement.handleUploadAsset
+          file: fileInput, 
+          // Include all the metadata from the API response
+          originalAsset: asset,
+          // Map the API response to the expected Asset format
+          id: asset.uuid,
+          name: asset.meta.filename || nameInput || fileInput.name,
+          type: assetType,
+          size: asset.meta.fileSize || formatFileSize(fileSize || fileInput.size),
+          description: asset.meta.description || descriptionInput,
+          tags: asset.meta.tags || tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
+          uploadedBy: 'You',
+          uploadDate: new Date(asset.createdAt).toLocaleDateString(),
+          url: assetsApi.getAssetContentUrl(asset.uuid)
+        });
+      }
+      
+      // Auto-close after successful upload with a short delay to show completion
+      setTimeout(() => {
+        resetForm();
+        onClose();
+      }, 1500);
     } catch (error) {
       console.error('Error during force upload:', error);
       setErrorMessage('Failed to upload asset. Please try again.');
@@ -510,8 +539,16 @@ export default function UploadAssetDialog({
                 <button
                     type="button"
                     onClick={() => {
+                      // Reset all verification and error states
                       setUploadStage('initial');
                       setErrorMessage(null);
+                      setIsVerified(false);
+                      setIsDuplicate(false);
+                      setDuplicateInfo(null);
+                      setMd5Hash('');
+                      setFileUuid('');
+                      setUploadProgress(0);
+                      // Don't reset the file input or other form fields
                     }}
                     className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >

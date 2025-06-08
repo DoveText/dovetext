@@ -136,8 +136,34 @@ export default function AssetsManagement() {
     try {
       setIsLoading(true);
       
-      // Handle file upload
-      if (assetData.file) {
+      // If we have a complete asset from the two-step upload process
+      if (assetData.originalAsset && assetData.id) {
+        // Asset has already been uploaded via the two-step process
+        // Just add it to our local state
+        const newAsset: Asset = {
+          id: assetData.id,
+          name: assetData.name || '',
+          type: assetData.type || 'other',
+          size: assetData.size || '',
+          uploadedBy: 'You',
+          uploadDate: assetData.uploadDate || new Date().toLocaleDateString(),
+          description: assetData.description || '',
+          tags: assetData.tags || [],
+          url: assetData.url || '',
+          originalAsset: assetData.originalAsset
+        };
+        
+        // Add to assets array
+        setAssets(prevAssets => [newAsset, ...prevAssets]);
+        
+        // Select the new asset
+        setSelectedAsset(newAsset);
+        toast.success('Asset uploaded successfully');
+      }
+      // Legacy file upload path - should not be used anymore
+      else if (assetData.file) {
+        console.warn('Legacy upload path used - this should be updated to use the two-step process');
+        
         // Create metadata object
         const metadata = {
           filename: assetData.name || assetData.file.name,
@@ -147,7 +173,7 @@ export default function AssetsManagement() {
           tags: assetData.tags || []
         };
         
-        // Upload the file with metadata
+        // This API method doesn't exist anymore - this is just kept for backward compatibility
         const uploadedAsset = await assetsApi.uploadAsset(assetData.file, metadata);
         
         // Convert API asset to our Asset format
