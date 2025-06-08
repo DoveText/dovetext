@@ -6,6 +6,7 @@ import {
   FunnelIcon,
   MagnifyingGlassIcon,
   ArrowPathIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { Asset } from './AssetItem';
 import AssetItem from './AssetItem';
@@ -21,9 +22,13 @@ export default function AssetsManagement() {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
+  const [filterType, setFilterType] = useState<'all' | 'image' | 'document' | 'video' | 'audio'>('all');
   const [isEditing, setIsEditing] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  
+  // Tag filtering
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
 
   // Load assets on component mount
   useEffect(() => {
@@ -94,7 +99,24 @@ export default function AssetsManagement() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Filter assets when search query or filter type changes
+  // Extract all unique tags from assets
+  useEffect(() => {
+    const allTags = new Set<string>();
+    assets.forEach(asset => {
+      if (asset.tags && asset.tags.length > 0) {
+        asset.tags.forEach(tag => allTags.add(tag));
+      }
+    });
+    
+    // Filter out tags that are already selected
+    const availableTagsList = Array.from(allTags).filter(
+      tag => !selectedTags.includes(tag)
+    ).sort();
+    
+    setAvailableTags(availableTagsList);
+  }, [assets, selectedTags]);
+
+  // Filter assets when search query, filter type, or selected tags change
   useEffect(() => {
     let result = [...assets];
     
@@ -108,18 +130,37 @@ export default function AssetsManagement() {
       const query = searchQuery.toLowerCase();
       result = result.filter(asset => 
         asset.name.toLowerCase().includes(query) || 
-        asset.description?.toLowerCase().includes(query) || 
-        asset.tags?.some(tag => tag.toLowerCase().includes(query))
+        (asset.description && asset.description.toLowerCase().includes(query)) ||
+        (asset.tags && asset.tags.some(tag => tag.toLowerCase().includes(query)))
+      );
+    }
+    
+    // Apply tag filters
+    if (selectedTags.length > 0) {
+      result = result.filter(asset => 
+        asset.tags && selectedTags.every(tag => asset.tags.includes(tag))
       );
     }
     
     setFilteredAssets(result);
-  }, [assets, searchQuery, filterType]);
+  }, [assets, searchQuery, filterType, selectedTags]);
 
   // Handle asset selection
   const handleAssetSelect = (assetToSelect: Asset) => {
     setSelectedAsset(assetToSelect);
     setIsEditing(false);
+  };
+  
+  // Handle tag selection for filtering
+  const handleAddTagFilter = (tag: string) => {
+    if (!selectedTags.includes(tag)) {
+      setSelectedTags([...selectedTags, tag]);
+    }
+  };
+  
+  // Handle tag removal from filter
+  const handleRemoveTagFilter = (tagToRemove: string) => {
+    setSelectedTags(selectedTags.filter(tag => tag !== tagToRemove));
   };
 
   // Handle upload dialog
@@ -143,7 +184,7 @@ export default function AssetsManagement() {
         const newAsset: Asset = {
           id: assetData.id,
           name: assetData.name || '',
-          type: assetData.type || 'other',
+          type: assetData.type || 'document',
           size: assetData.size || '',
           uploadedBy: 'You',
           uploadDate: assetData.uploadDate || new Date().toLocaleDateString(),
@@ -347,7 +388,7 @@ export default function AssetsManagement() {
           <div className="lg:col-span-1 bg-white rounded-lg shadow">
             <div className="p-4 border-b border-gray-200">
               <div className="mb-4">
-                <div className="relative rounded-md shadow-sm">
+                <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
                   </div>
@@ -355,18 +396,18 @@ export default function AssetsManagement() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Search assets..."
                   />
                 </div>
               </div>
               
-              <div className="flex items-center space-x-2">
-                <FunnelIcon className="h-5 w-5 text-gray-400" />
+              <div className="flex items-center space-x-2 mb-4">
+                <FunnelIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
                 <select
                   value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                  onChange={(e) => setFilterType(e.target.value as 'all' | 'image' | 'document' | 'video' | 'audio')}
+                  className="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="all">All Types</option>
                   <option value="image">Images</option>
@@ -374,6 +415,53 @@ export default function AssetsManagement() {
                   <option value="video">Videos</option>
                   <option value="audio">Audio</option>
                 </select>
+              </div>
+              
+              {/* Tag filter section */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Tags</label>
+                
+                {/* Selected tags */}
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {selectedTags.length > 0 ? (
+                    selectedTags.map(tag => (
+                      <span 
+                        key={tag} 
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                      >
+                        {tag}
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveTagFilter(tag)}
+                          className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-600 focus:outline-none"
+                        >
+                          <XMarkIcon className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-gray-500">No tags selected</span>
+                  )}
+                </div>
+                
+                {/* Available tags dropdown */}
+                {availableTags.length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleAddTagFilter(e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
+                    className="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Add a tag filter...</option>
+                    {availableTags.map(tag => (
+                      <option key={tag} value={tag}>{tag}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
             
@@ -386,7 +474,12 @@ export default function AssetsManagement() {
                 items={filteredAssets}
                 onItemSelect={handleAssetSelect}
                 selectedItem={selectedAsset}
-                renderItemContent={(asset) => <AssetItem asset={asset} />}
+                renderItemContent={(asset) => (
+                  <AssetItem 
+                    asset={asset} 
+                    onTagClick={handleAddTagFilter} 
+                  />
+                )}
                 emptyMessage="No assets found. Try adjusting your filters or upload a new asset."
                 className="h-[calc(100vh-300px)]"
               />
