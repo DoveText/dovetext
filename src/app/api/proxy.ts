@@ -50,9 +50,29 @@ export const createAuthenticatedBlobUrl = async (assetId: string): Promise<strin
  */
 export const revokeBlobUrls = (): void => {
   blobUrlCache.forEach((url) => {
-    URL.revokeObjectURL(url);
+    try {
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error revoking blob URL:', error);
+    }
   });
   blobUrlCache.clear();
+};
+
+/**
+ * Revokes a specific blob URL from the cache
+ * @param assetId The asset ID whose blob URL should be revoked
+ */
+export const revokeBlobUrl = (assetId: string): void => {
+  const url = blobUrlCache.get(assetId);
+  if (url) {
+    try {
+      URL.revokeObjectURL(url);
+      blobUrlCache.delete(assetId);
+    } catch (error) {
+      console.error(`Error revoking blob URL for asset ${assetId}:`, error);
+    }
+  }
 };
 
 /**

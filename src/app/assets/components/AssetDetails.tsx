@@ -46,6 +46,7 @@ export default function AssetDetails({
     const loadImage = async () => {
       if (asset && asset.type === 'image') {
         try {
+          // Use the cached blob URL if available, don't revoke it
           const blobUrl = await createAuthenticatedBlobUrl(asset.id);
           if (isMounted) {
             setImageBlobUrl(blobUrl);
@@ -60,13 +61,10 @@ export default function AssetDetails({
     
     loadImage();
     
-    // Cleanup function to revoke blob URLs and prevent memory leaks
+    // Only set isMounted to false, don't revoke URLs here
+    // This prevents the URL from being revoked while still in the cache
     return () => {
       isMounted = false;
-      // Only revoke the current blob URL if we're unmounting or changing assets
-      if (imageBlobUrl) {
-        URL.revokeObjectURL(imageBlobUrl);
-      }
     };
   }, [asset]);  
   
