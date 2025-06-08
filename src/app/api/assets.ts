@@ -72,6 +72,50 @@ export const assetsApi = {
     
     return data;
   },
+
+  /**
+   * Verify a URL asset without saving it permanently
+   * @param url The URL to verify
+   * @returns The verification result including MD5, UUID, and duplicate information
+   */
+  verifyUrl: async (url: string): Promise<{ 
+    md5: string; 
+    uuid: string;
+    filename: string;
+    size: number;
+    contentType: string;
+    url: string;
+    isDuplicate: boolean; 
+    duplicateInfo?: {
+      filename: string;
+      uploadDate: string;
+      uuid: string;
+    } 
+  }> => {
+    const formData = new FormData();
+    formData.append('url', url);
+    
+    const { data } = await apiClient.post<{
+      md5: string;
+      uuid: string;
+      filename: string;
+      size: number;
+      contentType: string;
+      url: string;
+      isDuplicate: boolean;
+      duplicateInfo?: {
+        filename: string;
+        uploadDate: string;
+        uuid: string;
+      }
+    }>('/api/v1/assets/verify-url', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    return data;
+  },
   
   /**
    * Get all assets for the current user

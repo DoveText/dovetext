@@ -13,6 +13,7 @@ import { assetsApi, AssetDto } from '@/app/api/assets';
 import FileAssetUpload from './FileAssetUpload';
 import URLAssetUpload from './URLAssetUpload';
 import TaggedSelect, { TaggedSelectOption } from '@/components/common/TaggedSelect';
+import { AssetType, verifyUrlAsset } from '@/utils/assetTypeDetection';
 
 interface UploadAssetDialogProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export default function UploadAssetDialog({
   const [tagsInput, setTagsInput] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [descriptionInput, setDescriptionInput] = useState('');
+  const [assetType, setAssetType] = useState<AssetType>('unknown');
   
   // Upload progress state
   const [uploadStage, setUploadStage] = useState<UploadStage>('initial');
@@ -139,6 +141,7 @@ export default function UploadAssetDialog({
     setErrorMessage(null);
     setIsLoading(false);
     setIsVerified(false);
+    setAssetType('unknown');
   };
 
   // Helper function to format file size
@@ -150,7 +153,7 @@ export default function UploadAssetDialog({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
     if (isLoading) return;
@@ -167,9 +170,15 @@ export default function UploadAssetDialog({
       return;
     }
     
-    // For URL uploads, we need a URL (only if not in edit mode)
+    // For URL uploads, we need a URL and asset type (only if not in edit mode)
     if (uploadMethod === 'url' && !urlInput.trim() && !editMode) {
       setErrorMessage('Please enter a valid URL');
+      return;
+    }
+    
+    // Make sure we have a valid asset type for URL uploads
+    if (uploadMethod === 'url' && assetType === 'unknown' && !editMode) {
+      setErrorMessage('Please select an asset type');
       return;
     }
     
@@ -197,16 +206,59 @@ export default function UploadAssetDialog({
       tags: tagsInput,
     };
     
-    // Add file or URL based on upload method (only if not in edit mode)
-    if (uploadMethod === 'file' && fileInput && !editMode) {
-      assetData.file = fileInput;
-    } else if (uploadMethod === 'url' && urlInput && !editMode) {
-      assetData.url = urlInput.trim();
-    }
-    
-    // If we're in edit mode and have an asset to edit, include the ID
-    if (editMode && assetToEdit) {
-      assetData.id = assetToEdit.id;
+    try {
+      // Add file or URL based on upload method (only if not in edit mode)
+      if (uploadMethod === 'file' && fileInput && !editMode) {
+        assetData.file = fileInput;
+      } else if (uploadMethod === 'url' && urlInput && !editMode) {
+        // For URL assets, verify the URL and get metadata
+        if (!md5Hash || !fileUuid) {
+          // If we don't have md5 and uuid yet, verify the URL
+          const verification = await verifyUrlAsset(urlInput.trim());
+          
+          // Set verification data
+          setMd5Hash(verification.md5);
+          setFileUuid(verification.uuid);
+          setIsDuplicate(verification.isDuplicate);
+          
+          if (verification.isDuplicate && verification.duplicateInfo) {
+            setDuplicateInfo(verification.duplicateInfo);
+            setUploadStage('duplicate-found');
+            setIsLoading(false);
+            if (progressInterval) clearInterval(progressInterval);
+            return; // Stop here and let user decide what to do with duplicate
+          }
+          
+          // Store the URL as metadata
+          assetData.metadata = {
+            externalUrl: urlInput.trim(),
+            assetType: verification.assetType,
+            contentType: verification.contentType,
+            md5: verification.md5,
+            uuid: verification.uuid
+          };
+        } else {
+          // We already have verification data
+          assetData.metadata = {
+            externalUrl: urlInput.trim(),
+            assetType: assetType,
+            md5: md5Hash,
+            uuid: fileUuid
+          };
+        }
+      }
+      
+      // If we're in edit mode and have an asset to edit, include the ID
+      if (editMode && assetToEdit) {
+        assetData.id = assetToEdit.id;
+      }
+    } catch (error) {
+      console.error('Error preparing asset data:', error);
+      setErrorMessage('Failed to prepare asset data. Please try again.');
+      setUploadStage('error');
+      setIsLoading(false);
+      if (progressInterval) clearInterval(progressInterval);
+      return;
     }
     
     // Call the onUpload callback
@@ -319,6 +371,13 @@ export default function UploadAssetDialog({
                   setNameInput={setNameInput}
                   errorMessage={errorMessage}
                   setErrorMessage={setErrorMessage}
+                  assetType={assetType}
+                  setAssetType={setAssetType}
+                  setMd5Hash={setMd5Hash}
+                  setFileUuid={setFileUuid}
+                  setIsDuplicate={setIsDuplicate}
+                  setDuplicateInfo={setDuplicateInfo}
+                  setIsVerified={setIsVerified}
                 />
               )
             )}

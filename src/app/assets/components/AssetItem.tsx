@@ -26,6 +26,11 @@ export interface Asset {
   description?: string;
   file?: File;  // For file uploads
   originalAsset?: AssetDto; // Original asset data from API
+  metadata?: {
+    externalUrl?: string; // For URL-based assets that don't upload the actual file
+    assetType?: string;   // Type of asset detected or selected by user
+    [key: string]: any;   // Allow for additional metadata properties
+  };
 }
 
 // Helper function to get icon based on asset type
