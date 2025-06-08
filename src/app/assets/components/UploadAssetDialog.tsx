@@ -269,7 +269,7 @@ export default function UploadAssetDialog({
                               
                               try {
                                 // Calculate MD5 hash
-                                const md5Response = await assetsApi.calculateMd5(fileInput);
+                                const md5Response = await assetsApi.verify(fileInput);
                                 setMd5Hash(md5Response.md5);
                                 setUploadProgress(40);
                                 
