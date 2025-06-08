@@ -39,21 +39,6 @@ export default function TaggedListView<T extends TaggedItem>({
               }`}
             >
               {renderItemContent(item)}
-              
-              {/* Tags section */}
-              {item.tags && item.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  <TagIcon className="h-4 w-4 text-gray-400 mr-1" />
-                  {item.tags.map((tag) => (
-                    <span 
-                      key={tag} 
-                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
             </li>
           ))}
         </ul>

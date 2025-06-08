@@ -388,6 +388,24 @@ export default function AssetsManagement() {
           <div className="lg:col-span-1 bg-white rounded-lg shadow">
             <div className="p-4 border-b border-gray-200">
               <div className="mb-4">
+                <div className="flex items-center space-x-2 mb-4">
+                  <FunnelIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value as 'all' | 'image' | 'document' | 'video' | 'audio')}
+                    className="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="image">Images</option>
+                    <option value="document">Documents</option>
+                    <option value="video">Videos</option>
+                    <option value="audio">Audio</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <div className="text-sm font-medium text-gray-700 mb-2">Search by information</div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
@@ -396,25 +414,20 @@ export default function AssetsManagement() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Search assets..."
                   />
+                  {searchQuery && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <button 
+                        onClick={() => setSearchQuery('')}
+                        className="text-gray-400 hover:text-gray-500"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-              
-              <div className="flex items-center space-x-2 mb-4">
-                <FunnelIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value as 'all' | 'image' | 'document' | 'video' | 'audio')}
-                  className="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="all">All Types</option>
-                  <option value="image">Images</option>
-                  <option value="document">Documents</option>
-                  <option value="video">Videos</option>
-                  <option value="audio">Audio</option>
-                </select>
               </div>
               
               {/* Tag filter section */}
