@@ -12,6 +12,7 @@ import { Asset } from './AssetItem';
 import { assetsApi, AssetDto } from '@/app/api/assets';
 import FileAssetUpload from './FileAssetUpload';
 import URLAssetUpload from './URLAssetUpload';
+import TaggedSelect, { TaggedSelectOption } from '@/components/common/TaggedSelect';
 
 interface UploadAssetDialogProps {
   isOpen: boolean;
@@ -32,8 +33,8 @@ export default function UploadAssetDialog({
   const [fileInput, setFileInput] = useState<File | null>(null);
   const [urlInput, setUrlInput] = useState('');
   const [nameInput, setNameInput] = useState('');
+  const [tagsInput, setTagsInput] = useState<string[]>([]);
   const [descriptionInput, setDescriptionInput] = useState('');
-  const [tagsInput, setTagsInput] = useState('');
   
   // Upload progress state
   const [uploadStage, setUploadStage] = useState<UploadStage>('initial');
@@ -84,8 +85,8 @@ export default function UploadAssetDialog({
     setFileInput(null);
     setUrlInput('');
     setNameInput('');
+    setTagsInput([]);
     setDescriptionInput('');
-    setTagsInput('');
     setUploadStage('initial');
     setUploadProgress(0);
     setMd5Hash(null);
@@ -151,7 +152,7 @@ export default function UploadAssetDialog({
           description: descriptionInput,
           name: nameInput,
           type: assetType,
-          tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
+          tags: tagsInput,
           // Include both raw size (in bytes) for backend compatibility
           size: fileSize || fileInput!.size,
           // And formatted size for display
@@ -187,7 +188,7 @@ export default function UploadAssetDialog({
             type: assetType,
             size: createdAsset.meta.fileSize || formatFileSize(fileSize || fileInput!.size),
             description: createdAsset.meta.description || descriptionInput,
-            tags: createdAsset.meta.tags || [],
+            tags: createdAsset.meta.tags || tagsInput,
             uploadedBy: 'You',
             uploadDate: new Date(createdAsset.createdAt).toLocaleDateString(),
             url: assetsApi.getAssetContentUrl(createdAsset.uuid)
@@ -287,14 +288,21 @@ export default function UploadAssetDialog({
               </div>
 
               <div className="mb-6">
-                <label htmlFor="upload-tags" className="block text-sm font-medium text-gray-700 mb-1">Tags
-                  (comma-separated)</label>
-                <input
-                    type="text"
-                    id="upload-tags"
-                    value={tagsInput}
-                    onChange={(e) => setTagsInput(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                <label htmlFor="upload-tags" className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                <TaggedSelect
+                  id="upload-tags"
+                  value={tagsInput}
+                  onChange={(value) => setTagsInput(value as string[])}
+                  options={tagsInput.map(tag => ({ value: tag, label: tag }))} 
+                  multiple={true}
+                  editable={true}
+                  placeholder="Type and press Enter to add tags"
+                  onCreateOption={(label) => {
+                    // Add the new tag if it doesn't already exist
+                    if (!tagsInput.includes(label)) {
+                      setTagsInput([...tagsInput, label]);
+                    }
+                  }}
                 />
               </div>
 
