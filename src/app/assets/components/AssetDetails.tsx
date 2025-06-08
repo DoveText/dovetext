@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { 
   TagIcon,
@@ -11,6 +11,7 @@ import {
   CheckIcon
 } from '@heroicons/react/24/outline';
 import { Asset, getAssetIcon } from './AssetItem';
+import { createAuthenticatedBlobUrl, revokeBlobUrls } from '@/app/api/proxy';
 
 interface AssetDetailsProps {
   asset: Asset | null;
@@ -35,6 +36,7 @@ export default function AssetDetails({
 }: AssetDetailsProps) {
   const [editedAsset, setEditedAsset] = useState<Asset | null>(null);
   const [newTag, setNewTag] = useState('');
+  const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
   
   // Initialize edited asset when entering edit mode
   React.useEffect(() => {
@@ -44,6 +46,44 @@ export default function AssetDetails({
       setEditedAsset(null);
     }
   }, [isEditing, asset]);
+  
+  // Load authenticated image when asset changes
+  useEffect(() => {
+    let isMounted = true;
+    
+    const loadImage = async () => {
+      if (asset && asset.type === 'image') {
+        try {
+          const blobUrl = await createAuthenticatedBlobUrl(asset.id);
+          if (isMounted) {
+            setImageBlobUrl(blobUrl);
+          }
+        } catch (error) {
+          console.error('Error loading image:', error);
+        }
+      } else {
+        setImageBlobUrl(null);
+      }
+    };
+    
+    loadImage();
+    
+    // Cleanup function to revoke blob URLs and prevent memory leaks
+    return () => {
+      isMounted = false;
+      // Only revoke the current blob URL if we're unmounting or changing assets
+      if (imageBlobUrl) {
+        URL.revokeObjectURL(imageBlobUrl);
+      }
+    };
+  }, [asset]);  
+  
+  // Cleanup all blob URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      revokeBlobUrls();
+    };
+  }, []);
   
   // Handle input changes in edit mode
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -124,15 +164,14 @@ export default function AssetDetails({
       
       {/* Asset preview */}
       <div className="mb-6 flex justify-center">
-        {asset.type === 'image' && asset.url ? (
+        {asset.type === 'image' && imageBlobUrl ? (
           <div className="relative h-48 w-full max-w-md">
             <Image
-              src={asset.url}
+              src={imageBlobUrl}
               alt={asset.name}
               fill
               sizes="(max-width: 768px) 100vw, 400px"
               style={{ objectFit: 'contain' }}
-              className="rounded"
             />
           </div>
         ) : (
