@@ -37,9 +37,14 @@ export default function UploadAssetDialog({
   const [uploadStage, setUploadStage] = useState<UploadStage>('initial');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [md5Hash, setMd5Hash] = useState<string | null>(null);
-  const [duplicateAsset, setDuplicateAsset] = useState<AssetDto | null>(null);
+  const [fileUuid, setFileUuid] = useState<string | null>(null);
+  const [fileSize, setFileSize] = useState<number | null>(null);
+  const [contentType, setContentType] = useState<string | null>(null);
+  const [duplicateInfo, setDuplicateInfo] = useState<{ filename: string; uploadDate: string; uuid: string } | null>(null);
+  const [isDuplicate, setIsDuplicate] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
   
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,9 +60,14 @@ export default function UploadAssetDialog({
     setUploadStage('initial');
     setUploadProgress(0);
     setMd5Hash(null);
-    setDuplicateAsset(null);
+    setFileUuid(null);
+    setFileSize(null);
+    setContentType(null);
+    setDuplicateInfo(null);
+    setIsDuplicate(false);
     setErrorMessage(null);
     setIsLoading(false);
+    setIsVerified(false);
   };
 
   // Check if the form is ready to submit
@@ -99,54 +109,72 @@ export default function UploadAssetDialog({
       return;
     }
     
+    // Check if file has been verified
+    if (uploadMethod === 'file' && (!isVerified || !fileUuid || !md5Hash)) {
+      setErrorMessage('Please verify the file first before uploading.');
+      setUploadStage('error');
+      return;
+    }
+    
     setIsLoading(true);
     setUploadStage('uploading');
-    setUploadProgress(50); // Start at 50% since validation is already done
+    setUploadProgress(50); // Start at 50% since verification is already done
     
     try {
       if (uploadMethod === 'file') {
-        // MD5 hash and duplicate check should already be done at this point
-        if (!md5Hash) {
-          throw new Error('File validation not completed. Please validate the file first.');
-        }
-        
-        // Determine asset type based on file extension
-        const fileExt = fileInput!.name.split('.').pop()?.toLowerCase();
+        // Determine asset type based on content type
         let assetType: 'image' | 'document' | 'video' | 'audio' = 'document';
         
-        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt || '')) {
+        if (contentType?.startsWith('image/')) {
           assetType = 'image';
-        } else if (['mp4', 'webm', 'mov'].includes(fileExt || '')) {
+        } else if (contentType?.startsWith('video/')) {
           assetType = 'video';
-        } else if (['mp3', 'wav', 'ogg'].includes(fileExt || '')) {
+        } else if (contentType?.startsWith('audio/')) {
           assetType = 'audio';
         }
         
+        // Prepare metadata for the asset
+        const metadata = {
+          filename: fileInput!.name,
+          contentType: contentType || fileInput!.type,
+          description: descriptionInput,
+          name: nameInput,
+          type: assetType,
+          tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
+          fileSize: formatFileSize(fileSize || fileInput!.size),
+        };
+        
+        setUploadProgress(75);
+        
+        // Create the asset using the UUID and MD5 from verification step
+        const asset = await assetsApi.createAsset(
+          fileUuid!,
+          md5Hash!,
+          metadata
+        );
+        
+        // Call the onUpload callback with the asset data
         const assetData: Partial<Asset> = {
+          id: asset.id,
+          uuid: asset.uuid,
           name: nameInput,
           description: descriptionInput,
           type: assetType,
-          size: formatFileSize(fileInput!.size),
-          tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag),
-        };
-        
-        // Upload the asset with MD5 hash
-        setUploadProgress(70);
-        await onUpload(assetData, md5Hash);
-      } else {
-        // Handle URL upload
-        // For URL uploads, we don't do MD5 calculation or duplicate checking
-        const assetData: Partial<Asset> = {
-          name: nameInput,
-          description: descriptionInput,
-          type: 'document', // Default type for URL uploads
-          url: urlInput,
-          tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag),
+          tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
+          fileSize: formatFileSize(fileSize || fileInput!.size),
+          fileType: contentType || fileInput!.type,
+          fileName: fileInput!.name,
         };
         
         await onUpload(assetData);
+        
+        setUploadProgress(100);
+        setUploadStage('complete');
+      } else if (uploadMethod === 'url') {
+        // URL upload logic here (if implemented)
+        setUploadProgress(100);
+        setUploadStage('complete');
       }
-      
       setUploadProgress(100);
       setUploadStage('complete');
       resetForm();
@@ -167,53 +195,76 @@ export default function UploadAssetDialog({
 
   // Handle force upload of a duplicate asset
   const handleForceDuplicate = async () => {
-    if (!md5Hash || !fileInput) return;
-
+    if (!fileInput || !md5Hash || !fileUuid) return;
+    
     setIsLoading(true);
     setUploadStage('uploading');
-    setUploadProgress(70);
-
+    setUploadProgress(50);
+    
     try {
-      // Determine asset type based on file extension
-      const fileExt = fileInput.name.split('.').pop()?.toLowerCase();
+      // Determine asset type based on content type
       let assetType: 'image' | 'document' | 'video' | 'audio' = 'document';
-
-      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt || '')) {
+      
+      if (contentType?.startsWith('image/')) {
         assetType = 'image';
-      } else if (['mp4', 'webm', 'mov'].includes(fileExt || '')) {
+      } else if (contentType?.startsWith('video/')) {
         assetType = 'video';
-      } else if (['mp3', 'wav', 'ogg'].includes(fileExt || '')) {
+      } else if (contentType?.startsWith('audio/')) {
         assetType = 'audio';
       }
-
+      
+      // Prepare metadata for the asset
+      const metadata = {
+        filename: fileInput.name,
+        contentType: contentType || fileInput.type,
+        description: descriptionInput,
+        name: nameInput || fileInput.name,
+        type: assetType,
+        tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
+        fileSize: fileSize || fileInput.size,
+      };
+      
+      setUploadProgress(75);
+      
+      // Create the asset using the UUID and MD5 from verification step with force flag
+      const asset = await assetsApi.createAsset(
+        fileUuid,
+        md5Hash,
+        metadata,
+        true // Force duplicate upload
+      );
+      
+      // Call the onUpload callback with the asset data
       const assetData: Partial<Asset> = {
-        name: nameInput,
+        id: asset.id,
+        uuid: asset.uuid,
+        name: nameInput || fileInput.name,
         description: descriptionInput,
         type: assetType,
-        size: formatFileSize(fileInput.size),
-        tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag),
+        tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
+        fileSize: fileSize || fileInput.size,
+        fileType: contentType || fileInput.type,
+        fileName: fileInput.name,
       };
-
-      await onUpload(assetData, md5Hash, true); // Force duplicate upload
+      
+      await onUpload(assetData);
+      
       setUploadProgress(100);
       setUploadStage('complete');
-      resetForm();
-      onClose();
     } catch (error) {
-      console.error('Error forcing duplicate upload:', error);
-      setErrorMessage('Failed to upload duplicate file. Please try again.');
+      console.error('Error during force upload:', error);
+      setErrorMessage('Failed to upload asset. Please try again.');
       setUploadStage('error');
     } finally {
       setIsLoading(false);
     }
   };
-
-// Handle cancellation of duplicate upload
+  
+  // Handle cancellation of duplicate upload
   const handleCancelDuplicate = () => {
     setUploadStage('initial');
-    setUploadProgress(0);
-    setMd5Hash(null);
-    setDuplicateAsset(null);
+    setDuplicateInfo(null);
+    setIsDuplicate(false);
   };
 
   if (!isOpen) return null;
@@ -268,19 +319,33 @@ export default function UploadAssetDialog({
                               setUploadProgress(10);
                               
                               try {
-                                // Calculate MD5 hash
-                                const md5Response = await assetsApi.verify(fileInput);
-                                setMd5Hash(md5Response.md5);
+                                // Verify file and calculate MD5 hash
+                                const verifyResponse = await assetsApi.verify(fileInput);
+                                
+                                // Store all the verification data
+                                setMd5Hash(verifyResponse.md5);
+                                setFileUuid(verifyResponse.uuid);
+                                setFileSize(verifyResponse.size);
+                                setContentType(verifyResponse.contentType);
+                                setIsDuplicate(verifyResponse.isDuplicate);
+                                
+                                if (!nameInput && verifyResponse.filename) {
+                                  setNameInput(verifyResponse.filename);
+                                }
+                                
                                 setUploadProgress(40);
                                 
                                 // Check for duplicates
-                                if (md5Response.isDuplicate && md5Response.duplicateAsset) {
-                                  setDuplicateAsset(md5Response.duplicateAsset);
+                                if (verifyResponse.isDuplicate && verifyResponse.duplicateInfo) {
+                                  setDuplicateInfo(verifyResponse.duplicateInfo);
                                   setUploadStage('duplicate-found');
                                   setUploadProgress(0);
                                 } else {
                                   setUploadProgress(50);
                                 }
+                                
+                                // Mark as verified
+                                setIsVerified(true);
                               } catch (error) {
                                 console.error('Error during file validation:', error);
                                 setErrorMessage('Failed to validate file. Please try again.');
@@ -424,14 +489,14 @@ export default function UploadAssetDialog({
                 <p className="text-sm text-amber-800 mb-2">
                   An asset with the same content already exists in your library.
                 </p>
-                {duplicateAsset && (
+                {duplicateInfo && (
                     <div className="mt-2 text-sm">
                       <p><span
-                          className="font-medium">Name:</span> {duplicateAsset.meta?.filename || duplicateAsset.uuid}
+                          className="font-medium">Name:</span> {duplicateInfo.filename}
                       </p>
-                      <p><span className="font-medium">Type:</span> {duplicateAsset.meta?.contentType || 'Unknown'}</p>
+                      <p><span className="font-medium">UUID:</span> {duplicateInfo.uuid}</p>
                       <p><span
-                          className="font-medium">Upload Date:</span> {duplicateAsset.createdAt ? new Date(duplicateAsset.createdAt).toLocaleDateString() : 'Unknown'}
+                          className="font-medium">Upload Date:</span> {duplicateInfo.uploadDate ? new Date(duplicateInfo.uploadDate).toLocaleDateString() : 'Unknown'}
                       </p>
                     </div>
                 )}
