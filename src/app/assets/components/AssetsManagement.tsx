@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   PlusIcon, 
   MagnifyingGlassIcon,
@@ -32,6 +32,7 @@ export default function AssetsManagement() {
   ];
   const [isEditing, setIsEditing] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   
   // Tag filtering
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -123,34 +124,36 @@ export default function AssetsManagement() {
     setAvailableTags(availableTagsList);
   }, [assets, selectedTags]);
 
-  // Filter assets when search query, filter type, or selected tags change
+  // Filter assets based on selected tags and search query
   useEffect(() => {
     let result = [...assets];
     
-    // Apply type filter
+    // Apply tag filtering
+    if (selectedTags.length > 0) {
+      result = result.filter(asset => 
+        selectedTags.every(tag => getAssetTags(asset).includes(tag))
+      );
+    }
+    
+    // Apply search filtering
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(asset => 
+        asset.name.toLowerCase().includes(query) ||
+        (asset.description?.toLowerCase().includes(query) || false) ||
+        getAssetTags(asset).some(tag => tag.toLowerCase().includes(query))
+      );
+    }
+    
+    // Apply type filtering
     if (filterType !== 'all') {
       result = result.filter(asset => asset.type === filterType);
     }
     
-    // Apply search query filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(asset => 
-        asset.name.toLowerCase().includes(query) || 
-        (asset.description && asset.description.toLowerCase().includes(query)) ||
-        (asset.tags && asset.tags.some(tag => tag.toLowerCase().includes(query)))
-      );
-    }
-    
-    // Apply tag filters
-    if (selectedTags.length > 0) {
-      result = result.filter(asset => 
-        asset.tags && selectedTags.every(tag => asset.tags.includes(tag))
-      );
-    }
-    
     setFilteredAssets(result);
   }, [assets, searchQuery, filterType, selectedTags]);
+
+  // This is a duplicate, we can remove it as we already have filteredAssets
 
   // Handle asset selection
   const handleAssetSelect = (assetToSelect: Asset) => {
@@ -159,12 +162,21 @@ export default function AssetsManagement() {
   };
   
   // Handle tag selection for filtering
-  const handleAddTagFilter = (tag: string) => {
-    if (!selectedTags.includes(tag)) {
+  const handleFilterByTag = (tag: string) => {
+    // If tag is already selected, remove it
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(selectedTags.filter(t => t !== tag));
+    } else {
+      // Otherwise, add it to the selection
       setSelectedTags([...selectedTags, tag]);
     }
   };
   
+  // Ensure we have a safe access to asset.tags
+  const getAssetTags = (asset: Asset): string[] => {
+    return asset.tags || [];
+  };
+
   // Handle tag removal from filter
   const handleRemoveTagFilter = (tagToRemove: string) => {
     setSelectedTags(selectedTags.filter(tag => tag !== tagToRemove));
@@ -180,79 +192,41 @@ export default function AssetsManagement() {
   };
 
   // Handle asset upload
-  const handleUploadAsset = async (assetData: Partial<Asset>) => {
+  const handleUploadAsset = async (assetData: any) => {
     try {
       setIsLoading(true);
       
-      // If we have a complete asset from the two-step upload process
-      if (assetData.originalAsset && assetData.id) {
-        // Asset has already been uploaded via the two-step process
-        // Just add it to our local state
-        const newAsset: Asset = {
-          id: assetData.id,
-          name: assetData.name || '',
-          type: assetData.type || 'document',
-          size: assetData.size || '',
-          uploadedBy: 'You',
-          uploadDate: assetData.uploadDate || new Date().toLocaleDateString(),
-          description: assetData.description || '',
-          tags: assetData.tags || [],
-          url: assetData.url || '',
-          originalAsset: assetData.originalAsset
-        };
-        
-        // Add to assets array
-        setAssets(prevAssets => [newAsset, ...prevAssets]);
-        
-        // Select the new asset
-        setSelectedAsset(newAsset);
-        toast.success('Asset uploaded successfully');
-      }
-      // Legacy file upload path - should not be used anymore
-      else if (assetData.file) {
-        console.warn('Legacy upload path used - this should be updated to use the two-step process');
-        
-        // Create metadata object
-        const metadata = {
-          filename: assetData.name || assetData.file.name,
-          contentType: assetData.file.type,
-          description: assetData.description || '',
-          size: assetData.file.size,
-          tags: assetData.tags || []
-        };
-        
-        // This API method doesn't exist anymore - this is just kept for backward compatibility
-        const uploadedAsset = await assetsApi.uploadAsset(assetData.file, metadata);
-        
-        // Convert API asset to our Asset format
-        const newAsset: Asset = {
-          id: uploadedAsset.uuid,
-          name: metadata.filename,
-          type: getAssetType(metadata.contentType),
-          size: formatFileSize(metadata.size),
-          uploadedBy: 'You',
-          uploadDate: new Date(uploadedAsset.createdAt).toLocaleDateString(),
-          description: metadata.description,
-          tags: metadata.tags,
-          url: assetsApi.getAssetContentUrl(uploadedAsset.uuid),
-          originalAsset: uploadedAsset
-        };
-        
-        // Add to assets array
-        setAssets(prevAssets => [newAsset, ...prevAssets]);
-        
-        // Select the new asset
-        setSelectedAsset(newAsset);
-        toast.success('Asset uploaded successfully');
-      } else if (assetData.url) {
-        // Handle URL-based asset (would need backend support)
-        toast.error('URL-based uploads not implemented yet');
-      }
+      // Upload the asset using the correct API method
+      const uploadedAsset = await assetsApi.createAsset(
+        assetData.file,
+        assetData.md5,
+        {
+          filename: assetData.name,
+          description: assetData.description,
+          tags: assetData.tags
+        },
+        assetData.forceDuplicate
+      );
+      
+      // Add the new asset to the assets list
+      const newAsset: Asset = {
+        id: uploadedAsset.uuid,
+        name: uploadedAsset.meta?.filename || '',
+        description: assetData.description || '',
+        tags: assetData.tags || [],
+        type: getAssetType(uploadedAsset.meta?.contentType || ''),
+        size: formatFileSize(uploadedAsset.meta?.size || 0),
+        uploadedBy: 'You',
+        uploadDate: new Date().toISOString(),
+        originalAsset: uploadedAsset
+      };
+      
+      setAssets(prevAssets => [newAsset, ...prevAssets]);
+      setShowUploadDialog(false);
+      toast.success('Asset uploaded successfully');
     } catch (error) {
       console.error('Failed to upload asset:', error);
       toast.error('Failed to upload asset');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -315,33 +289,45 @@ export default function AssetsManagement() {
 
   // Handle asset editing
   const handleStartEditing = () => {
-    setIsEditing(true);
+    setShowEditDialog(true);
   };
 
-  const handleSaveEdits = async (updatedAsset: Asset) => {
+  const handleSaveEdits = async (updatedAsset: Partial<Asset>, md5?: string, forceDuplicate?: boolean) => {
+    if (!selectedAsset) return;
+    
     try {
-      // Extract metadata from the updated asset
-      const metadata = {
+      // Update the asset metadata via API
+      const updatedMeta = {
         filename: updatedAsset.name,
         description: updatedAsset.description,
         tags: updatedAsset.tags || [],
-        // Preserve other metadata from the original asset
-        ...(selectedAsset?.originalAsset?.meta || {})
+        // Preserve other metadata
+        ...(selectedAsset.originalAsset?.meta || {})
       };
       
-      // Call API to update the asset
-      await assetsApi.updateAsset(updatedAsset.id, { meta: metadata });
+      await assetsApi.updateAsset(selectedAsset.id, { meta: updatedMeta });
       
-      // Update the asset in the assets array
-      setAssets(prevAssets => 
-        prevAssets.map(asset => 
-          asset.id === updatedAsset.id ? updatedAsset : asset
-        )
-      );
+      // Update the local asset state
+      const updatedAssets = assets.map(asset => {
+        if (asset.id === selectedAsset.id) {
+          return {
+            ...asset,
+            name: updatedAsset.name || asset.name,
+            description: updatedAsset.description || asset.description,
+            tags: updatedAsset.tags || asset.tags,
+            // Update the original asset metadata too
+            originalAsset: {
+              ...asset.originalAsset!,
+              meta: updatedMeta
+            }
+          };
+        }
+        return asset;
+      });
       
-      // Update the selected asset and exit edit mode
-      setSelectedAsset(updatedAsset);
-      setIsEditing(false);
+      setAssets(updatedAssets);
+      setSelectedAsset(updatedAssets.find(a => a.id === selectedAsset.id) || null);
+      setShowEditDialog(false);
       toast.success('Asset updated successfully');
     } catch (error) {
       console.error('Failed to update asset:', error);
@@ -350,7 +336,7 @@ export default function AssetsManagement() {
   };
 
   const handleCancelEditing = () => {
-    setIsEditing(false);
+    setShowEditDialog(false);
   };
 
   // Handle asset deletion
@@ -446,7 +432,7 @@ export default function AssetsManagement() {
                     // Add the new tag to available tags if it doesn't exist
                     if (!availableTags.includes(label) && !selectedTags.includes(label)) {
                       setAvailableTags(prev => [...prev, label]);
-                      handleAddTagFilter(label);
+                      handleFilterByTag(label);
                     }
                   }}
                 />
@@ -462,10 +448,10 @@ export default function AssetsManagement() {
                 items={filteredAssets}
                 onItemSelect={handleAssetSelect}
                 selectedItem={selectedAsset}
-                renderItemContent={(asset) => (
+                renderItemContent={(asset: Asset) => (
                   <AssetItem 
                     asset={asset} 
-                    onTagClick={handleAddTagFilter} 
+                    onTagClick={handleFilterByTag} 
                   />
                 )}
                 emptyMessage="No assets found. Try adjusting your filters or upload a new asset."
@@ -495,6 +481,17 @@ export default function AssetsManagement() {
             isOpen={showUploadDialog}
             onClose={handleCloseUploadDialog}
             onUpload={handleUploadAsset}
+          />
+        )}
+        
+        {/* Edit dialog */}
+        {showEditDialog && selectedAsset && (
+          <UploadAssetDialog
+            isOpen={showEditDialog}
+            onClose={handleCancelEditing}
+            onUpload={handleSaveEdits}
+            editMode={true}
+            assetToEdit={selectedAsset}
           />
         )}
       </div>

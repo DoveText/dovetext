@@ -18,6 +18,8 @@ interface UploadAssetDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onUpload: (assetData: Partial<Asset>, md5?: string, forceDuplicate?: boolean) => Promise<void>;
+  editMode?: boolean;
+  assetToEdit?: Asset | null;
 }
 
 // Define upload stages
@@ -26,7 +28,9 @@ type UploadStage = 'initial' | 'uploading' | 'duplicate-found' | 'complete' | 'e
 export default function UploadAssetDialog({
   isOpen,
   onClose,
-  onUpload
+  onUpload,
+  editMode = false,
+  assetToEdit = null
 }: UploadAssetDialogProps) {
   // Basic form state
   const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
@@ -83,7 +87,15 @@ export default function UploadAssetDialog({
   // Effect to reset form and fetch available tags when dialog opens
   useEffect(() => {
     if (isOpen) {
-      resetForm();
+      // If in edit mode and we have an asset to edit, populate the form
+      if (editMode && assetToEdit) {
+        setNameInput(assetToEdit.name || '');
+        setTagsInput(assetToEdit.tags || []);
+        setDescriptionInput(assetToEdit.description || '');
+        setIsVerified(true); // Skip verification for edit mode
+      } else {
+        resetForm();
+      }
       
       // Fetch all available tags from existing assets
       const fetchAvailableTags = async () => {
@@ -142,105 +154,71 @@ export default function UploadAssetDialog({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
-    if (uploadMethod === 'file' && !fileInput) {
-      return;
+    if (uploadStage === 'uploading') {
+      return; // Prevent multiple submissions
     }
     
-    if (uploadMethod === 'url' && !urlInput) {
-      return;
-    }
-    
-    // Check if file has been verified
-    if (uploadMethod === 'file' && (!isVerified || !fileUuid || !md5Hash)) {
-      setErrorMessage('Please verify the file first before uploading.');
+    // Validate required fields
+    if (!nameInput.trim()) {
+      setErrorMessage('Please provide a name for the asset.');
       setUploadStage('error');
       return;
     }
     
-    setIsLoading(true);
-    setUploadStage('uploading');
-    setUploadProgress(50); // Start at 50% since verification is already done
-    
     try {
-      if (uploadMethod === 'file') {
-        // Determine asset type based on content type
-        let assetType: 'image' | 'document' | 'video' | 'audio' = 'document';
-        
-        if (contentType?.startsWith('image/')) {
-          assetType = 'image';
-        } else if (contentType?.startsWith('video/')) {
-          assetType = 'video';
-        } else if (contentType?.startsWith('audio/')) {
-          assetType = 'audio';
+      setUploadStage('uploading');
+      setIsLoading(true);
+      
+      // Start progress simulation
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += Math.random() * 10;
+        if (progress > 95) {
+          progress = 95; // Cap at 95% until actual completion
+          clearInterval(progressInterval);
         }
+        setUploadProgress(Math.min(Math.round(progress), 95));
+      }, 500);
+      
+      // Prepare asset data
+      const assetData: Partial<Asset> = {
+        name: nameInput.trim(),
+        description: descriptionInput.trim(),
+        tags: tagsInput.map(tag => tag.trim())
+      };
+      
+      // If in edit mode and we have an asset to edit, add the id
+      if (editMode && assetToEdit) {
+        assetData.id = assetToEdit.id;
+        assetData.type = assetToEdit.type;
+        assetData.url = assetToEdit.url;
+        assetData.size = assetToEdit.size;
+        assetData.uploadedBy = assetToEdit.uploadedBy;
+        assetData.uploadDate = assetToEdit.uploadDate;
+        assetData.originalAsset = assetToEdit.originalAsset;
         
-        // Prepare metadata for the asset
-        const metadata = {
-          filename: fileInput!.name,
-          contentType: contentType || fileInput!.type,
-          description: descriptionInput,
-          name: nameInput,
-          type: assetType,
-          tags: tagsInput,
-          // Include both raw size (in bytes) for backend compatibility
-          size: fileSize || fileInput!.size,
-          // And formatted size for display
-          fileSize: formatFileSize(fileSize || fileInput!.size),
-        };
-        
-        setUploadProgress(75);
-        
-        // Create the asset using the UUID and MD5 from verification step
-        // Pass forceDuplicate=true if it's a duplicate
-        const createdAsset = await assetsApi.createAsset(
-          fileUuid!,
-          md5Hash!,
-          metadata,
-          isDuplicate // Automatically pass true if it's a duplicate
-        );
-        
-        
-        setUploadProgress(100);
-        setUploadStage('complete');
-        
-        // Call the onUpload callback with the created asset
-        if (onUpload) {
-          // Pass the complete asset data to the parent component
-          onUpload({
-            // Include the original file for compatibility with AssetsManagement.handleUploadAsset
-            file: fileInput!, // Non-null assertion is safe here because we've verified file exists
-            // Include all the metadata from the API response
-            originalAsset: createdAsset,
-            // Map the API response to the expected Asset format
-            id: createdAsset.uuid,
-            name: createdAsset.meta.filename || metadata.name,
-            type: assetType,
-            size: createdAsset.meta.fileSize || formatFileSize(fileSize || fileInput!.size),
-            description: createdAsset.meta.description || descriptionInput,
-            tags: createdAsset.meta.tags || tagsInput,
-            uploadedBy: 'You',
-            uploadDate: new Date(createdAsset.createdAt).toLocaleDateString(),
-            url: assetsApi.getAssetContentUrl(createdAsset.uuid)
-          });
-        }
-        
-        // Auto-close after successful upload with a short delay to show completion
-        setTimeout(() => {
-          resetForm();
-          onClose();
-        }, 1500);
-      } else if (uploadMethod === 'url') {
-        // URL upload logic here (if implemented)
-        setUploadProgress(100);
-        setUploadStage('complete');
-        
-        // Auto-close after successful upload
-        setTimeout(() => {
-          resetForm();
-          onClose();
-        }, 1500);
+        // Call onUpload with the updated asset data
+        await onUpload(assetData);
+      } else if (uploadMethod === 'file' && fileInput && md5Hash) {
+        // Use file upload method
+        await onUpload(assetData, md5Hash, isDuplicate);
+      } else if (uploadMethod === 'url' && urlInput) {
+        // Use URL upload method
+        assetData.url = urlInput.trim();
+        await onUpload(assetData);
+      } else {
+        throw new Error('Invalid upload method or missing required data');
       }
       
+      // Complete upload
+      setUploadProgress(100);
+      setUploadStage('complete');
+      
+      // Auto-close after successful upload with a short delay to show completion
+      setTimeout(() => {
+        resetForm();
+        onClose();
+      }, 1500);
     } catch (error) {
       console.error('Upload error:', error);
       setErrorMessage('Failed to upload asset. Please try again.');
@@ -252,164 +230,164 @@ export default function UploadAssetDialog({
 
   if (!isOpen) return null;
 
-// Render different content based on upload stage
+  // Render different content based on upload stage
   const renderContent = () => {
     switch (uploadStage) {
       case 'initial':
         return (
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <div className="flex space-x-4 mb-4">
-                  <button
-                      type="button"
-                      onClick={() => setUploadMethod('file')}
-                      className={`px-4 py-2 rounded-md ${uploadMethod === 'file' ? 'bg-blue-100 text-blue-700 font-medium' : 'bg-gray-100 text-gray-700'}`}
-                  >
-                    Upload File
-                  </button>
-                  <button
-                      type="button"
-                      onClick={() => setUploadMethod('url')}
-                      className={`px-4 py-2 rounded-md ${uploadMethod === 'url' ? 'bg-blue-100 text-blue-700 font-medium' : 'bg-gray-100 text-gray-700'}`}
-                  >
-                    From URL
-                  </button>
-                </div>
-              </div>
-
-              {uploadMethod === 'file' ? (
-                <FileAssetUpload
-                  onFileVerified={handleFileVerified}
-                  isLoading={isLoading}
-                  setIsLoading={setIsLoading}
-                  uploadProgress={uploadProgress}
-                  setUploadProgress={setUploadProgress}
-                  nameInput={nameInput}
-                  setNameInput={setNameInput}
-                  errorMessage={errorMessage}
-                  setErrorMessage={setErrorMessage}
-                />
-              ) : (
-                <URLAssetUpload
-                  urlInput={urlInput}
-                  setUrlInput={setUrlInput}
-                  isLoading={isLoading}
-                  setIsLoading={setIsLoading}
-                  uploadProgress={uploadProgress}
-                  setUploadProgress={setUploadProgress}
-                  nameInput={nameInput}
-                  setNameInput={setNameInput}
-                  errorMessage={errorMessage}
-                  setErrorMessage={setErrorMessage}
-                />
-              )}
-
-              <div className="mb-4">
-                <label htmlFor="upload-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input
-                    type="text"
-                    id="upload-name"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    required
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-
-              <div className="mb-6">
-                <label htmlFor="upload-tags" className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
-                <TaggedSelect
-                  id="upload-tags"
-                  value={tagsInput}
-                  onChange={(value) => {
-                    // Ensure no duplicates in the selected tags
-                    if (Array.isArray(value)) {
-                      // Create a case-insensitive Set to track unique tags
-                      const uniqueTags = new Set<string>();
-                      const uniqueTagsArray: string[] = [];
-                      
-                      // Process each tag to ensure uniqueness
-                      (value as string[]).forEach(tag => {
-                        const lowerTag = tag.toLowerCase();
-                        if (!uniqueTags.has(lowerTag)) {
-                          uniqueTags.add(lowerTag);
-                          uniqueTagsArray.push(tag);
-                        }
-                      });
-                      
-                      setTagsInput(uniqueTagsArray);
-                    } else if (value) {
-                      // Handle single value case (should not happen with multiple=true)
-                      setTagsInput([value as string]);
-                    } else {
-                      // Handle empty case
-                      setTagsInput([]);
-                    }
-                  }}
-                  options={availableTags.map(tag => ({ value: tag, label: tag }))} 
-                  multiple={true}
-                  editable={true}
-                  placeholder="Type and press Enter to add tags"
-                  onCreateOption={(label) => {
-                    const normalizedLabel = label.trim();
-                    if (!normalizedLabel) return;
-                    
-                    // Check if tag already exists in selected tags
-                    if (tagsInput.some(tag => tag.toLowerCase() === normalizedLabel.toLowerCase())) {
-                      return; // Tag already selected, do nothing
-                    }
-                    
-                    // Check if tag exists in available tags but with different case
-                    const existingTag = availableTags.find(
-                      tag => tag.toLowerCase() === normalizedLabel.toLowerCase()
-                    );
-                    
-                    if (existingTag) {
-                      // Use the existing tag with its original casing
-                      setTagsInput([...tagsInput, existingTag]);
-                    } else {
-                      // Add as a new tag
-                      setTagsInput([...tagsInput, normalizedLabel]);
-                      setAvailableTags([...availableTags, normalizedLabel]);
-                    }
-                  }}
-                />
-              </div>
-
-              <div className="mb-4">
-                <label htmlFor="upload-description" className="block text-sm font-medium text-gray-700 mb-1">Description
-                  (Optional)</label>
-                <textarea
-                    id="upload-description"
-                    value={descriptionInput}
-                    onChange={(e) => setDescriptionInput(e.target.value)}
-                    rows={3}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                ></textarea>
-              </div>
-
-              <div className="flex justify-end space-x-3">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Upload method tabs - only show if not in edit mode */}
+            {!editMode && (
+              <div className="flex border-b border-gray-200">
                 <button
-                    type="button"
-                    onClick={() => {
-                      resetForm();
-                      onClose();
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                  type="button"
+                  className={`py-2 px-4 text-center ${uploadMethod === 'file' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  onClick={() => setUploadMethod('file')}
                 >
-                  Cancel
+                  Upload File
                 </button>
                 <button
-                    type="submit"
-                    disabled={isLoading || (uploadMethod === 'file' && (!isVerified || !fileUuid || !md5Hash))}
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
+                  type="button"
+                  className={`py-2 px-4 text-center ${uploadMethod === 'url' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  onClick={() => setUploadMethod('url')}
                 >
-                  {isLoading ? <ArrowPathIcon className="h-4 w-4 animate-spin mr-2"/> :
-                      <ArrowUpTrayIcon className="h-5 w-5 inline mr-1"/>}
-                  {isLoading ? 'Adding...' : 'Add Asset'}
+                  URL
                 </button>
               </div>
-            </form>
+            )}
+            
+            {uploadMethod === 'file' ? (
+              <FileAssetUpload
+                onFileVerified={handleFileVerified}
+                isLoading={isLoading}
+                setIsLoading={setIsLoading}
+                uploadProgress={uploadProgress}
+                setUploadProgress={setUploadProgress}
+                nameInput={nameInput}
+                setNameInput={setNameInput}
+                errorMessage={errorMessage}
+                setErrorMessage={setErrorMessage}
+              />
+            ) : (
+              <URLAssetUpload
+                urlInput={urlInput}
+                setUrlInput={setUrlInput}
+                isLoading={isLoading}
+                setIsLoading={setIsLoading}
+                uploadProgress={uploadProgress}
+                setUploadProgress={setUploadProgress}
+                nameInput={nameInput}
+                setNameInput={setNameInput}
+                errorMessage={errorMessage}
+                setErrorMessage={setErrorMessage}
+              />
+            )}
+            
+            <div className="mb-4">
+              <label htmlFor="upload-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <input
+                type="text"
+                id="upload-name"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+            </div>
+            
+            <div className="mb-6">
+              <label htmlFor="upload-tags" className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+              <TaggedSelect
+                id="upload-tags"
+                value={tagsInput}
+                onChange={(value) => {
+                  // Ensure no duplicates in the selected tags
+                  if (Array.isArray(value)) {
+                    // Create a case-insensitive Set to track unique tags
+                    const uniqueTags = new Set<string>();
+                    const uniqueTagsArray: string[] = [];
+                    
+                    // Process each tag to ensure uniqueness
+                    (value as string[]).forEach(tag => {
+                      const lowerTag = tag.toLowerCase();
+                      if (!uniqueTags.has(lowerTag)) {
+                        uniqueTags.add(lowerTag);
+                        uniqueTagsArray.push(tag);
+                      }
+                    });
+                    
+                    setTagsInput(uniqueTagsArray);
+                  } else if (value) {
+                    // Handle single value case (should not happen with multiple=true)
+                    setTagsInput([value as string]);
+                  } else {
+                    // Handle empty case
+                    setTagsInput([]);
+                  }
+                }}
+                options={availableTags.map(tag => ({ value: tag, label: tag }))} 
+                multiple={true}
+                editable={true}
+                placeholder="Type and press Enter to add tags"
+                onCreateOption={(label) => {
+                  const normalizedLabel = label.trim();
+                  if (!normalizedLabel) return;
+                  
+                  // Check if tag already exists in selected tags
+                  if (tagsInput.some(tag => tag.toLowerCase() === normalizedLabel.toLowerCase())) {
+                    return; // Tag already selected, do nothing
+                  }
+                  
+                  // Check if tag exists in available tags but with different case
+                  const existingTag = availableTags.find(
+                    tag => tag.toLowerCase() === normalizedLabel.toLowerCase()
+                  );
+                  
+                  if (existingTag) {
+                    // Use the existing tag with its original casing
+                    setTagsInput([...tagsInput, existingTag]);
+                  } else {
+                    // Add as a new tag
+                    setTagsInput([...tagsInput, normalizedLabel]);
+                    setAvailableTags([...availableTags, normalizedLabel]);
+                  }
+                }}
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label htmlFor="upload-description" className="block text-sm font-medium text-gray-700 mb-1">Description
+                (Optional)</label>
+              <textarea
+                id="upload-description"
+                value={descriptionInput}
+                onChange={(e) => setDescriptionInput(e.target.value)}
+                rows={3}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              ></textarea>
+            </div>
+            
+            {/* Submit button */}
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => {
+                  resetForm();
+                  onClose();
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!editMode && !isVerified && uploadMethod === 'file'}
+                className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${(!editMode && !isVerified && uploadMethod === 'file') ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'}`}
+              >
+                {editMode ? 'Save Changes' : isDuplicate ? 'Upload Anyway' : 'Upload Asset'}
+              </button>
+            </div>
+          </form>
         );
 
       case 'uploading':
@@ -499,11 +477,12 @@ export default function UploadAssetDialog({
         <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">
-              {uploadStage === 'initial' ? 'Upload Asset' :
-                  uploadStage === 'uploading' ? 'Processing...' :
-                      uploadStage === 'duplicate-found' ? 'Duplicate Detected' :
-                          uploadStage === 'error' ? 'Upload Error' :
-                              'Upload Complete'}
+              {editMode ? 'Edit Asset' :
+                uploadStage === 'initial' ? 'Upload Asset' :
+                uploadStage === 'uploading' ? 'Processing...' :
+                uploadStage === 'duplicate-found' ? 'Duplicate Detected' :
+                uploadStage === 'error' ? 'Upload Error' :
+                'Upload Complete'}
             </h2>
             {uploadStage !== 'uploading' && (
                 <button
