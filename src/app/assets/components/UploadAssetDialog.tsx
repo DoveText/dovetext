@@ -389,7 +389,7 @@ export default function UploadAssetDialog({
                             disabled={isLoading}
                             className="px-3 py-1 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 flex items-center"
                           >
-                            {isLoading ? <ArrowPathIcon className="h-4 w-4 animate-spin mr-1"/> : 'Validate'}
+                            {isLoading ? <ArrowPathIcon className="h-4 w-4 animate-spin mr-1"/> : 'Upload'}
                           </button>
                         </div>
                       )}
@@ -491,7 +491,7 @@ export default function UploadAssetDialog({
                 </button>
                 <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || (uploadMethod === 'file' && (!isVerified || !fileUuid || !md5Hash))}
                     className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
                 >
                   {isLoading ? <ArrowPathIcon className="h-4 w-4 animate-spin mr-2"/> :
