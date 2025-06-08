@@ -192,21 +192,58 @@ export default function AssetsManagement() {
   };
 
   // Handle asset upload
-  const handleUploadAsset = async (assetData: any) => {
+  const handleUploadAsset = async (assetData: any, md5Hash?: string, forceDuplicate?: boolean) => {
     try {
       setIsLoading(true);
       
-      // Upload the asset using the correct API method
-      const uploadedAsset = await assetsApi.createAsset(
-        assetData.file,
-        assetData.md5,
-        {
-          filename: assetData.name,
-          description: assetData.description,
-          tags: assetData.tags
-        },
-        assetData.forceDuplicate
-      );
+      // Check if we have the required data
+      if (!assetData) {
+        throw new Error('Missing asset data');
+      }
+      
+      let uploadedAsset;
+      
+      // Handle URL asset uploads differently from file uploads
+      if (assetData.metadata && assetData.metadata.externalUrl) {
+        // For URL assets, we need to use the UUID from verification
+        const uuid = assetData.metadata.uuid;
+        const md5 = assetData.metadata.md5 || md5Hash;
+        
+        if (!uuid) {
+          throw new Error('Missing UUID for URL asset');
+        }
+        
+        // Upload the URL asset using the correct API method
+        uploadedAsset = await assetsApi.createAsset(
+          uuid,
+          md5,
+          {
+            filename: assetData.name,
+            description: assetData.description,
+            tags: assetData.tags,
+            externalUrl: assetData.metadata.externalUrl,
+            assetType: assetData.metadata.assetType
+          },
+          forceDuplicate
+        );
+      } else {
+        // For file uploads, use the file object
+        uploadedAsset = await assetsApi.createAsset(
+          assetData.metadata?.uuid || assetData.fileUuid,
+          assetData.metadata?.md5 || md5Hash,
+          {
+            filename: assetData.name,
+            description: assetData.description,
+            tags: assetData.tags
+          },
+          forceDuplicate
+        );
+      }
+      
+      // Only proceed if we have a valid response with a UUID
+      if (!uploadedAsset || !uploadedAsset.uuid) {
+        throw new Error('Invalid response from server');
+      }
       
       // Add the new asset to the assets list
       const newAsset: Asset = {
@@ -224,10 +261,17 @@ export default function AssetsManagement() {
       setAssets(prevAssets => [newAsset, ...prevAssets]);
       setShowUploadDialog(false);
       toast.success('Asset uploaded successfully');
-    } catch (error) {
+      // Don't return the asset, just resolve the promise
+    } catch (error: any) {
       console.error('Failed to upload asset:', error);
-      toast.error('Failed to upload asset');
-    }
+      if (error.status === 500) {
+        toast.error('Failed to upload asset: Internal Server Error');
+      } else {
+        toast.error('Failed to upload asset: ' + (error.message || 'Unknown error'));
+      }
+      // Re-throw the error so the promise is rejected and the caller can handle it
+      throw error;
+    } 
   };
 
   // Handle tag management for selected asset details
