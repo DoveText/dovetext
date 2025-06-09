@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useUserType } from '@/context/UserTypeContext';
+import { useAuth } from '@/context/AuthContext';
 import { 
   DocumentTextIcon, 
   PlusIcon, 
@@ -30,9 +31,10 @@ export default function ArticlesPage() {
   const { userType } = useUserType();
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+  const { user, loading: authLoading } = useAuth();
+
   // Redirect personal users to dashboard
-  if (userType === 'personal') {
+  if (!authLoading && user && userType === 'personal') {
     router.push('/dashboard');
     return null;
   }
