@@ -5,6 +5,7 @@ export interface AssetDto {
   id: number;
   userId: number;
   uuid: string;
+  type: string; // Added type field for file/url distinction
   meta: {
     filename?: string;
     contentType?: string;
@@ -139,21 +140,24 @@ export const assetsApi = {
    * @param md5 The MD5 hash from the verification step
    * @param metadata Metadata for the asset
    * @param forceDuplicate Optional flag to force upload even if duplicate exists
+   * @param assetType The type of asset ('file' or 'url')
    */
   createAsset: async (
     uuid: string,
     md5: string,
     metadata: Record<string, any>,
-    forceDuplicate: boolean = false
+    forceDuplicate: boolean = false,
+    assetType: 'file' | 'url' = 'file'
   ): Promise<AssetDto> => {
     // Add force duplicate flag if true
     const queryParams = forceDuplicate ? '?forceDuplicate=true' : '';
     
     try {
-      // Create FormData with MD5 and metadata
+      // Create FormData with MD5, metadata, and asset type
       const formData = new FormData();
       formData.append('md5', md5);
       formData.append('meta', JSON.stringify(metadata));
+      formData.append('type', assetType);
       
       const response = await apiClient.post<AssetDto>(
         `/api/v1/assets/uuid/${encodeURIComponent(uuid)}${queryParams}`, 

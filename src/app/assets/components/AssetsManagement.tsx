@@ -62,14 +62,15 @@ export default function AssetsManagement() {
           return {
             id: apiAsset.uuid,
             name: apiAsset.meta.filename || 'Untitled',
-            type: assetType,
+            contentType: assetType, // Changed from type to contentType
             size: formatFileSize(apiAsset.meta.size || 0),
             uploadedBy: 'You', // Could be enhanced with user info
             uploadDate: new Date(apiAsset.createdAt).toLocaleDateString(),
             description: apiAsset.meta.description || '',
             tags: apiAsset.meta.tags || [],
             url: assetsApi.getAssetContentUrl(apiAsset.uuid),
-            originalAsset: apiAsset // Store the original API asset for reference
+            originalAsset: apiAsset, // Store the original API asset for reference
+            sourceType: apiAsset.type === 'url' ? 'url' : 'file' // Add source type (file or url)
           };
         });
         
@@ -147,7 +148,7 @@ export default function AssetsManagement() {
     
     // Apply type filtering
     if (filterType !== 'all') {
-      result = result.filter(asset => asset.type === filterType);
+      result = result.filter(asset => asset.contentType === filterType);
     }
     
     setFilteredAssets(result);
@@ -224,7 +225,8 @@ export default function AssetsManagement() {
             externalUrl: assetData.metadata.externalUrl,
             assetType: assetData.metadata.assetType
           },
-          forceDuplicate
+          forceDuplicate,
+          'url' // Specify that this is a URL asset
         );
       } else {
         // For file uploads, use the file object
@@ -236,7 +238,8 @@ export default function AssetsManagement() {
             description: assetData.description,
             tags: assetData.tags
           },
-          forceDuplicate
+          forceDuplicate,
+          'file' // Specify that this is a file asset
         );
       }
       

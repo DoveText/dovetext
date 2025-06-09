@@ -44,7 +44,7 @@ export default function AssetDetails({
     let isMounted = true;
     
     const loadImage = async () => {
-      if (asset && asset.type === 'image') {
+      if (asset && asset.contentType === 'image') {
         try {
           // Use the cached blob URL if available, don't revoke it
           const blobUrl = await createAuthenticatedBlobUrl(asset.id);
@@ -120,7 +120,7 @@ export default function AssetDetails({
       
       {/* Asset preview */}
       <div className="mb-6 flex justify-center">
-        {asset.type === 'image' && imageBlobUrl ? (
+        {asset.contentType === 'image' && imageBlobUrl ? (
           <div className="relative h-48 w-full max-w-md">
             <Image
               src={imageBlobUrl}
@@ -132,7 +132,7 @@ export default function AssetDetails({
           </div>
         ) : (
           <div className="flex items-center justify-center h-48 w-full bg-gray-100 rounded">
-            {getAssetIcon(asset.type)}
+            {getAssetIcon(asset.contentType)}
           </div>
         )}
       </div>
@@ -155,7 +155,7 @@ export default function AssetDetails({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-            <p className="text-sm text-gray-900 capitalize">{asset.type}</p>
+            <p className="text-sm text-gray-900 capitalize">{asset.contentType}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Size</label>
