@@ -24,6 +24,19 @@ export interface URLAssetUploadProps {
   setIsDuplicate: (isDuplicate: boolean) => void;
   setDuplicateInfo: (info: any) => void;
   setIsVerified: (isVerified: boolean) => void;
+  setContentType: (contentType: string) => void;
+  setFileSize: (size: number) => void;
+  onUrlVerified?: (data: {
+    url: string;
+    md5: string;
+    uuid: string;
+    size: number;
+    contentType: string;
+    isDuplicate: boolean;
+    duplicateInfo?: any;
+    filename?: string;
+    assetType?: AssetType;
+  }) => void;
 }
 
 export default function URLAssetUpload({
@@ -44,6 +57,9 @@ export default function URLAssetUpload({
   setIsDuplicate,
   setDuplicateInfo,
   setIsVerified,
+  setContentType,
+  setFileSize,
+  onUrlVerified,
 }: URLAssetUploadProps) {
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectionError, setDetectionError] = useState<string | null>(null);
@@ -69,9 +85,12 @@ export default function URLAssetUpload({
       setIsVerified(true);
       setUploadProgress(40); // Update progress
 
-      // Set asset metadata from verification result
+      // Set content type and asset type consistently
       if (result.contentType) {
-        // Update asset type based on content type from backend
+        // Store the content type directly (same as FileAssetUpload)
+        setContentType(result.contentType);
+        
+        // Also determine the asset type for UI purposes
         const detectedType = result.assetType || await detectAssetTypeFromUrl(urlInput);
         setAssetType(detectedType);
       }
@@ -79,6 +98,7 @@ export default function URLAssetUpload({
       // Set metadata for parent component
       if (result.md5) setMd5Hash(result.md5);
       if (result.uuid) setFileUuid(result.uuid);
+      if (result.size) setFileSize(result.size);
 
       // Handle duplicate detection
       if (result.isDuplicate) {
@@ -95,9 +115,19 @@ export default function URLAssetUpload({
         setNameInput(result.filename);
       }
       
-      // Show size information if available
-      if (result.size) {
-        console.log(`Asset size: ${result.size} bytes`);
+      // Notify parent component with verification data (similar to FileAssetUpload)
+      if (onUrlVerified) {
+        onUrlVerified({
+          url: urlInput,
+          md5: result.md5,
+          uuid: result.uuid,
+          size: result.size || 0,
+          contentType: result.contentType || '',
+          isDuplicate: result.isDuplicate,
+          duplicateInfo: result.duplicateInfo,
+          filename: result.filename,
+          assetType: result.assetType || assetType
+        });
       }
     } catch (error: any) {
       console.error('Error verifying URL asset:', error);

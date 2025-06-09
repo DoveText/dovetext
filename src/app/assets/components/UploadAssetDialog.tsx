@@ -85,6 +85,41 @@ export default function UploadAssetDialog({
     // Mark as verified
     setIsVerified(true);
   };
+  
+  // Handle URL verification callback - similar to file verification
+  const handleUrlVerified = (data: {
+    url: string;
+    md5: string;
+    uuid: string;
+    size: number;
+    contentType: string;
+    isDuplicate: boolean;
+    duplicateInfo?: any;
+    filename?: string;
+    assetType?: AssetType;
+  }) => {
+    setUrlInput(data.url);
+    setMd5Hash(data.md5);
+    setFileUuid(data.uuid);
+    setFileSize(data.size);
+    setContentType(data.contentType);
+    setIsDuplicate(data.isDuplicate);
+    
+    if (data.assetType) {
+      setAssetType(data.assetType);
+    }
+    
+    if (!nameInput && data.filename) {
+      setNameInput(data.filename);
+    }
+    
+    if (data.isDuplicate && data.duplicateInfo) {
+      setDuplicateInfo(data.duplicateInfo);
+    }
+    
+    // Mark as verified
+    setIsVerified(true);
+  };
 
   // Effect to reset form and fetch available tags when dialog opens
   useEffect(() => {
@@ -378,6 +413,9 @@ export default function UploadAssetDialog({
                   setIsDuplicate={setIsDuplicate}
                   setDuplicateInfo={setDuplicateInfo}
                   setIsVerified={setIsVerified}
+                  setContentType={setContentType}
+                  setFileSize={setFileSize}
+                  onUrlVerified={handleUrlVerified}
                 />
               )
             )}
