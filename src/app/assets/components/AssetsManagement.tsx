@@ -30,6 +30,15 @@ export default function AssetsManagement() {
     { value: 'video', label: 'Videos' },
     { value: 'audio', label: 'Audio' },
   ];
+  
+  // Source type filter
+  const [filterSourceType, setFilterSourceType] = useState<'all' | 'file' | 'url'>('all');
+  const sourceTypeOptions = [
+    { value: 'all', label: 'All Sources' },
+    { value: 'file', label: 'File' },
+    { value: 'url', label: 'URL' },
+  ];
+  
   const [isEditing, setIsEditing] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -129,32 +138,28 @@ export default function AssetsManagement() {
   useEffect(() => {
     let result = [...assets];
     
-    // Apply tag filtering
-    if (selectedTags.length > 0) {
-      result = result.filter(asset => 
-        selectedTags.every(tag => getAssetTags(asset).includes(tag))
-      );
-    }
-    
-    // Apply search filtering
+    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(asset => 
         asset.name.toLowerCase().includes(query) ||
-        (asset.description?.toLowerCase().includes(query) || false) ||
+        (asset.description && asset.description.toLowerCase().includes(query)) ||
         getAssetTags(asset).some(tag => tag.toLowerCase().includes(query))
       );
     }
     
-    // Apply type filtering
+    // Apply content type filtering
     if (filterType !== 'all') {
       result = result.filter(asset => asset.contentType === filterType);
     }
     
+    // Apply source type filtering
+    if (filterSourceType !== 'all') {
+      result = result.filter(asset => asset.sourceType === filterSourceType);
+    }
+    
     setFilteredAssets(result);
-  }, [assets, searchQuery, filterType, selectedTags]);
-
-  // This is a duplicate, we can remove it as we already have filteredAssets
+  }, [assets, searchQuery, filterType, filterSourceType, selectedTags]);
 
   // Handle asset selection
   const handleAssetSelect = (assetToSelect: Asset) => {
@@ -428,14 +433,27 @@ export default function AssetsManagement() {
           <div className="lg:col-span-1 bg-white rounded-lg shadow">
             <div className="p-4 border-b border-gray-200">
               <div className="mb-4">
-                <div className="text-sm font-medium text-gray-700 mb-2">Filter by Category</div>
-                <TaggedSelect
-                  value={filterType}
-                  onChange={(value) => setFilterType(value as 'all' | 'image' | 'document' | 'video' | 'audio')}
-                  options={typeOptions}
-                  placeholder="Select type"
-                  className="w-full"
-                />
+                <div className="text-sm font-medium text-gray-700 mb-2">Filter Assets</div>
+                <div className="flex space-x-4">
+                  <div className="w-1/2">
+                    <TaggedSelect
+                      value={filterType}
+                      onChange={(value) => setFilterType(value as 'all' | 'image' | 'document' | 'video' | 'audio')}
+                      options={typeOptions}
+                      placeholder="Select category"
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="w-1/2">
+                    <TaggedSelect
+                      value={filterSourceType}
+                      onChange={(value) => setFilterSourceType(value as 'all' | 'file' | 'url')}
+                      options={sourceTypeOptions}
+                      placeholder="Select source"
+                      className="w-full"
+                    />
+                  </div>
+                </div>
               </div>
               
               <div className="mb-4">
