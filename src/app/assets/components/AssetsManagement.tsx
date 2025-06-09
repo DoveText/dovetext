@@ -241,6 +241,7 @@ export default function AssetsManagement() {
       };
       
       setAssets(prevAssets => [newAsset, ...prevAssets]);
+      setFilteredAssets(prevFilteredAssets => [newAsset, ...prevFilteredAssets]);
       setShowUploadDialog(false);
       toast.success('Asset uploaded successfully');
       // Don't return the asset, just resolve the promise
@@ -253,7 +254,10 @@ export default function AssetsManagement() {
       }
       // Re-throw the error so the promise is rejected and the caller can handle it
       throw error;
-    } 
+    } finally {
+      // Always reset loading state, whether the upload succeeded or failed
+      setIsLoading(false);
+    }
   };
 
   // Handle tag management for selected asset details

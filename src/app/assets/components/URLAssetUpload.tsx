@@ -23,7 +23,6 @@ export interface URLAssetUploadProps {
   setFileUuid: (uuid: string) => void;
   setIsDuplicate: (isDuplicate: boolean) => void;
   setDuplicateInfo: (info: any) => void;
-  setIsVerified: (isVerified: boolean) => void;
   setContentType: (contentType: string) => void;
   setFileSize: (size: number) => void;
   onUrlVerified?: (data: {
@@ -56,7 +55,6 @@ export default function URLAssetUpload({
   setFileUuid,
   setIsDuplicate,
   setDuplicateInfo,
-  setIsVerified,
   setContentType,
   setFileSize,
   onUrlVerified,
@@ -82,7 +80,6 @@ export default function URLAssetUpload({
 
       // Update verification status and metadata
       setIsVerifiedLocal(true);
-      setIsVerified(true);
       setUploadProgress(40); // Update progress
 
       // Set content type and asset type consistently
@@ -133,7 +130,6 @@ export default function URLAssetUpload({
       console.error('Error verifying URL asset:', error);
       setDetectionError(error.message || 'Failed to verify URL. Please check the URL and try again.');
       setIsVerifiedLocal(false);
-      setIsVerified(false);
     } finally {
       setIsLoading(false);
       setUploadProgress(0); // Reset progress
@@ -167,8 +163,7 @@ export default function URLAssetUpload({
     detectType();
     // Reset verification status when URL changes
     setIsVerifiedLocal(false);
-    setIsVerified(false);
-  }, [urlInput, setAssetType, setIsVerified]);
+  }, [urlInput, setAssetType]);
 
   // Try to extract a name from the URL if no name is provided
   useEffect(() => {

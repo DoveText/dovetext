@@ -380,7 +380,6 @@ export default function UploadAssetDialog({
                   setFileUuid={setFileUuid}
                   setIsDuplicate={setIsDuplicate}
                   setDuplicateInfo={setDuplicateInfo}
-                  setIsVerified={setIsVerified}
                   setContentType={setContentType}
                   setFileSize={setFileSize}
                   onUrlVerified={handleUrlVerified}
@@ -486,8 +485,8 @@ export default function UploadAssetDialog({
               </button>
               <button
                 type="submit"
-                disabled={!editMode && !isVerified && uploadMethod === 'file'}
-                className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${(!editMode && !isVerified && uploadMethod === 'file') ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'}`}
+                disabled={!editMode && !isVerified}
+                className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${(!editMode && !isVerified) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'}`}
               >
                 {editMode ? 'Save Changes' : isDuplicate ? 'Upload Anyway' : 'Upload Asset'}
               </button>
