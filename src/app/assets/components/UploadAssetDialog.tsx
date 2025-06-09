@@ -179,15 +179,6 @@ export default function UploadAssetDialog({
     setAssetType('unknown');
   };
 
-  // Helper function to format file size
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
@@ -236,51 +227,28 @@ export default function UploadAssetDialog({
     
     // Prepare asset data
     const assetData: Partial<Asset> = {
+      type: uploadMethod || 'file',
       name: nameInput.trim(),
+      uuid: fileUuid,
+      md5: md5Hash,
       description: descriptionInput.trim(),
-      tags: tagsInput,
+      metadata: {
+        tags: tagsInput,
+        filename: fileInput?.name || nameInput,
+        contentType: contentType,
+        description: descriptionInput,
+        name: nameInput,
+        // Include both raw size (in bytes) for backend compatibility
+        size: fileSize,
+      }
     };
     
     try {
       // Add file or URL based on upload method (only if not in edit mode)
       if (uploadMethod === 'file' && fileInput && !editMode) {
         assetData.file = fileInput;
-      } else if (uploadMethod === 'url' && urlInput && !editMode) {
-        // For URL assets, verify the URL and get metadata
-        if (!md5Hash || !fileUuid) {
-          // If we don't have md5 and uuid yet, verify the URL
-          const verification = await verifyUrlAsset(urlInput.trim());
-          
-          // Set verification data
-          setMd5Hash(verification.md5);
-          setFileUuid(verification.uuid);
-          setIsDuplicate(verification.isDuplicate);
-          
-          if (verification.isDuplicate && verification.duplicateInfo) {
-            setDuplicateInfo(verification.duplicateInfo);
-            setUploadStage('duplicate-found');
-            setIsLoading(false);
-            if (progressInterval) clearInterval(progressInterval);
-            return; // Stop here and let user decide what to do with duplicate
-          }
-          
-          // Store the URL as metadata
-          assetData.metadata = {
-            externalUrl: urlInput.trim(),
-            assetType: verification.assetType,
-            contentType: verification.contentType,
-            md5: verification.md5,
-            uuid: verification.uuid
-          };
-        } else {
-          // We already have verification data
-          assetData.metadata = {
-            externalUrl: urlInput.trim(),
-            assetType: assetType,
-            md5: md5Hash,
-            uuid: fileUuid
-          };
-        }
+      } else if (uploadMethod === 'url') {
+        assetData.url = urlInput.trim();
       }
       
       // If we're in edit mode and have an asset to edit, include the ID

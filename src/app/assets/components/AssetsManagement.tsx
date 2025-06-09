@@ -208,46 +208,17 @@ export default function AssetsManagement() {
       }
       
       let uploadedAsset;
-      
-      // Handle URL asset uploads differently from file uploads
-      if (assetData.metadata && assetData.metadata.externalUrl) {
-        // For URL assets, we need to use the UUID from verification
-        const uuid = assetData.metadata.uuid;
-        const md5 = assetData.metadata.md5 || md5Hash;
-        
-        if (!uuid) {
-          throw new Error('Missing UUID for URL asset');
-        }
-        
-        // Upload the URL asset using the correct API method
-        uploadedAsset = await assetsApi.createAsset(
-          uuid,
-          md5,
-          {
-            filename: assetData.name,
-            description: assetData.description,
-            tags: assetData.tags,
-            externalUrl: assetData.metadata.externalUrl,
-            assetType: assetData.metadata.assetType
-          },
-          forceDuplicate,
-          'url' // Specify that this is a URL asset
-        );
-      } else {
-        // For file uploads, use the file object
-        uploadedAsset = await assetsApi.createAsset(
-          assetData.metadata?.uuid || assetData.fileUuid,
-          assetData.metadata?.md5 || md5Hash,
-          {
-            filename: assetData.name,
-            description: assetData.description,
-            tags: assetData.tags
-          },
-          forceDuplicate,
-          'file' // Specify that this is a file asset
-        );
+
+      if (!assetData.uuid) {
+        throw new Error('Missing UUID for URL asset');
       }
-      
+
+      // For URL assets, we need to use the UUID from verification
+      // Upload the URL asset using the correct API method
+      uploadedAsset = await assetsApi.createAsset(
+          assetData.uuid, assetData.md5, assetData.metadata, assetData.type
+      );
+
       // Only proceed if we have a valid response with a UUID
       if (!uploadedAsset || !uploadedAsset.uuid) {
         throw new Error('Invalid response from server');
@@ -256,10 +227,13 @@ export default function AssetsManagement() {
       // Add the new asset to the assets list
       const newAsset: Asset = {
         id: uploadedAsset.uuid,
+        uuid: uploadedAsset.uuid,
+        md5: uploadedAsset.md5,
         name: uploadedAsset.meta?.filename || '',
-        description: assetData.description || '',
-        tags: assetData.tags || [],
-        type: getAssetType(uploadedAsset.meta?.contentType || ''),
+        description: uploadedAsset.meta?.description || '',
+        tags: uploadedAsset.meta?.tags || [],
+        contentType: getAssetType(uploadedAsset.meta?.contentType || ''),
+        sourceType: uploadedAsset.type,
         size: formatFileSize(uploadedAsset.meta?.size || 0),
         uploadedBy: 'You',
         uploadDate: new Date().toISOString(),

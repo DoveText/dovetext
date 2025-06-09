@@ -6,6 +6,7 @@ export interface AssetDto {
   userId: number;
   uuid: string;
   type: string; // Added type field for file/url distinction
+  md5: string;
   meta: {
     filename?: string;
     contentType?: string;
@@ -13,6 +14,7 @@ export interface AssetDto {
     [key: string]: any;
   };
   state: string;
+  description: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -146,12 +148,9 @@ export const assetsApi = {
     uuid: string,
     md5: string,
     metadata: Record<string, any>,
-    forceDuplicate: boolean = false,
     assetType: 'file' | 'url' = 'file'
   ): Promise<AssetDto> => {
     // Add force duplicate flag if true
-    const queryParams = forceDuplicate ? '?forceDuplicate=true' : '';
-    
     try {
       // Create FormData with MD5, metadata, and asset type
       const formData = new FormData();
@@ -160,7 +159,7 @@ export const assetsApi = {
       formData.append('type', assetType);
       
       const response = await apiClient.post<AssetDto>(
-        `/api/v1/assets/uuid/${encodeURIComponent(uuid)}${queryParams}`, 
+        `/api/v1/assets/uuid/${encodeURIComponent(uuid)}`,
         formData,
         {
           headers: {
