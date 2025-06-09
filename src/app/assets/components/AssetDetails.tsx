@@ -46,10 +46,17 @@ export default function AssetDetails({
     const loadImage = async () => {
       if (asset && asset.contentType === 'image') {
         try {
-          // Use the cached blob URL if available, don't revoke it
-          const blobUrl = await createAuthenticatedBlobUrl(asset.id);
-          if (isMounted) {
-            setImageBlobUrl(blobUrl);
+          // For URL-type assets, use the URL directly from meta.url
+          if (asset.sourceType === 'url' && asset.originalAsset?.meta?.url) {
+            if (isMounted) {
+              setImageBlobUrl(asset.originalAsset.meta.url);
+            }
+          } else {
+            // For file-type assets, use the authenticated blob URL
+            const blobUrl = await createAuthenticatedBlobUrl(asset.id);
+            if (isMounted) {
+              setImageBlobUrl(blobUrl);
+            }
           }
         } catch (error) {
           console.error('Error loading image:', error);
@@ -178,18 +185,18 @@ export default function AssetDetails({
         </div>
         
         {/* URL */}
-        {asset.url && (
+        {(asset.url || (asset.sourceType === 'url' && asset.originalAsset?.meta?.url)) && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">URL</label>
             <div className="flex items-center">
               <LinkIcon className="h-4 w-4 text-gray-400 mr-1" />
               <a 
-                href={asset.url} 
+                href={asset.sourceType === 'url' && asset.originalAsset?.meta?.url ? asset.originalAsset.meta.url : asset.url} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-sm text-blue-600 hover:text-blue-800 truncate"
               >
-                {asset.url}
+                {asset.sourceType === 'url' && asset.originalAsset?.meta?.url ? asset.originalAsset.meta.url : asset.url}
               </a>
             </div>
           </div>

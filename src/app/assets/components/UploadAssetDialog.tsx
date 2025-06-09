@@ -249,6 +249,7 @@ export default function UploadAssetDialog({
         assetData.file = fileInput;
       } else if (uploadMethod === 'url') {
         assetData.url = urlInput.trim();
+        assetData.metadata.url = urlInput.trim();
       }
       
       // If we're in edit mode and have an asset to edit, include the ID
