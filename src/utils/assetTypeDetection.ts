@@ -255,11 +255,15 @@ export async function verifyUrlAsset(url: string): Promise<{
 export async function detectAssetTypeFromUrl(url: string): Promise<AssetType> {
   // First try to detect from extension
   const typeFromExtension = detectAssetTypeFromExtension(url);
-  if (typeFromExtension) return typeFromExtension;
+  if (typeFromExtension) {
+    console.log('Detected type from extension: ' + typeFromExtension);
+    return typeFromExtension;
+  }
   
   try {
     // If extension detection fails, try verification with backend
     const verification = await verifyUrlAsset(url);
+    console.log('Detected type from verification: ' + verification.assetType + ', content type: ' + verification.contentType);
     return verification.assetType;
   } catch (error) {
     console.error('Error detecting asset type from URL:', error);

@@ -13,8 +13,6 @@ export interface URLAssetUploadProps {
   setIsLoading: (loading: boolean) => void;
   uploadProgress: number;
   setUploadProgress: (progress: number) => void;
-  nameInput: string;
-  setNameInput: (name: string) => void;
   errorMessage: string;
   setErrorMessage: (error: string) => void;
   assetType: AssetType | null;
@@ -45,8 +43,6 @@ export default function URLAssetUpload({
   setIsLoading,
   uploadProgress,
   setUploadProgress,
-  nameInput,
-  setNameInput,
   errorMessage,
   setErrorMessage,
   assetType,
@@ -107,11 +103,6 @@ export default function URLAssetUpload({
         setDuplicateInfo(null);
       }
 
-      // If name is not set and we have a filename from the URL, use it
-      if (!nameInput && result.filename) {
-        setNameInput(result.filename);
-      }
-      
       // Notify parent component with verification data (similar to FileAssetUpload)
       if (onUrlVerified) {
         onUrlVerified({
@@ -164,29 +155,6 @@ export default function URLAssetUpload({
     // Reset verification status when URL changes
     setIsVerifiedLocal(false);
   }, [urlInput, setAssetType]);
-
-  // Try to extract a name from the URL if no name is provided
-  useEffect(() => {
-    if (urlInput && !nameInput) {
-      try {
-        const url = new URL(urlInput);
-        const pathSegments = url.pathname.split('/');
-        const filename = pathSegments[pathSegments.length - 1];
-        
-        if (filename) {
-          // Remove extension and replace hyphens/underscores with spaces
-          const nameWithoutExt = filename.split('.')[0];
-          const cleanName = nameWithoutExt
-            .replace(/[-_]/g, ' ')
-            .replace(/\b\w/g, c => c.toUpperCase()); // Capitalize first letter of each word
-          
-          setNameInput(cleanName);
-        }
-      } catch (error) {
-        // Invalid URL, do nothing
-      }
-    }
-  }, [urlInput, nameInput, setNameInput]);
   
   return (
     <div className="space-y-4">
