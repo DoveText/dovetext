@@ -14,8 +14,8 @@ export interface URLAssetUploadProps {
   setUploadProgress: (progress: number) => void;
   errorMessage: string;
   setErrorMessage: (error: string) => void;
-  assetType: AssetType | null;
-  setAssetType: (type: AssetType | null) => void;
+  assetType: AssetType | undefined;
+  setAssetType: (type: AssetType | undefined) => void;
   onUrlVerified?: (data: {
     url: string;
     md5: string;
@@ -59,7 +59,20 @@ export default function URLAssetUpload({
       // Call backend to verify URL and get metadata
       const result = await verifyUrlAsset(urlInput);
 
-      setIsVerifiedLocal(true)
+      setIsVerifiedLocal(true);
+      setUploadProgress(40); // Update progress
+      
+      // Detect asset type from content type
+      const detectedAssetType = detectAssetTypeFromContentType(result.contentType || '');
+      
+      if (!detectedAssetType) {
+        // If asset type couldn't be determined, show a message asking to select type
+        setVerificationSuccessMessage(`Your URL has been verified, but we couldn't determine its type. Please select an asset type below.`);
+        setDetectionError('Please select an asset type for this URL');
+      } else {
+        setVerificationSuccessMessage(`Your ${detectedAssetType} has been verified. You can now submit to create the asset.`);
+        setAssetType(detectedAssetType);
+      }
 
       // Notify parent component with verification data (similar to FileAssetUpload)
       if (onUrlVerified) {
@@ -72,6 +85,7 @@ export default function URLAssetUpload({
           isDuplicate: result.isDuplicate,
           duplicateInfo: result.duplicateInfo,
           filename: result.filename,
+          assetType: detectedAssetType, // Pass the detected type or undefined to trigger selection UI
         });
       }
     } catch (error: any) {

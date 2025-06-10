@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { assetsApi } from '@/app/api/assets';
-import { AssetType, verifyUrlAsset, detectAssetTypeFromContentType, AssetType as UtilAssetType } from '../../../utils/assetTypeDetection';
+import { AssetType, verifyUrlAsset, detectAssetTypeFromContentType } from '../../../utils/assetTypeDetection';
 
 interface FileAssetUploadProps {
   onFileVerified: (data: {
@@ -13,7 +13,10 @@ interface FileAssetUploadProps {
     isDuplicate: boolean;
     duplicateInfo?: { filename: string; uploadDate: string; uuid: string };
     filename?: string;
+    assetType?: AssetType;
   }) => void;
+  assetType?: AssetType;
+  setAssetType: React.Dispatch<React.SetStateAction<AssetType>>;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
   uploadProgress: number;
@@ -33,7 +36,9 @@ export default function FileAssetUpload({
   nameInput,
   setNameInput,
   errorMessage,
-  setErrorMessage
+  setErrorMessage,
+  assetType,
+  setAssetType
 }: FileAssetUploadProps) {
   const [fileInput, setFileInput] = useState<File | null>(null);
   const [isDuplicate, setIsDuplicate] = useState<boolean>(false);
@@ -73,6 +78,9 @@ export default function FileAssetUpload({
       // Mark as verified
       setIsVerified(true);
       
+      // Detect asset type from content type
+      const detectedAssetType = detectAssetTypeFromContentType(verifyResponse.contentType);
+      
       // Notify parent component with verification data
       onFileVerified({
         file: fileInput,
@@ -82,8 +90,17 @@ export default function FileAssetUpload({
         contentType: verifyResponse.contentType,
         isDuplicate: verifyResponse.isDuplicate,
         duplicateInfo: verifyResponse.duplicateInfo,
-        filename: verifyResponse.filename
+        filename: verifyResponse.filename,
+        assetType: detectedAssetType
       });
+      
+      // Update asset type in parent component
+      if (detectedAssetType) {
+        setAssetType(detectedAssetType);
+      } else {
+        // Default to document if detection fails
+        setAssetType('document');
+      }
       
       // Update progress
       setUploadProgress(40);
@@ -92,8 +109,15 @@ export default function FileAssetUpload({
       setErrorMessage(null); // Clear previous errors on new successful verification
 
       if (!verifyResponse.isDuplicate) {
-        const assetType = detectAssetTypeFromContentType( verifyResponse.contentType );
-        setVerificationSuccessMessage(`Your ${assetType} has been verified. You can now submit to create the asset.`);
+        const assetType = detectAssetTypeFromContentType(verifyResponse.contentType);
+        
+        if (!detectedAssetType) {
+          // If asset type couldn't be determined, show a message asking to select type
+          setVerificationSuccessMessage(`Your file has been verified, but we couldn't determine its type. Please select an asset type below.`);
+          setErrorMessage('Please select an asset type for this file');
+        } else {
+          setVerificationSuccessMessage(`Your ${detectedAssetType} has been verified. You can now submit to create the asset.`);
+        }
       } else {
         setVerificationSuccessMessage(null); // Clear if it's a duplicate, as parent will show duplicate info
       }
@@ -171,6 +195,39 @@ export default function FileAssetUpload({
                 </p>
               </div>
             </div>
+          </div>
+        )}
+        
+        {/* Asset type selection (shown when type is unknown or detection failed) */}
+        {errorMessage && errorMessage.includes('select an asset type') && isVerified && (
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Asset Type
+            </label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {['image', 'audio', 'video', 'document'].map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setAssetType(type as AssetType)}
+                  disabled={isLoading}
+                  className={`px-4 py-2 text-sm font-medium rounded-md ${assetType === type
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Show the detected asset type */}
+        {isVerified && assetType && !errorMessage?.includes('select an asset type') && (
+          <div className="flex items-center mt-2">
+            <span className="text-sm text-gray-500 mr-2">Detected asset type:</span>
+            <span className="text-sm font-medium capitalize">{assetType}</span>
           </div>
         )}
       </div>

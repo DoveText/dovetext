@@ -368,6 +368,8 @@ export default function UploadAssetDialog({
                   setNameInput={setNameInput}
                   errorMessage={errorMessage}
                   setErrorMessage={setErrorMessage}
+                  assetType={assetType}
+                  setAssetType={setAssetType}
                 />
               ) : (
                 <URLAssetUpload
