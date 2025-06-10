@@ -58,14 +58,18 @@ export default function AssetsManagement() {
         const formattedAssets: Asset[] = apiAssets.map(apiAsset => {
           // Determine asset type from content type
           const contentType = apiAsset.meta.contentType || '';
-          let assetType: 'image' | 'document' | 'video' | 'audio' = 'document';
+          let assetType: 'image' | 'document' | 'video' | 'audio' = apiAsset.meta.assetType || '';
           
-          if (contentType.startsWith('image/')) {
-            assetType = 'image';
-          } else if (contentType.startsWith('video/')) {
-            assetType = 'video';
-          } else if (contentType.startsWith('audio/')) {
-            assetType = 'audio';
+          if(!assetType) {
+            if (contentType.startsWith('image/')) {
+              assetType = 'image';
+            } else if (contentType.startsWith('video/')) {
+              assetType = 'video';
+            } else if (contentType.startsWith('audio/')) {
+              assetType = 'audio';
+            } else {
+              assetType = 'document';
+            }
           }
           
           return {

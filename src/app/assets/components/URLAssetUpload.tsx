@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { detectAssetTypeFromUrl, verifyUrlAsset } from '@/utils/assetTypeDetection';
-import { AssetType } from '@/types';
+import { AssetType, verifyUrlAsset, detectAssetTypeFromContentType, AssetType as UtilAssetType } from '../../../utils/assetTypeDetection';
 import { RadioGroup } from '@headlessui/react';
 import { CheckCircleIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 
@@ -17,12 +16,6 @@ export interface URLAssetUploadProps {
   setErrorMessage: (error: string) => void;
   assetType: AssetType | null;
   setAssetType: (type: AssetType | null) => void;
-  setMd5Hash: (hash: string) => void;
-  setFileUuid: (uuid: string) => void;
-  setIsDuplicate: (isDuplicate: boolean) => void;
-  setDuplicateInfo: (info: any) => void;
-  setContentType: (contentType: string) => void;
-  setFileSize: (size: number) => void;
   onUrlVerified?: (data: {
     url: string;
     md5: string;
@@ -44,20 +37,12 @@ export default function URLAssetUpload({
   uploadProgress,
   setUploadProgress,
   errorMessage,
-  setErrorMessage,
-  assetType,
-  setAssetType,
-  setMd5Hash,
-  setFileUuid,
-  setIsDuplicate,
-  setDuplicateInfo,
-  setContentType,
-  setFileSize,
-  onUrlVerified,
+  setErrorMessage, assetType, setAssetType, onUrlVerified,
 }: URLAssetUploadProps) {
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectionError, setDetectionError] = useState<string | null>(null);
   const [isVerifiedLocal, setIsVerifiedLocal] = useState(false);
+  const [verificationSuccessMessage, setVerificationSuccessMessage] = useState<string | null>(null);
 
   // Handle URL verification
   const handleVerifyUrl = async () => {
@@ -74,34 +59,7 @@ export default function URLAssetUpload({
       // Call backend to verify URL and get metadata
       const result = await verifyUrlAsset(urlInput);
 
-      // Update verification status and metadata
-      setIsVerifiedLocal(true);
-      setUploadProgress(40); // Update progress
-
-      // Set content type and asset type consistently
-      if (result.contentType) {
-        // Store the content type directly (same as FileAssetUpload)
-        setContentType(result.contentType);
-        
-        // Also determine the asset type for UI purposes
-        const detectedType = result.assetType || await detectAssetTypeFromUrl(urlInput);
-        setAssetType(detectedType);
-      }
-
-      // Set metadata for parent component
-      if (result.md5) setMd5Hash(result.md5);
-      if (result.uuid) setFileUuid(result.uuid);
-      if (result.size) setFileSize(result.size);
-
-      // Handle duplicate detection
-      if (result.isDuplicate) {
-        setIsDuplicate(true);
-        setDuplicateInfo(result.duplicateInfo || {});
-        setDetectionError('This URL asset already exists in the system.');
-      } else {
-        setIsDuplicate(false);
-        setDuplicateInfo(null);
-      }
+      setIsVerifiedLocal(true)
 
       // Notify parent component with verification data (similar to FileAssetUpload)
       if (onUrlVerified) {
@@ -114,47 +72,18 @@ export default function URLAssetUpload({
           isDuplicate: result.isDuplicate,
           duplicateInfo: result.duplicateInfo,
           filename: result.filename,
-          assetType: result.assetType || assetType
         });
       }
     } catch (error: any) {
       console.error('Error verifying URL asset:', error);
       setDetectionError(error.message || 'Failed to verify URL. Please check the URL and try again.');
+      setVerificationSuccessMessage(null);
       setIsVerifiedLocal(false);
     } finally {
       setIsLoading(false);
       setUploadProgress(0); // Reset progress
     }
   };
-
-  // Detect asset type when URL changes (lightweight detection based on extension)
-  useEffect(() => {
-    const detectType = async () => {
-      if (!urlInput || !urlInput.trim() || !urlInput.startsWith('http')) {
-        setAssetType(null);
-        return;
-      }
-
-      setIsDetecting(true);
-      setDetectionError(null);
-
-      try {
-        // Try to detect asset type from URL extension only (lightweight)
-        const detectedType = await detectAssetTypeFromUrl(urlInput);
-        setAssetType(detectedType);
-      } catch (error) {
-        console.error('Error detecting asset type:', error);
-        setDetectionError('Could not detect asset type. Please select manually or use the Check button.');
-        setAssetType(null);
-      } finally {
-        setIsDetecting(false);
-      }
-    };
-
-    detectType();
-    // Reset verification status when URL changes
-    setIsVerifiedLocal(false);
-  }, [urlInput, setAssetType]);
   
   return (
     <div className="space-y-4">
@@ -200,6 +129,11 @@ export default function URLAssetUpload({
         {detectionError && (
           <p className="mt-1 text-sm text-red-500">{detectionError}</p>
         )}
+        {verificationSuccessMessage && (
+          <div className="mt-2 text-sm text-green-700 p-3 bg-green-100 border border-green-300 rounded-md">
+            {verificationSuccessMessage}
+          </div>
+        )}
         {isLoading && uploadProgress > 0 && uploadProgress < 50 && (
           <div className="mt-2">
             <div className="text-xs text-gray-500 mb-1">
@@ -216,7 +150,7 @@ export default function URLAssetUpload({
       </div>
       
       {/* Asset type selection (shown when type is unknown or detection failed) */}
-      {(assetType === 'unknown' || detectionError) && urlInput && (
+      {detectionError && urlInput && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Asset Type
@@ -241,7 +175,7 @@ export default function URLAssetUpload({
       )}
       
       {/* Show the detected asset type */}
-      {assetType !== 'unknown' && !detectionError && urlInput && (
+      {!detectionError && urlInput && (
         <div className="flex items-center">
           <span className="text-sm text-gray-500 mr-2">Detected asset type:</span>
           <span className="text-sm font-medium capitalize">{assetType}</span>

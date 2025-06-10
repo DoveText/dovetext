@@ -13,7 +13,7 @@ import { assetsApi, AssetDto } from '@/app/api/assets';
 import FileAssetUpload from './FileAssetUpload';
 import URLAssetUpload from './URLAssetUpload';
 import TaggedSelect, { TaggedSelectOption } from '@/components/common/TaggedSelect';
-import { AssetType, verifyUrlAsset } from '@/utils/assetTypeDetection';
+import { AssetType, detectAssetTypeFromContentType } from '@/utils/assetTypeDetection';
 
 interface UploadAssetDialogProps {
   isOpen: boolean;
@@ -38,11 +38,11 @@ export default function UploadAssetDialog({
   const [fileInput, setFileInput] = useState<File | null>(null);
   const [urlInput, setUrlInput] = useState('');
   const [nameInput, setNameInput] = useState('');
+  const [assetType, setAssetType] = useState<AssetType>('document');
   const [tagsInput, setTagsInput] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [descriptionInput, setDescriptionInput] = useState('');
-  const [assetType, setAssetType] = useState<AssetType>('unknown');
-  
+
   // Upload progress state
   const [uploadStage, setUploadStage] = useState<UploadStage>('initial');
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -84,6 +84,10 @@ export default function UploadAssetDialog({
     
     // Mark as verified
     setIsVerified(true);
+    
+    const detectedTypeForUI = detectAssetTypeFromContentType(data.contentType) ;
+    setAssetType(detectedTypeForUI || 'document');
+    console.log('detectedTypeForUI', detectedTypeForUI)
   };
   
   // Handle URL verification callback - similar to file verification
@@ -103,10 +107,17 @@ export default function UploadAssetDialog({
     setFileUuid(data.uuid);
     setFileSize(data.size);
     setContentType(data.contentType);
+
     setIsDuplicate(data.isDuplicate);
     
     if (data.assetType) {
       setAssetType(data.assetType);
+      console.log('assetType', data.assetType)
+    }
+    else {
+      const detectedTypeForUI = detectAssetTypeFromContentType(data.contentType) ;
+      setAssetType(detectedTypeForUI || 'document');
+      console.log('detectedTypeForUI', detectedTypeForUI)
     }
     
     if (!nameInput && data.filename) {
@@ -176,7 +187,7 @@ export default function UploadAssetDialog({
     setErrorMessage(null);
     setIsLoading(false);
     setIsVerified(false);
-    setAssetType('unknown');
+    setAssetType('document');
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -202,12 +213,6 @@ export default function UploadAssetDialog({
       return;
     }
     
-    // Make sure we have a valid asset type for URL uploads
-    if (uploadMethod === 'url' && assetType === 'unknown' && !editMode) {
-      setErrorMessage('Please select an asset type');
-      return;
-    }
-    
     setIsLoading(true);
     let progressInterval: NodeJS.Timeout | undefined;
     
@@ -229,10 +234,11 @@ export default function UploadAssetDialog({
     const assetData: Partial<Asset> = {
       type: uploadMethod || 'file',
       name: nameInput.trim(),
-      uuid: fileUuid,
-      md5: md5Hash,
+      uuid: fileUuid || '',
+      md5: md5Hash || '',
       description: descriptionInput.trim(),
       metadata: {
+        assetType: assetType || 'document',
         tags: tagsInput,
         filename: fileInput?.name || nameInput,
         contentType: contentType,
@@ -252,8 +258,8 @@ export default function UploadAssetDialog({
         assetData.metadata.url = urlInput.trim();
       }
       
-      // If we're in edit mode and have an asset to edit, include the ID
-      if (editMode && assetToEdit) {
+      // If we're in edit mode and have an asset to edit, include the ID and preserve existing metadata
+      if (editMode && assetToEdit && assetToEdit.originalAsset) {
         assetData.id = assetToEdit.id;
       }
     } catch (error) {
@@ -371,18 +377,10 @@ export default function UploadAssetDialog({
                   setIsLoading={setIsLoading}
                   uploadProgress={uploadProgress}
                   setUploadProgress={setUploadProgress}
-                  nameInput={nameInput}
-                  setNameInput={setNameInput}
-                  errorMessage={errorMessage}
+                  errorMessage={errorMessage || ''}
                   setErrorMessage={setErrorMessage}
                   assetType={assetType}
                   setAssetType={setAssetType}
-                  setMd5Hash={setMd5Hash}
-                  setFileUuid={setFileUuid}
-                  setIsDuplicate={setIsDuplicate}
-                  setDuplicateInfo={setDuplicateInfo}
-                  setContentType={setContentType}
-                  setFileSize={setFileSize}
                   onUrlVerified={handleUrlVerified}
                 />
               )

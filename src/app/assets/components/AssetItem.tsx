@@ -14,6 +14,7 @@ import { AssetDto } from '@/app/api/assets';
 
 export interface Asset {
   id: string;
+  type?: string; // Source type (file or URL)
   name: string;
   uuid: string;
   md5: string;
@@ -28,7 +29,6 @@ export interface Asset {
   description?: string;
   file?: File;  // For file uploads
   originalAsset?: AssetDto; // Original asset data from API
-  sourceType?: string; // Source type (file or URL)
   metadata?: {
     assetType?: string;   // Type of asset detected or selected by user
     [key: string]: any;   // Allow for additional metadata properties

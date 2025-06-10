@@ -6,7 +6,7 @@ import { assetsApi } from '@/app/api/assets';
 import MD5 from 'crypto-js/md5';
 import { lib as CryptoLib } from 'crypto-js';
 
-export type AssetType = 'image' | 'audio' | 'video' | 'document' | 'unknown';
+export type AssetType = 'image' | 'audio' | 'video' | 'document';
 
 /**
  * Map of file extensions to asset types
@@ -245,28 +245,5 @@ export async function verifyUrlAsset(url: string): Promise<{
       isDuplicate: false,
       filename: extractFilenameFromUrl(url)
     };
-  }
-}
-
-/**
- * Detect asset type from URL
- * First tries to detect from file extension, then falls back to content type detection
- */
-export async function detectAssetTypeFromUrl(url: string): Promise<AssetType> {
-  // First try to detect from extension
-  const typeFromExtension = detectAssetTypeFromExtension(url);
-  if (typeFromExtension) {
-    console.log('Detected type from extension: ' + typeFromExtension);
-    return typeFromExtension;
-  }
-  
-  try {
-    // If extension detection fails, try verification with backend
-    const verification = await verifyUrlAsset(url);
-    console.log('Detected type from verification: ' + verification.assetType + ', content type: ' + verification.contentType);
-    return verification.assetType;
-  } catch (error) {
-    console.error('Error detecting asset type from URL:', error);
-    return 'unknown';
   }
 }

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { assetsApi } from '@/app/api/assets';
+import { AssetType, verifyUrlAsset, detectAssetTypeFromContentType, AssetType as UtilAssetType } from '../../../utils/assetTypeDetection';
 
 interface FileAssetUploadProps {
   onFileVerified: (data: {
@@ -38,6 +39,7 @@ export default function FileAssetUpload({
   const [isDuplicate, setIsDuplicate] = useState<boolean>(false);
   const [duplicateInfo, setDuplicateInfo] = useState<{ filename: string; uploadDate: string; uuid: string } | null>(null);
   const [isVerified, setIsVerified] = useState<boolean>(false);
+  const [verificationSuccessMessage, setVerificationSuccessMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,6 +49,8 @@ export default function FileAssetUpload({
       if (!nameInput) {
         setNameInput(file.name);
       }
+      setErrorMessage(null);
+      setVerificationSuccessMessage(null);
     }
   };
 
@@ -84,9 +88,19 @@ export default function FileAssetUpload({
       // Update progress
       setUploadProgress(40);
       setUploadProgress(50);
+
+      setErrorMessage(null); // Clear previous errors on new successful verification
+
+      if (!verifyResponse.isDuplicate) {
+        const assetType = detectAssetTypeFromContentType( verifyResponse.contentType );
+        setVerificationSuccessMessage(`Your ${assetType} has been verified. You can now submit to create the asset.`);
+      } else {
+        setVerificationSuccessMessage(null); // Clear if it's a duplicate, as parent will show duplicate info
+      }
     } catch (error) {
       console.error('Error during file validation:', error);
       setErrorMessage('Failed to validate file. Please try again.');
+      setVerificationSuccessMessage(null);
     } finally {
       setIsLoading(false);
     }
@@ -117,6 +131,11 @@ export default function FileAssetUpload({
             >
               {isLoading ? <ArrowPathIcon className="h-4 w-4 animate-spin mr-1"/> : 'Upload'}
             </button>
+          </div>
+        )}
+        {verificationSuccessMessage && (
+          <div className="mt-2 text-sm text-green-700 p-3 bg-green-100 border border-green-300 rounded-md">
+            {verificationSuccessMessage}
           </div>
         )}
         {isLoading && uploadProgress > 0 && uploadProgress < 50 && (
