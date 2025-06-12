@@ -13,7 +13,7 @@ export default function CreateArticlePage() {
   const router = useRouter();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(true);
   const [generatedArticle, setGeneratedArticle] = useState<AIGeneratedArticle | null>(null);
 
   const handleSave = async (articleData: {

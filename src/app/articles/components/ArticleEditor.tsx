@@ -44,6 +44,15 @@ export default function ArticleEditor({
   const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(initialCategory);
   const [tags, setTags] = useState<string[]>(initialTags);
+  
+  // Update state when props change
+  useEffect(() => {
+    setTitle(initialTitle);
+    setContent(initialContent);
+    setStatus(initialStatus);
+    setCategory(initialCategory);
+    setTags(initialTags);
+  }, [initialTitle, initialContent, initialStatus, initialCategory, initialTags]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(mode === 'edit');
@@ -194,36 +203,12 @@ export default function ArticleEditor({
                 AI Wizard
               </button>
             )}
-            <button
-              type="button"
-              onClick={onCancel}
-              className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-            </button>
           </div>
         </div>
       </div>
       
       {/* Form */}
       <form onSubmit={handleSubmit} className="p-6">
-        {/* Title */}
-        <div className="mb-6">
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-            Title
-          </label>
-          <input
-            type="text"
-            id="title"
-            name="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base px-4 py-3 border-gray-300 rounded-md"
-            placeholder="Enter article title"
-            required
-          />
-        </div>
-        
         {/* Status and Category */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Status */}
@@ -287,6 +272,25 @@ export default function ArticleEditor({
           <p className="mt-1 text-sm text-gray-500">
             Tags help categorize your article and make it more discoverable
           </p>
+        </div>
+        
+        {/* Title */}
+        <div className="mb-6">
+          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+            Title
+          </label>
+          <div className="flex items-center min-h-[44px] w-full cursor-text rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-indigo-600 sm:text-sm sm:leading-6">
+            <input
+              type="text"
+              id="title"
+              name="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="block w-full border-none focus:ring-0 focus:outline-none text-base py-1 px-1"
+              placeholder="Enter article title"
+              required
+            />
+          </div>
         </div>
         
         {/* Content Editor */}
