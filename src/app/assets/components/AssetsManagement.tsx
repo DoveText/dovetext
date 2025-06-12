@@ -47,6 +47,38 @@ export default function AssetsManagement() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
 
+  const getAssetType = (apiAsset => {
+    let assetType = apiAsset.meta.assetType || '';
+    const contentType = apiAsset.meta.contentType || '';
+          
+    // Validate the assetType is one of our valid types
+    const validTypes = ['image', 'document', 'video', 'audio'];
+    if (!validTypes.includes(assetType)) {
+      // If assetType is not valid, try to determine it from contentType
+      if (contentType.startsWith('image/')) {
+        assetType = 'image';
+      } else if (contentType.startsWith('video/')) {
+        assetType = 'video';
+      } else if (contentType.startsWith('audio/')) {
+        assetType = 'audio';
+      } else {
+        assetType = 'document';
+      }
+    }
+    
+    // For URL assets, do additional checks if type is still not determined correctly
+    if (apiAsset.type === 'url') {
+      const url = apiAsset.meta.url || '';
+      // Check for common video platforms in URL
+      if (assetType !== 'video' && (url.includes('youtube.com') || url.includes('youtu.be') || 
+          url.includes('vimeo.com') || url.includes('video'))) {
+        assetType = 'video';
+      }
+    }
+
+    return assetType;
+  })
+
   // Load assets on component mount
   useEffect(() => {
     const fetchAssets = async () => {
@@ -57,21 +89,7 @@ export default function AssetsManagement() {
         // Convert API assets to our Asset format
         const formattedAssets: Asset[] = apiAssets.map(apiAsset => {
           // Determine asset type from content type or explicit assetType in metadata
-          const contentType = apiAsset.meta.contentType || '';
-          let assetType = apiAsset.meta.assetType || '';
-          
-          // If assetType is still not set, try to determine it from contentType
-          if(!assetType) {
-            if (contentType.startsWith('image/')) {
-              assetType = 'image';
-            } else if (contentType.startsWith('video/')) {
-              assetType = 'video';
-            } else if (contentType.startsWith('audio/')) {
-              assetType = 'audio';
-            } else {
-              assetType = 'document';
-            }
-          }
+          let assetType = getAssetType(apiAsset);
           
           return {
             id: apiAsset.uuid,
@@ -100,18 +118,6 @@ export default function AssetsManagement() {
     
     fetchAssets();
   }, []);
-  
-  // Helper function to determine asset type from content type
-  const getAssetType = (contentType: string): 'image' | 'document' | 'video' | 'audio' => {
-    if (contentType.startsWith('image/')) return 'image';
-    if (contentType.startsWith('video/')) return 'video';
-    if (contentType.startsWith('audio/')) return 'audio';
-    if (contentType.includes('pdf') || contentType.includes('document') || 
-        contentType.includes('text/') || contentType.includes('application/')) {
-      return 'document';
-    }
-    return 'document'; // Default type
-  };
   
   // Helper function to format file size
   const formatFileSize = (bytes: number): string => {
@@ -230,6 +236,9 @@ export default function AssetsManagement() {
       }
       
       // Add the new asset to the assets list
+      // First determine the correct asset type
+      let assetType = getAssetType(uploadedAsset);
+      
       const newAsset: Asset = {
         id: uploadedAsset.uuid,
         uuid: uploadedAsset.uuid,
@@ -237,7 +246,7 @@ export default function AssetsManagement() {
         name: uploadedAsset.meta?.filename || '',
         description: uploadedAsset.meta?.description || '',
         tags: uploadedAsset.meta?.tags || [],
-        contentType: getAssetType(uploadedAsset.meta?.contentType || ''),
+        contentType: assetType, // Use the properly determined assetType
         sourceType: uploadedAsset.type,
         size: formatFileSize(uploadedAsset.meta?.size || 0),
         uploadedBy: 'You',
