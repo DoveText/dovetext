@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { DocumentDto } from '@/app/api/documents';
 import { documentsApi } from '@/app/api/documents';
 import { PlusIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import ArticlesList from './ArticlesList';
-import ArticleDetails from './ArticleDetails';
 import ArticlesToolbar from './ArticlesToolbar';
 
 // Article interface that maps to DocumentDto from the backend
@@ -35,13 +34,35 @@ export default function ArticlesManagement() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const { user } = useAuth();
 
-  // Fetch articles from the backend
-  useEffect(() => {
-    fetchArticles();
-  }, [filterState]);
+  // Apply filters (search query and tags)
+  const applyFilters = useCallback((
+    articlesToFilter: Article[], 
+    query: string, 
+    tags: string[]
+  ) => {
+    let filtered = articlesToFilter;
+    
+    // Apply search query filter
+    if (query) {
+      filtered = filtered.filter(article => 
+        article.title.toLowerCase().includes(query.toLowerCase()) ||
+        article.author.toLowerCase().includes(query.toLowerCase()) ||
+        article.category.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+    
+    // Apply tags filter
+    if (tags.length > 0) {
+      filtered = filtered.filter(article => 
+        tags.every(tag => article.tags?.includes(tag))
+      );
+    }
+    
+    setFilteredArticles(filtered);
+  }, []);
 
   // Function to fetch articles from the backend
-  const fetchArticles = async () => {
+  const fetchArticles = useCallback(async () => {
     setIsLoading(true);
     try {
       const documents = await documentsApi.getAll(filterState);
@@ -82,34 +103,12 @@ export default function ArticlesManagement() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Apply filters (search query and tags)
-  const applyFilters = (
-    articlesToFilter: Article[], 
-    query: string, 
-    tags: string[]
-  ) => {
-    let filtered = articlesToFilter;
-    
-    // Apply search query filter
-    if (query) {
-      filtered = filtered.filter(article => 
-        article.title.toLowerCase().includes(query.toLowerCase()) ||
-        article.author.toLowerCase().includes(query.toLowerCase()) ||
-        article.category.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-    
-    // Apply tags filter
-    if (tags.length > 0) {
-      filtered = filtered.filter(article => 
-        tags.every(tag => article.tags?.includes(tag))
-      );
-    }
-    
-    setFilteredArticles(filtered);
-  };
+  }, [filterState, searchQuery, selectedTags, user, applyFilters]);
+  
+  // Fetch articles on component mount and when filters change
+  useEffect(() => {
+    fetchArticles();
+  }, [fetchArticles]);
 
   // Handle search query change
   const handleSearchChange = (query: string) => {
@@ -205,24 +204,15 @@ export default function ArticlesManagement() {
 
         {/* Main content */}
         <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="flex flex-col lg:flex-row">
-            {/* Articles list */}
-            <div className="w-full lg:w-2/3 border-r border-gray-200">
-              <ArticlesList 
-                articles={filteredArticles}
-                selectedArticle={selectedArticle}
-                onArticleSelect={handleArticleSelect}
-                onEditArticle={handleEditArticle}
-                onDeleteArticle={handleDeleteArticle}
-                isLoading={isLoading}
-              />
-            </div>
-            
-            {/* Article details */}
-            <div className="w-full lg:w-1/3">
-              <ArticleDetails article={selectedArticle} />
-            </div>
-          </div>
+          <ArticlesList 
+            articles={filteredArticles}
+            selectedArticle={selectedArticle}
+            onArticleSelect={handleArticleSelect}
+            onEditArticle={handleEditArticle}
+            onDeleteArticle={handleDeleteArticle}
+            isLoading={isLoading}
+            onRefresh={fetchArticles}
+          />
         </div>
       </div>
     </div>
