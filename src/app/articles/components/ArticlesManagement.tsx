@@ -135,12 +135,14 @@ export default function ArticlesManagement() {
 
   // Handle create new article
   const handleCreateArticle = () => {
-    router.push('/articles/create');
+    // Open in a new tab/window
+    window.open('/articles/create', '_blank');
   };
 
   // Handle edit article
   const handleEditArticle = (id: string) => {
-    router.push(`/articles/edit?id=${id}`);
+    // Open in a new tab/window
+    window.open(`/articles/edit?id=${id}`, id || '_blank');
   };
 
   // Handle delete article

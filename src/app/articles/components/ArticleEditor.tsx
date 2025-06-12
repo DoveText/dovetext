@@ -38,7 +38,7 @@ export default function ArticleEditor({
   
   // Get document ID from URL if in edit mode
   const searchParams = useSearchParams();
-  const documentId = searchParams.get('id');
+  const documentId = searchParams ? searchParams.get('id') : null;
   
   // Fetch document data if in edit mode
   useEffect(() => {
@@ -50,7 +50,9 @@ export default function ArticleEditor({
           const document = await documentsApi.getDocument(documentId);
           
           // Fetch document content
-          const content = await documentsApi.getDocumentContent(documentId);
+          const contentBlob = await documentsApi.getDocumentContent(documentId);
+          // Convert blob to text
+          const content = await contentBlob.text();
           
           // Fetch document tags
           const tags = await documentsApi.getDocumentTags(documentId);
@@ -115,8 +117,8 @@ export default function ArticleEditor({
   };
   
   // Handle tag selection
-  const handleTagsChange = (selectedTags: string[]) => {
-    setTags(selectedTags);
+  const handleTagsChange = (value: string | string[]) => {
+    setTags(Array.isArray(value) ? value : []);
   };
   
   // Convert available tags to TaggedSelect options
@@ -168,7 +170,7 @@ export default function ArticleEditor({
             name="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+            className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base px-4 py-3 border-gray-300 rounded-md"
             placeholder="Enter article title"
             required
           />
@@ -181,17 +183,24 @@ export default function ArticleEditor({
             <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
               Status
             </label>
-            <select
-              id="status"
-              name="status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-            >
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
-            </select>
+            <div className="relative">
+              <select
+                id="status"
+                name="status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base px-4 py-3 border-gray-300 rounded-md appearance-none"
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                </svg>
+              </div>
+            </div>
           </div>
           
           {/* Category */}
@@ -199,20 +208,14 @@ export default function ArticleEditor({
             <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
               Category
             </label>
-            <select
-              id="category"
-              name="category"
+            <TaggedSelect
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-            >
-              <option value="">Select a category</option>
-              {availableCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setCategory(Array.isArray(value) ? value[0] : value)}
+              options={availableCategories.map(cat => ({ value: cat, label: cat }))}
+              placeholder="Select a category"
+              multiple={false}
+              editable={false}
+            />
           </div>
         </div>
         

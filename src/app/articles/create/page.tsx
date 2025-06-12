@@ -23,11 +23,22 @@ export default function CreateArticlePage() {
     
     setIsSubmitting(true);
     try {
+      console.log('Creating article with data:', { ...articleData, content: articleData.content.substring(0, 50) + '...' });
+      
+      // Validate required fields
+      if (!articleData.title) {
+        throw new Error('Title is required');
+      }
+      
+      if (!articleData.content) {
+        throw new Error('Content is required');
+      }
+      
       // Create content blob
       const contentBlob = new Blob([articleData.content], { type: 'text/markdown' });
       
-      // Create filename
-      const filename = `${articleData.title.toLowerCase().replace(/\s+/g, '-')}.md`;
+      // Create filename - ensure it's URL-safe
+      const filename = `${articleData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.md`;
       
       // Create file from blob
       const file = new File([contentBlob], filename, { type: 'text/markdown' });
@@ -36,26 +47,30 @@ export default function CreateArticlePage() {
       const metadata = {
         title: articleData.title,
         author: user?.email || 'Unknown',
-        category: articleData.category,
+        category: articleData.category || 'Uncategorized',
         filename: filename
       };
       
+      console.log('Sending to API:', { metadata, state: articleData.status });
+      
       // Create the document
       const newDocument = await documentsApi.createDocument(file, metadata, articleData.status);
+      console.log('Document created:', newDocument);
       
       // Add tags if any
       if (articleData.tags && articleData.tags.length > 0) {
+        console.log('Adding tags:', articleData.tags);
         await Promise.all(
-          articleData.tags.map(tag => documentsApi.addDocumentTag(newDocument.uuid, tag))
+          articleData.tags.map(tag => documentsApi.addTagToDocument(newDocument.uuid, tag))
         );
       }
       
       // Navigate back to articles list
       router.push('/articles');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating article:', error);
-      alert('Failed to create article. Please try again.');
+      alert(`Failed to create article: ${error.message || 'Unknown error'}. Please try again.`);
     } finally {
       setIsSubmitting(false);
     }
