@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
+import TaggedSelect from '@/components/common/TaggedSelect';
 import { 
   ArrowPathIcon, 
   GlobeAltIcon, 
@@ -44,7 +45,7 @@ interface BusinessInfo {
   description: string;
   website: string;
   industry: string;
-  keywords: string;
+  keywords: string[];
   socialMedia: {
     facebook: string;
     twitter: string;
@@ -74,7 +75,7 @@ export default function BusinessInfoPage() {
     description: '',
     website: '',
     industry: '',
-    keywords: '',
+    keywords: [],
     socialMedia: {
       facebook: '',
       twitter: '',
@@ -90,7 +91,7 @@ export default function BusinessInfoPage() {
       description: '',
       website: '',
       industry: '',
-      keywords: '',
+      keywords: [],
       otherInformation: [],
       websiteUrl: ''
     }
@@ -275,7 +276,7 @@ export default function BusinessInfoPage() {
         description: '',
         website: '',
         industry: '',
-        keywords: '',
+        keywords: [],
         socialMedia: {
           facebook: '',
           twitter: '',
@@ -291,18 +292,25 @@ export default function BusinessInfoPage() {
         else if (item.key === 'description') formData.description = item.value;
         else if (item.key === 'website') formData.website = item.value;
         else if (item.key === 'industry') formData.industry = item.value;
-        else if (item.key === 'keywords') formData.keywords = item.value;
+        else if (item.key === 'keywords') {
+          try {
+            const keywordsArray = item.value ? JSON.parse(item.value) : [];
+            formData.keywords = Array.isArray(keywordsArray) ? keywordsArray : [];
+          } catch (e) {
+            console.error('Error parsing keywords JSON:', e);
+            formData.keywords = [];
+          }
+        }
         else if (item.key === 'socialMedia.facebook') formData.socialMedia.facebook = item.value;
         else if (item.key === 'socialMedia.twitter') formData.socialMedia.twitter = item.value;
         else if (item.key === 'socialMedia.instagram') formData.socialMedia.instagram = item.value;
         else if (item.key === 'socialMedia.linkedin') formData.socialMedia.linkedin = item.value;
         else {
-          // Add to otherInformation
-          formData.otherInformation.push({
-            key: item.key,
-            value: item.value,
-            id: item.id
-          });
+          // Add to other information if not a standard field
+          if (!formData.otherInformation) {
+            formData.otherInformation = [];
+          }
+          formData.otherInformation.push({ key: item.key, value: item.value });
         }
       });
       
@@ -348,22 +356,20 @@ export default function BusinessInfoPage() {
   
   // Function to save business info
   const saveBusinessInfo = async (data: BusinessInfo) => {
-    if (!user) {
-      toast.error('You must be logged in to save business information');
-      return;
-    }
+    if (!user) return;
     
     setLoading(true);
+    toast.loading('Saving business information...', { id: 'saving' });
+    
     try {
-      toast.loading('Saving business information...', { id: 'saving' });
-      
-      // Convert our structured data to flat key-value pairs for the API
+      // Prepare data for API
       const batchItems: UserBusinessInfoDto[] = [
         { key: 'name', value: data.name },
-        { key: 'description', value: data.description },
-        { key: 'website', value: data.website },
-        { key: 'industry', value: data.industry },
-        { key: 'keywords', value: data.keywords },
+        { key: 'description', value: data.description || '' },
+        { key: 'website', value: data.website || '' },
+        { key: 'industry', value: data.industry || '' },
+        // Convert keywords array to JSON string for storage
+        { key: 'keywords', value: Array.isArray(data.keywords) ? JSON.stringify(data.keywords) : '[]' },
       ];
       
       // Add social media fields if they have values
@@ -660,21 +666,36 @@ export default function BusinessInfoPage() {
                     </div>
                   </div>
                   
-                  {/* Line 2: Keywords */}
+                  {/* Line 2: Business Keywords */}
                   <div className="mb-4">
                     <label htmlFor="keywords" className="block text-sm font-medium text-gray-700 mb-1">
                       <div className="flex items-center">
                         <InformationCircleIcon className="h-5 w-5 mr-1 text-gray-500" />
-                        Keywords
+                        Business Keywords
                       </div>
                     </label>
-                    <input
-                      {...register('keywords')}
-                      id="keywords"
-                      type="text"
-                      className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter keywords separated by commas"
+                    <TaggedSelect
+                      value={watch('keywords') || []}
+                      onChange={(value) => {
+                        // Ensure we always have an array of strings
+                        const keywordsArray = Array.isArray(value) ? value : [value].filter(Boolean);
+                        setValue('keywords', keywordsArray);
+                      }}
+                      options={(watch('keywords') || []).map(tag => ({ value: tag, label: tag }))}
+                      placeholder="Add business keywords..."
+                      multiple={true}
+                      editable={true}
+                      className="min-h-[44px] py-1"
+                      onCreateOption={(newTag) => {
+                        const currentTags = watch('keywords') || [];
+                        if (!currentTags.includes(newTag)) {
+                          setValue('keywords', [...currentTags, newTag]);
+                        }
+                      }}
                     />
+                    <p className="mt-1 text-sm text-gray-500">
+                      Keywords help describe your business and improve discoverability
+                    </p>
                   </div>
                   
                   {/* Line 3: Description */}
