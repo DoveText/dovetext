@@ -18,20 +18,30 @@ interface ArticleEditorProps {
   }) => Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
+  initialTitle?: string;
+  initialContent?: string;
+  initialStatus?: string;
+  initialCategory?: string;
+  initialTags?: string[];
 }
 
 export default function ArticleEditor({
   mode,
   onSave,
   onCancel,
-  isSubmitting
+  isSubmitting,
+  initialTitle = '',
+  initialContent = '',
+  initialStatus = 'draft',
+  initialCategory = '',
+  initialTags = []
 }: ArticleEditorProps) {
   // State for article data
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [status, setStatus] = useState('draft');
-  const [category, setCategory] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
+  const [title, setTitle] = useState(initialTitle);
+  const [content, setContent] = useState(initialContent);
+  const [status, setStatus] = useState(initialStatus);
+  const [category, setCategory] = useState(initialCategory);
+  const [tags, setTags] = useState<string[]>(initialTags);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(mode === 'edit');
@@ -205,23 +215,20 @@ export default function ArticleEditor({
             <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
               Status
             </label>
-            <div className="relative">
-              <select
-                id="status"
-                name="status"
+            <div className="rounded-md shadow-sm">
+              <TaggedSelect
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base px-4 py-3 border-gray-300 rounded-md appearance-none"
-              >
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-                <option value="archived">Archived</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                </svg>
-              </div>
+                onChange={(value) => setStatus(Array.isArray(value) ? value[0] : value)}
+                options={[
+                  { value: 'draft', label: 'Draft' },
+                  { value: 'published', label: 'Published' },
+                  { value: 'archived', label: 'Archived' }
+                ]}
+                placeholder="Select a status"
+                multiple={false}
+                editable={false}
+                className="min-h-[44px] py-1"
+              />
             </div>
           </div>
           
