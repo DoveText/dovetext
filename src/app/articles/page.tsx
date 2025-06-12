@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useUserType } from '@/context/UserTypeContext';
 import { useAuth } from '@/context/AuthContext';
+import { documentsApi, DocumentDto } from '@/app/api/documents';
 import { 
   DocumentTextIcon, 
   PlusIcon, 
@@ -13,25 +14,26 @@ import {
   ArrowPathIcon,
   ChevronDownIcon
 } from '@heroicons/react/24/outline';
-
-// Mock article data
+// Article interface that maps to DocumentDto from the backend
 interface Article {
-  id: string;
-  title: string;
-  status: 'draft' | 'published' | 'scheduled';
-  author: string;
-  category: string;
-  publishDate?: string;
-  views?: number;
-  lastModified: string;
+  id: string; // uuid from DocumentDto
+  title: string; // from meta.filename or meta.title
+  status: string; // state from DocumentDto
+  author: string; // from meta.author or user info
+  category: string; // from meta.category or tags
+  publishDate?: string; // from meta.publishDate
+  views?: number; // from meta.views
+  lastModified: string; // from updatedAt
 }
 
 export default function ArticlesPage() {
   const router = useRouter();
   const { userType } = useUserType();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { user, loading: authLoading } = useAuth();
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [filterState, setFilterState] = useState<string | undefined>(undefined);
 
   // Redirect personal users to dashboard
   if (!authLoading && user && userType === 'personal') {
@@ -39,64 +41,39 @@ export default function ArticlesPage() {
     return null;
   }
   
-  // Mock articles data
-  const [articles, setArticles] = useState<Article[]>([
-    {
-      id: '1',
-      title: 'How AI is Transforming Content Creation',
-      status: 'published',
-      author: 'Jane Smith',
-      category: 'Technology',
-      publishDate: '2023-05-15',
-      views: 1245,
-      lastModified: '2023-05-14'
-    },
-    {
-      id: '2',
-      title: 'The Future of Digital Marketing in 2024',
-      status: 'published',
-      author: 'John Doe',
-      category: 'Marketing',
-      publishDate: '2023-05-10',
-      views: 980,
-      lastModified: '2023-05-09'
-    },
-    {
-      id: '3',
-      title: 'Best Practices for SEO Optimization',
-      status: 'draft',
-      author: 'Sarah Johnson',
-      category: 'SEO',
-      lastModified: '2023-05-20'
-    },
-    {
-      id: '4',
-      title: 'Content Strategy for B2B Companies',
-      status: 'scheduled',
-      author: 'Michael Brown',
-      category: 'Business',
-      publishDate: '2023-06-01',
-      lastModified: '2023-05-18'
-    },
-    {
-      id: '5',
-      title: 'How to Create Engaging Social Media Content',
-      status: 'published',
-      author: 'Emily Davis',
-      category: 'Social Media',
-      publishDate: '2023-05-05',
-      views: 760,
-      lastModified: '2023-05-04'
-    },
-    {
-      id: '6',
-      title: 'Email Marketing Strategies That Convert',
-      status: 'draft',
-      author: 'David Wilson',
-      category: 'Marketing',
-      lastModified: '2023-05-19'
+  // Fetch articles from the backend
+  useEffect(() => {
+    fetchArticles();
+  }, [filterState]);
+  
+  // Function to fetch articles from the backend
+  const fetchArticles = async () => {
+    setIsLoading(true);
+    try {
+      const documents = await documentsApi.getAll(filterState);
+      
+      // Map DocumentDto to Article interface
+      const mappedArticles = documents.map(doc => {
+        const meta = doc.meta || {};
+        return {
+          id: doc.uuid,
+          title: meta.title || meta.filename || 'Untitled Document',
+          status: doc.state || 'draft',
+          author: meta.author || (user ? user.email : 'Unknown'),
+          category: meta.category || 'Uncategorized',
+          publishDate: meta.publishDate,
+          views: meta.views,
+          lastModified: doc.updatedAt
+        };
+      });
+      
+      setArticles(mappedArticles);
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
   
   // Filter articles based on search query
   const filteredArticles = articles.filter(article => 
@@ -105,12 +82,39 @@ export default function ArticlesPage() {
     article.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
-  // Handle refresh (simulated)
+  // Handle refresh - fetch articles from backend
   const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    fetchArticles();
+  };
+  
+  // Handle filter change
+  const handleFilterChange = (state?: string) => {
+    setFilterState(state);
+  };
+  
+  // Handle create new article
+  const handleCreateArticle = () => {
+    router.push('/articles/create');
+  };
+  
+  // Handle edit article
+  const handleEditArticle = (id: string) => {
+    router.push(`/articles/edit/${id}`);
+  };
+  
+  // Handle delete article
+  const handleDeleteArticle = async (id: string) => {
+    if (confirm('Are you sure you want to delete this article?')) {
+      setIsLoading(true);
+      try {
+        await documentsApi.deleteDocument(id);
+        // Refresh the list after deletion
+        fetchArticles();
+      } catch (error) {
+        console.error('Error deleting document:', error);
+        setIsLoading(false);
+      }
+    }
   };
   
   return (
@@ -127,6 +131,7 @@ export default function ArticlesPage() {
               <div className="mt-4 md:mt-0">
                 <button
                   type="button"
+                  onClick={handleCreateArticle}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <PlusIcon className="h-5 w-5 mr-2" />
@@ -142,36 +147,53 @@ export default function ArticlesPage() {
           {/* Filters and Search */}
           <div className="bg-white p-4 rounded-lg shadow mb-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <FunnelIcon className="h-4 w-4 mr-1" />
-                  Filter
-                  <ChevronDownIcon className="h-4 w-4 ml-1" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <ArrowPathIcon className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
+              <div className="relative inline-block text-left">
+                <div className="flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => handleFilterChange(undefined)}
+                    className={`px-3 py-2 text-sm font-medium rounded-md ${!filterState ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFilterChange('draft')}
+                    className={`px-3 py-2 text-sm font-medium rounded-md ${filterState === 'draft' ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    Drafts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFilterChange('published')}
+                    className={`px-3 py-2 text-sm font-medium rounded-md ${filterState === 'published' ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    Published
+                  </button>
+                </div>
               </div>
               <div className="relative flex-1 max-w-md">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
                 </div>
                 <input
                   type="text"
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  name="search"
+                  id="search"
+                  className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
                   placeholder="Search articles..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              <button
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ArrowPathIcon className={`h-5 w-5 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
             </div>
           </div>
           
@@ -244,8 +266,18 @@ export default function ArticlesPage() {
                           {new Date(article.lastModified).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                          <button className="text-red-600 hover:text-red-900">Delete</button>
+                          <button 
+                            onClick={() => handleEditArticle(article.id)}
+                            className="text-blue-600 hover:text-blue-900 mr-3"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteArticle(article.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))
