@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { documentsApi, DocumentDto } from '@/app/api/documents';
 import { useAuth } from '@/context/AuthContext';
+import { DocumentDto } from '@/app/api/documents';
+import { documentsApi } from '@/app/api/documents';
+import { PlusIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import ArticlesList from './ArticlesList';
 import ArticleDetails from './ArticleDetails';
 import ArticlesToolbar from './ArticlesToolbar';
-import { DocumentTextIcon } from '@heroicons/react/24/outline';
 
 // Article interface that maps to DocumentDto from the backend
 export interface Article {
@@ -139,7 +140,7 @@ export default function ArticlesManagement() {
 
   // Handle edit article
   const handleEditArticle = (id: string) => {
-    router.push(`/articles/edit/${id}`);
+    router.push(`/articles/edit?id=${id}`);
   };
 
   // Handle delete article
