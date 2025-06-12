@@ -23,6 +23,7 @@ interface ArticleEditorProps {
   initialStatus?: string;
   initialCategory?: string;
   initialTags?: string[];
+  onWizardOpen?: () => void;
 }
 
 export default function ArticleEditor({
@@ -34,7 +35,8 @@ export default function ArticleEditor({
   initialContent = '',
   initialStatus = 'draft',
   initialCategory = '',
-  initialTags = []
+  initialTags = [],
+  onWizardOpen
 }: ArticleEditorProps) {
   // State for article data
   const [title, setTitle] = useState(initialTitle);
@@ -179,13 +181,27 @@ export default function ArticleEditor({
               {mode === 'create' ? 'Create New Article' : 'Edit Article'}
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-          </button>
+          <div className="flex items-center space-x-2">
+            {mode === 'create' && onWizardOpen && (
+              <button
+                type="button"
+                onClick={onWizardOpen}
+                className="inline-flex items-center px-3 py-1.5 border border-blue-500 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                AI Wizard
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </div>
       

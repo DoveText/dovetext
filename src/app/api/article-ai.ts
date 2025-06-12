@@ -33,7 +33,8 @@ export const articleAiApi = {
         selectedTitle: `${getTitlePrefix(planningData.intent)}: ${getTopicFromPurpose(planningData.purpose)}`,
         outline: generateOutline(planningData),
         introduction: generateIntroduction(planningData),
-        conclusion: generateConclusion(planningData)
+        conclusion: generateConclusion(planningData),
+        tags: planningData.keywords || []
       };
       
       // When implementing the real API call, it would look something like this:

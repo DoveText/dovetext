@@ -20,6 +20,7 @@ export interface AIGeneratedArticle {
   }[];
   introduction: string;
   conclusion: string;
+  tags: string[];
 }
 
 interface AIArticleSuggestionsProps {
