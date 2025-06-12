@@ -28,10 +28,67 @@ function ArticlePreview() {
   const [lastModified, setLastModified] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
   
   // Get document ID from URL
   const searchParams = useSearchParams();
   const documentId = searchParams ? searchParams.get('id') : null;
+  
+  // Handle state change actions
+  const handlePublish = async () => {
+    if (!documentId) return;
+    
+    if (confirm('Are you sure you want to publish this article?')) {
+      setActionLoading(true);
+      try {
+        await documentsApi.updateDocument(documentId, { state: 'published' });
+        setStatus('published');
+        alert('Article published successfully!');
+      } catch (error) {
+        console.error('Error publishing article:', error);
+        alert('Failed to publish article. Please try again.');
+      } finally {
+        setActionLoading(false);
+      }
+    }
+  };
+  
+  const handleArchive = async () => {
+    if (!documentId) return;
+    
+    if (confirm('Are you sure you want to archive this article?')) {
+      setActionLoading(true);
+      try {
+        await documentsApi.updateDocument(documentId, { state: 'archived' });
+        setStatus('archived');
+        alert('Article archived successfully!');
+      } catch (error) {
+        console.error('Error archiving article:', error);
+        alert('Failed to archive article. Please try again.');
+      } finally {
+        setActionLoading(false);
+      }
+    }
+  };
+  
+  const handleRestore = async () => {
+    if (!documentId) return;
+    
+    if (confirm('Are you sure you want to restore this article to draft?')) {
+      setActionLoading(true);
+      try {
+        await documentsApi.updateDocument(documentId, { state: 'draft' });
+        setStatus('draft');
+        alert('Article restored to draft successfully!');
+      } catch (error) {
+        console.error('Error restoring article:', error);
+        alert('Failed to restore article. Please try again.');
+      } finally {
+        setActionLoading(false);
+      }
+    }
+  };
   
   // Fetch document data
   useEffect(() => {
@@ -61,6 +118,7 @@ function ArticlePreview() {
         setCategory(document.meta?.category || '');
         setTags(documentTags || []);
         setLastModified(document.updatedAt ? new Date(document.updatedAt) : null);
+        setStatus(document.state || 'draft');
       } catch (error) {
         console.error('Error fetching document:', error);
         setError('Failed to load document. Please try again.');
@@ -156,9 +214,7 @@ function ArticlePreview() {
         
         {/* Article Content */}
         <div className="p-6">
-          <div className="prose prose-blue max-w-none">
-            <MarkdownRenderer content={content} />
-          </div>
+          <MarkdownRenderer content={content} className="prose-lg" />
         </div>
         
         {/* Article Footer */}
@@ -168,12 +224,65 @@ function ArticlePreview() {
               ← Back to Articles
             </Link>
             <div className="flex space-x-2">
+              {/* State change buttons based on current status */}
+              {status === 'draft' && (
+                <button
+                  onClick={handlePublish}
+                  disabled={actionLoading}
+                  className="inline-flex items-center px-3 py-1.5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  {actionLoading ? (
+                    <>
+                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                      Publishing...
+                    </>
+                  ) : (
+                    <>Publish</>  
+                  )}
+                </button>
+              )}
+              
+              {status === 'published' && (
+                <button
+                  onClick={handleArchive}
+                  disabled={actionLoading}
+                  className="inline-flex items-center px-3 py-1.5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                >
+                  {actionLoading ? (
+                    <>
+                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                      Archiving...
+                    </>
+                  ) : (
+                    <>Archive</>  
+                  )}
+                </button>
+              )}
+              
+              {status === 'archived' && (
+                <button
+                  onClick={handleRestore}
+                  disabled={actionLoading}
+                  className="inline-flex items-center px-3 py-1.5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  {actionLoading ? (
+                    <>
+                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                      Restoring...
+                    </>
+                  ) : (
+                    <>Restore to Draft</>  
+                  )}
+                </button>
+              )}
+              
               <button 
                 onClick={() => window.print()}
                 className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Print
               </button>
+              
               <Link 
                 href={`/articles/edit?id=${documentId}`}
                 className="inline-flex items-center px-3 py-1.5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

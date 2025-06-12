@@ -118,7 +118,29 @@ export default function ArticleEditor({
   
   // Handle tag selection
   const handleTagsChange = (value: string | string[]) => {
-    setTags(Array.isArray(value) ? value : []);
+    const newTags = Array.isArray(value) ? value : [];
+    setTags(newTags);
+    
+    // Add any new tags to the available tags list
+    const newAvailableTags = [...availableTags];
+    newTags.forEach(tag => {
+      if (!availableTags.includes(tag)) {
+        newAvailableTags.push(tag);
+      }
+    });
+    
+    if (newAvailableTags.length !== availableTags.length) {
+      setAvailableTags(newAvailableTags);
+    }
+  };
+  
+  // Handle creating a new tag
+  const handleCreateTag = (newTag: string) => {
+    // Add the new tag to both selected tags and available tags
+    setTags([...tags, newTag]);
+    if (!availableTags.includes(newTag)) {
+      setAvailableTags([...availableTags, newTag]);
+    }
   };
   
   // Convert available tags to TaggedSelect options
@@ -236,6 +258,7 @@ export default function ArticleEditor({
               multiple={true}
               editable={true}
               className="min-h-[44px] py-1"
+              onCreateOption={handleCreateTag}
             />
           </div>
           <p className="mt-1 text-sm text-gray-500">

@@ -47,8 +47,12 @@ export default function ArticlesList({
   const [localLoading, setLocalLoading] = useState<Record<string, boolean>>({});
   
   // Toggle row expansion
-  const toggleRowExpansion = (articleId: string, event: React.MouseEvent) => {
-    event.stopPropagation();
+  const toggleRowExpansion = (articleId: string, event?: React.MouseEvent) => {
+    // If event is provided, stop propagation
+    if (event) {
+      event.stopPropagation();
+    }
+    
     setExpandedRows(prev => ({
       ...prev,
       [articleId]: !prev[articleId]
@@ -177,22 +181,24 @@ export default function ArticlesList({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {articles.map((article) => (
+            {articles.map(article => (
               <React.Fragment key={article.id}>
                 <tr 
-                  className={`hover:bg-gray-50 cursor-pointer ${selectedArticle?.id === article.id ? 'bg-blue-50' : ''}`}
-                  onClick={() => onArticleSelect(article)}
+                  className={`bg-white border-b hover:bg-gray-50 ${selectedArticle?.id === article.id ? 'bg-blue-50' : ''} cursor-pointer`}
+                  onClick={() => {
+                    onArticleSelect(article);
+                    toggleRowExpansion(article.id);
+                  }}
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <button 
-                        onClick={(e) => toggleRowExpansion(article.id, e)}
-                        className="mr-2 text-gray-400 hover:text-gray-600"
-                      >
-                        {expandedRows[article.id] ? 
-                          <ChevronUpIcon className="h-5 w-5" /> : 
-                          <ChevronDownIcon className="h-5 w-5" />}
-                      </button>
+                      <div className="text-gray-400">
+                        {expandedRows[article.id] ? (
+                          <ChevronUpIcon className="h-5 w-5" />
+                        ) : (
+                          <ChevronDownIcon className="h-5 w-5" />
+                        )}
+                      </div>
                       <div className="text-sm font-medium text-gray-900">{article.title}</div>
                     </div>
                   </td>

@@ -100,9 +100,13 @@ export default function TaggedSelect<T extends string>({
       if (matchingOption) {
         handleSelect(matchingOption.value);
       } else if (onCreateOption) {
-        // Create a new option
+        // Create a new option using the provided handler
         onCreateOption(inputValue);
         setInputValue('');
+      } else {
+        // If no onCreateOption handler is provided, create the tag directly
+        // This allows Enter key to work for creating tags without requiring an external handler
+        handleSelect(inputValue as T);
       }
     } else if (e.key === 'Backspace' && !inputValue && selectedValues.length > 0) {
       // Remove the last tag when backspace is pressed and input is empty
