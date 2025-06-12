@@ -56,10 +56,11 @@ export default function AssetsManagement() {
         
         // Convert API assets to our Asset format
         const formattedAssets: Asset[] = apiAssets.map(apiAsset => {
-          // Determine asset type from content type
+          // Determine asset type from content type or explicit assetType in metadata
           const contentType = apiAsset.meta.contentType || '';
-          let assetType: 'image' | 'document' | 'video' | 'audio' = apiAsset.meta.assetType || '';
+          let assetType = apiAsset.meta.assetType || '';
           
+          // If assetType is still not set, try to determine it from contentType
           if(!assetType) {
             if (contentType.startsWith('image/')) {
               assetType = 'image';
