@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor';
 import { documentsApi } from '@/app/api/documents';
@@ -53,23 +53,6 @@ export default function ArticleEditor({
   const [suggestedTitles, setSuggestedTitles] = useState<string[]>([]);
   const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
   
-  // Ref to track the latest content
-  const contentRef = useRef(initialContent);
-  
-  // Update state when props change, but only if they're different from current state
-  useEffect(() => {
-    // Only update state if the initial props are different from current state
-    // This prevents infinite update loops
-    if (initialTitle !== title) setTitle(initialTitle);
-    if (initialContent !== content) {
-      console.log('ArticleEditor: initialContent updated', initialContent);
-      setContent(initialContent);
-    }
-    if (initialStatus !== status) setStatus(initialStatus);
-    if (initialCategory !== category) setCategory(initialCategory);
-    // For arrays, we need to check if they're actually different
-    if (JSON.stringify(initialTags) !== JSON.stringify(tags)) setTags(initialTags);
-  }, [initialTitle, initialContent, initialStatus, initialCategory, initialTags]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(mode === 'edit');
@@ -102,6 +85,8 @@ export default function ArticleEditor({
           setCategory(document.meta?.category || '');
           setTags(tags || []);
           
+          console.log('Set content', content.length)
+
           // Set suggested titles if available in document meta
           if (document.meta?.suggested_titles && Array.isArray(document.meta.suggested_titles)) {
             setSuggestedTitles(document.meta.suggested_titles);
@@ -162,13 +147,8 @@ export default function ArticleEditor({
     });
   };
   
-  // Handle opening the title generation dialog
-  const handleOpenTitleDialog = () => {
-    setIsTitleDialogOpen(true);
-  };
-  
   // Handle title generation request
-  const handleGenerateTitles = async (direction: string) => {
+  const handleGenerateTitles = useCallback(async (direction: string) => {
     // Validate content length
     if (!content || content.trim().length < 50) {
       throw new Error('Content is too short for title generation. Please provide more content in your article first.');
@@ -202,7 +182,7 @@ export default function ArticleEditor({
       console.error('Error generating titles:', error);
       throw error;
     }
-  };
+  }, [content, tags]);
   
   // Handle selecting a title from the dropdown or dialog
   const handleTitleSelect = (selectedTitle: string) => {
@@ -263,6 +243,8 @@ export default function ArticleEditor({
     );
   }
   
+  console.log('isTitleDialogOpen', isTitleDialogOpen, 'content', content.length)
+
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden">
       {/* Header */}
@@ -364,24 +346,78 @@ export default function ArticleEditor({
             Title
           </label>
           <div className="relative">
-            <TaggedSelect
-              id="title"
-              value={title}
-              onChange={(value) => handleTitleSelect(value as string)}
-              options={[
-                ...(title && !suggestedTitles.includes(title) ? [{ value: title, label: title }] : []),
-                ...suggestedTitles.map(suggestedTitle => ({ value: suggestedTitle, label: suggestedTitle })),
-                { value: "__generate_new__", label: "✨ Generate New Titles..." }
-              ]}
-              placeholder="Enter article title"
-              editable={true}
-              multiple={false}
-              className="min-h-[44px] py-1"
-            />
+            <div className="relative w-full">
+              <input
+                type="text"
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="block w-full rounded-md py-2 pl-3 pr-10 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                placeholder="Enter article title"
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
+              
+              {/* Custom dropdown */}
+              <div 
+                onClick={() => document.getElementById('titleDropdown')?.classList.toggle('hidden')}
+                className="absolute inset-0 w-full h-full cursor-pointer"
+              />
+              
+              <div id="titleDropdown" className="hidden absolute z-50 top-full mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                {/* Current title if not in suggested titles */}
+                {title && !suggestedTitles.includes(title) && (
+                  <div 
+                    className="text-gray-900 cursor-default select-none relative py-2 pl-3 pr-9 bg-indigo-50 font-medium"
+                  >
+                    {title}
+                  </div>
+                )}
+                
+                {/* Suggested titles */}
+                {suggestedTitles.map((suggestedTitle, index) => (
+                  <div
+                    key={index}
+                    className={`cursor-pointer select-none relative py-2 pl-3 pr-9 ${title === suggestedTitle ? 'bg-indigo-100 text-indigo-700 font-medium' : 'text-gray-900 hover:bg-gray-100'}`}
+                    onClick={() => {
+                      setTitle(suggestedTitle);
+                      document.getElementById('titleDropdown')?.classList.add('hidden');
+                    }}
+                  >
+                    {suggestedTitle}
+                    {title === suggestedTitle && (
+                      <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-indigo-600">
+                        <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                    )}
+                  </div>
+                ))}
+                
+                {/* Generate option */}
+                <div
+                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 text-blue-600 hover:bg-gray-100 border-t border-gray-200"
+                  onClick={() => {
+                    setIsTitleDialogOpen(true);
+                    document.getElementById('titleDropdown')?.classList.add('hidden');
+                  }}
+                >
+                  <div className="flex items-center">
+                    <SparklesIcon className="h-4 w-4 mr-2" />
+                    <span>✨ Generate New Titles...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           
           {/* Title generation dialog */}
-          <TitleGenerationDialog
+          {isTitleDialogOpen && (
+            <TitleGenerationDialog
             isOpen={isTitleDialogOpen}
             onClose={() => {
               setIsTitleDialogOpen(false);
@@ -396,6 +432,7 @@ export default function ArticleEditor({
             }}
             onGenerateTitles={handleGenerateTitles}
           />
+          )}
         </div>
         
         {/* Content Editor */}
@@ -408,8 +445,8 @@ export default function ArticleEditor({
               key={initialContent} /* Force re-render when initialContent changes */
               initialContent={initialContent || content}
               onChange={(newContent) => {
+                console.log('newContent', newContent)
                 setContent(newContent);
-                contentRef.current = newContent;
               }}
               placeholder="Write your article content here..."
               minHeight="500px"

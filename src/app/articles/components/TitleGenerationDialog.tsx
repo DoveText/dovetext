@@ -73,7 +73,7 @@ export function TitleGenerationDialog({
   };
 
   return (
-    <Dialog open={isOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Generate Article Titles</DialogTitle>
