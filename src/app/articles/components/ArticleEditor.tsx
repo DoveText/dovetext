@@ -45,14 +45,19 @@ export default function ArticleEditor({
   const [category, setCategory] = useState(initialCategory);
   const [tags, setTags] = useState<string[]>(initialTags);
   
-  // Update state when props change
+  // Update state when props change, but only if they're different from current state
   useEffect(() => {
-    setTitle(initialTitle);
-    setContent(initialContent);
-    console.log('ArticleEditor: initialContent updated', initialContent);
-    setStatus(initialStatus);
-    setCategory(initialCategory);
-    setTags(initialTags);
+    // Only update state if the initial props are different from current state
+    // This prevents infinite update loops
+    if (initialTitle !== title) setTitle(initialTitle);
+    if (initialContent !== content) {
+      console.log('ArticleEditor: initialContent updated', initialContent);
+      setContent(initialContent);
+    }
+    if (initialStatus !== status) setStatus(initialStatus);
+    if (initialCategory !== category) setCategory(initialCategory);
+    // For arrays, we need to check if they're actually different
+    if (JSON.stringify(initialTags) !== JSON.stringify(tags)) setTags(initialTags);
   }, [initialTitle, initialContent, initialStatus, initialCategory, initialTags]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
