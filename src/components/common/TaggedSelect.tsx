@@ -56,9 +56,12 @@ export default function TaggedSelect<T extends string>({
   const selectedValues = multiple ? (value as T[]) : value ? [value as T] : [];
   
   // Get selected options with labels
-  const selectedOptions = selectedValues.map(val => 
-    options.find(option => option.value === val) || { value: val, label: val as string }
-  );
+  const selectedOptions = selectedValues.map(val => {
+    // Find the option that matches the value
+    const matchingOption = options.find(option => option.value === val);
+    // If found, return the option with its label, otherwise use the value as the label
+    return matchingOption || { value: val, label: val as string };
+  });
 
   // Filter options based on input value and already selected options
   const filteredOptions = options.filter(option => {
@@ -83,8 +86,8 @@ export default function TaggedSelect<T extends string>({
       const newValue = selectedValues.filter(val => val !== optionValue) as T[];
       onChange(newValue);
     } else {
-      // For single select, we don't allow clearing the selection completely
-      // Instead, we keep the current selection
+      // For single select, allow clearing the selection
+      onChange('' as T);
     }
   };
 
@@ -139,7 +142,7 @@ export default function TaggedSelect<T extends string>({
             className="flex items-center bg-blue-100 text-blue-800 rounded-full px-2 py-0.5 m-0.5 text-sm"
           >
             <span className="mr-1">{option.label}</span>
-            {!disabled && multiple && (
+            {!disabled && (
               <button
                 type="button"
                 onClick={(e) => {

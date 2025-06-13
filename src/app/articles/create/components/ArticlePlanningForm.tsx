@@ -104,6 +104,17 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
     if (typeof audienceValue === 'string' && audienceValue) {
       setSelectedAudiences(audienceValue.split(','));
     }
+    
+    // Initialize tone and length from default values
+    const toneValue = watch('tone');
+    if (toneValue) {
+      setSelectedTone(toneValue);
+    }
+    
+    const lengthValue = watch('desiredLength');
+    if (lengthValue) {
+      setSelectedLength(lengthValue);
+    }
   }, [watch]);
 
   useEffect(() => {
@@ -378,16 +389,14 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
               </div>
               <div className="rounded-md shadow-sm">
                 <TaggedSelect
-                  value={selectedTone ? toneOptions.filter(opt => opt.value === selectedTone).map(opt => opt.value) : []}
+                  value={selectedTone}
                   error={errors.tone?.message}
                   onChange={(value) => {
                     if (Array.isArray(value)) {
-                      // If array is empty, clear the selection
                       if (value.length === 0) {
                         setSelectedTone('');
                         setValue('tone', '');
                       } else {
-                        // Otherwise take the first value
                         setSelectedTone(value[0]);
                         setValue('tone', value[0]);
                       }
@@ -420,16 +429,14 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
               </div>
               <div className="rounded-md shadow-sm">
                 <TaggedSelect
-                  value={selectedLength ? lengthOptions.filter(opt => opt.value === selectedLength).map(opt => opt.value) : []}
+                  value={selectedLength}
                   error={errors.desiredLength?.message}
                   onChange={(value) => {
                     if (Array.isArray(value)) {
-                      // If array is empty, clear the selection
                       if (value.length === 0) {
                         setSelectedLength('' as 'short' | 'medium' | 'long');
                         setValue('desiredLength', '' as 'short' | 'medium' | 'long');
                       } else {
-                        // Otherwise take the first value
                         const length = value[0] as 'short' | 'medium' | 'long';
                         setSelectedLength(length);
                         setValue('desiredLength', length);
@@ -442,7 +449,7 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                   }}
                   options={lengthOptions}
                   placeholder="Select article length..."
-                  multiple={true}
+                  multiple={false}
                   editable={false}
                   className="min-h-[44px] py-1"
                 />
