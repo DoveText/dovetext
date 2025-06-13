@@ -131,7 +131,7 @@ export default function CreateArticlePage() {
             initialContent={generatedArticle ? generateMarkdownContent(generatedArticle) : ''}
             initialStatus="draft"
             initialCategory=""
-            initialTags={generatedArticle?.tags || []}
+            initialTags={[]}
             onWizardOpen={() => setIsWizardOpen(true)}
           />
           
@@ -153,9 +153,6 @@ export default function CreateArticlePage() {
 // Helper function to generate markdown content from AI article
 function generateMarkdownContent(article: AIGeneratedArticle): string {
   let markdown = '';
-  
-  // Add title as H1
-  markdown += `# ${article.selectedTitle}\n\n`;
   
   // Add introduction with a clear heading
   markdown += '## Introduction\n\n';
