@@ -97,10 +97,25 @@ export default function CreateArticlePage() {
     }
   };
 
-  const handleWizardComplete = (article: AIGeneratedArticle, formData: any) => {
+  // Save form data and close wizard when user explicitly closes it
+  const handleWizardClose = () => {
+    // Form data is already saved via handleWizardFormDataChange
+    setIsWizardOpen(false);
+  };
+  
+  // Handle when the wizard is completed with a generated article
+  const handleWizardComplete = (article: AIGeneratedArticle, formData: ArticlePlanningData) => {
+    console.log('Wizard completed with article and form data:', { article, formData });
     setGeneratedArticle(article);
     setWizardFormData(formData); // Save the form data when wizard completes
     setIsWizardOpen(false);
+  };
+  
+  // Handle form data changes from the wizard - this saves data as user types
+  const handleWizardFormDataChange = (formData: ArticlePlanningData) => {
+    console.log('Form data changed:', formData);
+    // Save form data as it changes, so it persists even if the user cancels
+    setWizardFormData(formData);
   };
 
   return (
@@ -123,9 +138,10 @@ export default function CreateArticlePage() {
           {isWizardOpen && (
             <ArticleWizardModal
               isOpen={isWizardOpen}
-              onClose={() => setIsWizardOpen(false)}
+              onClose={handleWizardClose}
               onComplete={handleWizardComplete}
               initialFormData={wizardFormData}
+              onFormDataChange={handleWizardFormDataChange}
             />
           )}
         </div>
@@ -138,16 +154,25 @@ export default function CreateArticlePage() {
 function generateMarkdownContent(article: AIGeneratedArticle): string {
   let markdown = '';
   
-  // Add introduction
+  // Add title as H1
+  markdown += `# ${article.selectedTitle}\n\n`;
+  
+  // Add introduction with a clear heading
+  markdown += '## Introduction\n\n';
   markdown += article.introduction + '\n\n';
   
-  // Add outline sections
+  // Add outline sections with proper hierarchy
   article.outline.forEach(section => {
-    const headingLevel = '#'.repeat(section.level);
+    // Add 2 to level to ensure proper hierarchy (since we already used H1 for title and H2 for intro)
+    const headingLevel = '#'.repeat(Math.min(section.level + 1, 6)); // Limit to H6
     markdown += `${headingLevel} ${section.heading}\n\n`;
     
     if (section.content) {
+      // Format content as paragraph
       markdown += `${section.content}\n\n`;
+      
+      // Add placeholder for detailed content
+      markdown += `_Expand on ${section.heading.toLowerCase()} here..._\n\n`;
     } else {
       markdown += `Write content for this section here...\n\n`;
     }
@@ -155,7 +180,28 @@ function generateMarkdownContent(article: AIGeneratedArticle): string {
   
   // Add conclusion
   markdown += '## Conclusion\n\n';
-  markdown += article.conclusion + '\n';
+  markdown += article.conclusion + '\n\n';
+  
+  // Add metadata section for reference
+  markdown += '---\n\n';
+  markdown += '## Article Metadata\n\n';
+  
+  // Add alternative titles as bullet points
+  if (article.titles && article.titles.length > 1) {
+    markdown += '### Alternative Titles\n\n';
+    article.titles.forEach(title => {
+      if (title !== article.selectedTitle) {
+        markdown += `- ${title}\n`;
+      }
+    });
+    markdown += '\n';
+  }
+  
+  // Add tags
+  if (article.tags && article.tags.length > 0) {
+    markdown += '### Tags\n\n';
+    markdown += article.tags.map(tag => `#${tag.replace(/\s+/g, '')}`).join(' ') + '\n\n';
+  }
   
   return markdown;
 }

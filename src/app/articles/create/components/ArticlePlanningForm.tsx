@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '@/context/AuthContext';
 import { businessInfoApi } from '@/app/api/business-info';
@@ -32,14 +32,15 @@ interface ArticlePlanningFormProps {
   onCancel?: () => void;
   initialData?: ArticlePlanningData;
   ref?: React.ForwardedRef<ArticlePlanningFormRef>;
+  onFormDataChange?: (data: ArticlePlanningData) => void;
 }
 
 export interface ArticlePlanningFormRef {
   resetGeneratingState: () => void;
 }
 
-const ArticlePlanningForm = forwardRef<ArticlePlanningFormRef, Omit<ArticlePlanningFormProps, 'ref'>>(
-  ({ onComplete, onCancel, initialData }, ref) => {
+const ArticlePlanningForm = forwardRef<ArticlePlanningFormRef, ArticlePlanningFormProps>(
+  ({ onComplete, onCancel, initialData, onFormDataChange }, ref) => {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const totalSteps = 2; // Reduced from 3 to 2 steps
@@ -240,6 +241,48 @@ const ArticlePlanningForm = forwardRef<ArticlePlanningFormRef, Omit<ArticlePlann
     setStep(prev => Math.max(prev - 1, 1));
   };
 
+  // Use a ref to track the previous form data to avoid unnecessary updates
+  const prevFormDataRef = useRef<string>('');
+  
+  // Notify parent of form data changes when relevant state changes
+  useEffect(() => {
+    if (!onFormDataChange) return;
+    
+    // Create current form data object
+    const currentData: ArticlePlanningData = {
+      purpose: watch('purpose') || '',
+      targetAudience: selectedAudiences.join(','),
+      intent: selectedIntents.join(','),
+      desiredLength: selectedLength as 'short' | 'medium' | 'long',
+      tone: selectedTone,
+      keywords: selectedKeywords || []
+    };
+    
+    // Convert to string for comparison to avoid unnecessary updates
+    const currentDataString = JSON.stringify(currentData);
+    
+    // Only notify if data actually changed
+    if (currentDataString !== prevFormDataRef.current) {
+      prevFormDataRef.current = currentDataString;
+      
+      // Use a debounced update to prevent too many updates
+      const timeoutId = setTimeout(() => {
+        onFormDataChange(currentData);
+      }, 300);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [
+    // Only trigger when these values change
+    watch('purpose'),
+    selectedAudiences.join(','),
+    selectedIntents.join(','),
+    selectedLength,
+    selectedTone,
+    selectedKeywords?.join(','),
+    onFormDataChange
+  ]);
+
   const onSubmit = (data: ArticlePlanningData) => {
     // Set loading state
     setIsGenerating(true);
@@ -256,7 +299,7 @@ const ArticlePlanningForm = forwardRef<ArticlePlanningFormRef, Omit<ArticlePlann
       // Use the selected values from state
       keywords: selectedKeywords || [],
       tone: getFullLabel(toneOptions, selectedTone),
-      desiredLength: getFullLabel(lengthOptions, selectedLength),
+      desiredLength: getFullLabel(lengthOptions, selectedLength) as any, // Cast to any to avoid type error
       intent: selectedIntents.map(intent => getFullLabel(intentOptions, intent)).join(', '),
       targetAudience: selectedAudiences.map(audience => getFullLabel(audienceOptions, audience)).join(', ')
     };

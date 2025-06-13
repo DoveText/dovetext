@@ -13,6 +13,7 @@ interface ArticleWizardModalProps {
   onClose: () => void;
   onComplete: (article: AIGeneratedArticle, formData: ArticlePlanningData) => void;
   initialFormData?: ArticlePlanningData;
+  onFormDataChange?: (formData: ArticlePlanningData) => void;
 }
 
 type WizardStep = 'planning' | 'suggestions';
@@ -21,13 +22,25 @@ export default function ArticleWizardModal({
   isOpen,
   onClose,
   onComplete,
-  initialFormData
+  initialFormData,
+  onFormDataChange
 }: ArticleWizardModalProps) {
   const [currentStep, setCurrentStep] = useState<WizardStep>('planning');
   const [planningData, setPlanningData] = useState<ArticlePlanningData | null>(null);
   const [generatedArticle, setGeneratedArticle] = useState<AIGeneratedArticle | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const planningFormRef = useRef<ArticlePlanningFormRef>(null);
+
+  // Handle form data changes and save them for persistence
+  const handleFormDataChange = (data: ArticlePlanningData) => {
+    // Save form data as user types/selects options
+    setPlanningData(data);
+    
+    // Pass the form data changes to the parent component if the callback exists
+    if (onFormDataChange) {
+      onFormDataChange(data);
+    }
+  };
 
   // Handle completion of the planning form
   const handlePlanningComplete = (data: ArticlePlanningData) => {
@@ -38,21 +51,19 @@ export default function ArticleWizardModal({
     
     articleAiApi.generateArticle(data)
       .then(article => {
-        // Check if we received a valid article structure
-        if (!article || !article.titles || !article.outline) {
-          throw new Error('Received invalid article structure from API');
-        }
-        
+        if (!article || !article.titles || !article.outline) throw new Error('Received invalid article structure from API');
         setGeneratedArticle(article);
         setCurrentStep('suggestions');
         toast.success('Article suggestions generated!', { id: 'generating' });
+        
+        // Save the generated article and form data immediately
+        // This ensures the data is saved even if user doesn't click "Accept & Continue"
+        onComplete(article, data);
       })
       .catch(error => {
         console.error('Error generating article:', error);
         
-        // Provide more specific error messages based on the error type
         let errorMessage = 'Failed to generate article suggestions. Please try again.';
-        
         if (error.response) {
           // Handle specific HTTP error codes
           switch (error.response.status) {
@@ -228,11 +239,12 @@ export default function ArticleWizardModal({
           {/* Modal content */}
           <div className="max-h-[80vh] overflow-y-auto">
             {currentStep === 'planning' ? (
-              <ArticlePlanningForm 
+              <ArticlePlanningForm
                 ref={planningFormRef}
                 onComplete={handlePlanningComplete}
                 onCancel={onClose}
                 initialData={initialFormData}
+                onFormDataChange={handleFormDataChange}
               />
             ) : generatedArticle ? (
               <AIArticleSuggestions
