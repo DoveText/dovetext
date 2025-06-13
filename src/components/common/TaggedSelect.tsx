@@ -187,15 +187,28 @@ export default function TaggedSelect<T extends string>({
       >
         <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
           {filteredOptions.length > 0 ? (
-            filteredOptions.map((option) => (
-              <div
-                key={option.value}
-                className="relative cursor-default select-none py-2 pl-3 pr-9 hover:bg-indigo-600 hover:text-white"
-                onClick={() => handleSelect(option.value)}
-              >
-                <span className="block truncate">{option.label}</span>
-              </div>
-            ))
+            filteredOptions.map((option) => {
+              // Check if this option is currently selected (for single-select mode)
+              const isSelected = !multiple && selectedValues.includes(option.value);
+              return (
+                <div
+                  key={option.value}
+                  className={`relative cursor-default select-none py-2 pl-3 pr-9 hover:bg-indigo-600 hover:text-white ${
+                    isSelected ? 'bg-indigo-100 font-medium' : ''
+                  }`}
+                  onClick={() => handleSelect(option.value)}
+                >
+                  <span className="block truncate">{option.label}</span>
+                  {isSelected && (
+                    <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600">
+                      <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
+              );
+            })
           ) : (
             <div className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-500">
               {editable && inputValue ? 'Press Enter to create new tag' : 'No options available'}
