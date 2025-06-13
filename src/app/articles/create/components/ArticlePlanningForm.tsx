@@ -21,9 +21,9 @@ export interface ArticlePlanningData {
   purpose: string;
   targetAudience: string;
   intent: string;
-  keywords: string[];
   desiredLength: 'short' | 'medium' | 'long';
   tone: string;
+  keywords: string[];
 }
 
 interface ArticlePlanningFormProps {
@@ -34,14 +34,16 @@ interface ArticlePlanningFormProps {
 export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePlanningFormProps) {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
+  const totalSteps = 2; // Reduced from 3 to 2 steps
   const [loading, setLoading] = useState(false);
   const [businessKeywords, setBusinessKeywords] = useState<string[]>([]);
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ArticlePlanningData>({
     defaultValues: {
       purpose: '',
-      targetAudience: 'general',
-      intent: 'educate',
+      intent: 'growth',
+      targetAudience: 'potential',
       keywords: [],
       desiredLength: 'medium',
       tone: 'professional'
@@ -55,10 +57,10 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
       
       try {
         setLoading(true);
-        const businessInfoItems = await businessInfoApi.getBusinessInfo();
+        const businessInfoItems = await businessInfoApi.getAll();
         
         // Find keywords in business info
-        const keywordsItem = businessInfoItems.find(item => item.key === 'keywords');
+        const keywordsItem = businessInfoItems.find((item: { key: string }) => item.key === 'keywords');
         if (keywordsItem && keywordsItem.value) {
           try {
             const parsedKeywords = JSON.parse(keywordsItem.value);
@@ -92,7 +94,8 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
   };
 
   const nextStep = () => {
-    setStep(prev => Math.min(prev + 1, 3));
+    // Prevent automatic transition beyond the last step
+    setStep(prev => Math.min(prev + 1, totalSteps));
   };
 
   const prevStep = () => {
@@ -100,36 +103,47 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
   };
 
   const onSubmit = (data: ArticlePlanningData) => {
-    onComplete(data);
+    // Add selected keywords to form data
+    const finalData = {
+      ...data,
+      // Keywords is already an array, no need to split
+      keywords: data.keywords || []
+    };
+    
+    // Only complete when on the final step and Generate Article button is clicked
+    // This prevents automatic transition to the summary page
+    onComplete(finalData);
   };
 
   return (
     <div className="bg-white shadow-md rounded-lg p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Plan Your Article</h2>
-        <p className="text-gray-600">
-          Let AI help you create a well-structured article by providing some information
-        </p>
-      </div>
-
       {/* Progress indicator */}
       <div className="mb-8">
+      <div className="flex justify-between mt-2">
+          <span className={`text-sm ${step === 1 ? 'font-bold text-blue-500' : 'text-gray-500'}`}>Purpose & Audience</span>
+          <span className={`text-sm ${step === 2 ? 'font-bold text-blue-500' : 'text-gray-500'}`}>Style & Keywords</span>
+        </div>
         <div className="flex items-center justify-between">
           <div className={`flex-1 h-2 ${step >= 1 ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
           <div className={`flex-1 h-2 ${step >= 2 ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
-          <div className={`flex-1 h-2 ${step >= 3 ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
-        </div>
-        <div className="flex justify-between mt-2">
-          <span className={`text-sm ${step === 1 ? 'font-bold text-blue-500' : 'text-gray-500'}`}>Purpose</span>
-          <span className={`text-sm ${step === 2 ? 'font-bold text-blue-500' : 'text-gray-500'}`}>Audience & Intent</span>
-          <span className={`text-sm ${step === 3 ? 'font-bold text-blue-500' : 'text-gray-500'}`}>Style & Keywords</span>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        {/* Step 1: Purpose */}
+      <form onSubmit={(e) => {
+          // Only allow form submission on the final step
+          if (step !== totalSteps) {
+            e.preventDefault();
+            return false;
+          }
+          return handleSubmit(onSubmit)(e);
+        }}>
+        {/* Step 1: Purpose & Audience */}
         {step === 1 && (
           <div className="space-y-6">
+            <p className="text-gray-600">
+              Tell us what you want to write, what is the purpose and who is your audience
+            </p>
+
             <div>
               <div className="flex items-center mb-2">
                 <DocumentTextIcon className="h-5 w-5 text-blue-500 mr-2" />
@@ -137,13 +151,15 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                   What do you want to write about?
                 </label>
               </div>
-              <textarea
-                id="purpose"
-                {...register('purpose', { required: 'Please describe what you want to write about' })}
-                rows={5}
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base px-4 py-3 border border-gray-300 rounded-md"
-                placeholder="Describe the topic and main points you want to cover in your article..."
-              />
+              <div className="flex items-center min-h-[44px] w-full cursor-text rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-indigo-600 sm:text-sm sm:leading-6">                
+                <textarea
+                  id="purpose"
+                  {...register('purpose', { required: 'Please describe what you want to write about' })}
+                  rows={5}
+                  className="block w-full border-none focus:ring-0 focus:outline-none text-base py-1 px-1"
+                  placeholder="Describe the topic and main points you want to cover in your article..."
+                />
+              </div>
               {errors.purpose && (
                 <p className="mt-1 text-sm text-red-600">{errors.purpose.message}</p>
               )}
@@ -151,12 +167,41 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                 Be specific about your topic and what you want readers to learn or understand
               </p>
             </div>
-          </div>
-        )}
 
-        {/* Step 2: Audience & Intent */}
-        {step === 2 && (
-          <div className="space-y-6">
+            <div>
+              <div className="flex items-center mb-2">
+                <LightBulbIcon className="h-5 w-5 text-blue-500 mr-2" />
+                <label htmlFor="intent" className="block text-sm font-medium text-gray-700">
+                  What purpose does this article serve?
+                </label>
+              </div>
+              <div className="rounded-md shadow-sm">
+                <TaggedSelect
+                  value={typeof watch('intent') === 'string' ? watch('intent').split(',') : []}
+                  onChange={(value) => {
+                    const intents = Array.isArray(value) ? value : [];
+                    setValue('intent', intents.join(','));
+                  }}
+                  options={[
+                    { value: 'growth', label: 'Growth - Drive business growth' },
+                    { value: 'educate', label: 'Educate - Share knowledge' },
+                    { value: 'inform', label: 'Inform - Provide updates' },
+                    { value: 'analyze', label: 'Analyze - Examine a topic' },
+                    { value: 'instruct', label: 'Instruct - Teach a process' },
+                    { value: 'persuade', label: 'Persuade - Change opinions' },
+                    { value: 'entertain', label: 'Entertain - Engage readers' },
+                  ]}
+                  placeholder="Select your primary intent..."
+                  multiple={true}
+                  editable={false}
+                  className="min-h-[44px] py-1"
+                />
+                <p className="mt-1 text-sm text-gray-500">
+                  We recommend selecting at most 3 purposes
+                </p>
+              </div>
+            </div>
+
             <div>
               <div className="flex items-center mb-2">
                 <UserGroupIcon className="h-5 w-5 text-blue-500 mr-2" />
@@ -164,93 +209,48 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                   Who is your target audience?
                 </label>
               </div>
-              <select
-                id="targetAudience"
-                {...register('targetAudience', { required: true })}
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base px-4 py-3 border border-gray-300 rounded-md"
-              >
-                <option value="general">General Public</option>
-                <option value="beginners">Beginners</option>
-                <option value="intermediate">Intermediate Knowledge</option>
-                <option value="experts">Industry Experts</option>
-                <option value="customers">Existing Customers</option>
-                <option value="potential">Potential Customers</option>
-              </select>
-            </div>
-
-            <div>
-              <div className="flex items-center mb-2">
-                <LightBulbIcon className="h-5 w-5 text-blue-500 mr-2" />
-                <label htmlFor="intent" className="block text-sm font-medium text-gray-700">
-                  What is your primary intent?
-                </label>
+              <div className="rounded-md shadow-sm">
+                <TaggedSelect
+                  value={typeof watch('targetAudience') === 'string' ? watch('targetAudience').split(',') : []}
+                  onChange={(value) => {
+                    const audiences = Array.isArray(value) ? value : [];
+                    setValue('targetAudience', audiences.join(','));
+                  }}
+                  options={[
+                    { value: 'potential', label: 'Potential Customers' },
+                    { value: 'customers', label: 'Existing Customers' },
+                    { value: 'beginners', label: 'Beginners' },
+                    { value: 'intermediate', label: 'Intermediate Knowledge' },
+                    { value: 'experts', label: 'Industry Experts' },
+                    { value: 'general', label: 'General Public' },
+                  ]}
+                  placeholder="Select your target audience..."
+                  multiple={true}
+                  editable={false}
+                  className="min-h-[44px] py-1"
+                />
+                <p className="mt-1 text-sm text-gray-500">
+                  We recommend selecting at most 3 audience categories
+                </p>
               </div>
-              <select
-                id="intent"
-                {...register('intent', { required: true })}
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base px-4 py-3 border border-gray-300 rounded-md"
-              >
-                <option value="educate">Educate - Share knowledge</option>
-                <option value="persuade">Persuade - Change opinions</option>
-                <option value="entertain">Entertain - Engage readers</option>
-                <option value="inform">Inform - Provide updates</option>
-                <option value="analyze">Analyze - Examine a topic</option>
-                <option value="instruct">Instruct - Teach a process</option>
-              </select>
             </div>
           </div>
         )}
 
-        {/* Step 3: Style & Keywords */}
-        {step === 3 && (
+        {/* Step 2: Style & Keywords */}
+        {step === 2 && (
           <div className="space-y-6">
-            <div>
-              <div className="flex items-center mb-2">
-                <ClockIcon className="h-5 w-5 text-blue-500 mr-2" />
-                <label htmlFor="desiredLength" className="block text-sm font-medium text-gray-700">
-                  Desired article length
-                </label>
-              </div>
-              <select
-                id="desiredLength"
-                {...register('desiredLength', { required: true })}
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base px-4 py-3 border border-gray-300 rounded-md"
-              >
-                <option value="short">Short (300-500 words)</option>
-                <option value="medium">Medium (500-1000 words)</option>
-                <option value="long">Long (1000+ words)</option>
-              </select>
-            </div>
-
-            <div>
-              <div className="flex items-center mb-2">
-                <SpeakerWaveIcon className="h-5 w-5 text-blue-500 mr-2" />
-                <label htmlFor="tone" className="block text-sm font-medium text-gray-700">
-                  Tone of voice
-                </label>
-              </div>
-              <select
-                id="tone"
-                {...register('tone', { required: true })}
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base px-4 py-3 border border-gray-300 rounded-md"
-              >
-                <option value="professional">Professional</option>
-                <option value="conversational">Conversational</option>
-                <option value="technical">Technical</option>
-                <option value="friendly">Friendly</option>
-                <option value="authoritative">Authoritative</option>
-                <option value="humorous">Humorous</option>
-              </select>
-            </div>
-
+            <p className="text-gray-600">
+              Further customize your article, like the keywords you want to cover and the styles!
+            </p>
             <div>
               <div className="flex items-center mb-2">
                 <label htmlFor="keywords" className="block text-sm font-medium text-gray-700">
-                  Keywords
+                  Select keywords you want to cover in this article:
                 </label>
               </div>
               <TaggedSelect
-                value={watch('keywords')}
+                value={watch('keywords') || []}
                 onChange={handleKeywordsChange}
                 options={businessKeywords.map(kw => ({ value: kw, label: kw }))}
                 placeholder="Select or add keywords..."
@@ -261,6 +261,69 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
               />
               <p className="mt-1 text-sm text-gray-500">
                 Select from your business keywords or add new ones specific to this article
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center mb-2">
+                <SpeakerWaveIcon className="h-5 w-5 text-blue-500 mr-2" />
+                <label htmlFor="tone" className="block text-sm font-medium text-gray-700">
+                  Set the tone of voice for this article:
+                </label>
+              </div>
+              <div className="rounded-md shadow-sm">
+                <TaggedSelect
+                  value={[watch('tone') || 'professional']}
+                  onChange={(value) => {
+                    const tone = Array.isArray(value) && value.length > 0 ? value[0] : 'professional';
+                    setValue('tone', tone as string);
+                  }}
+                  options={[
+                    { value: 'professional', label: 'Professional' },
+                    { value: 'conversational', label: 'Conversational' },
+                    { value: 'technical', label: 'Technical' },
+                    { value: 'friendly', label: 'Friendly' },
+                    { value: 'authoritative', label: 'Authoritative' },
+                    { value: 'humorous', label: 'Humorous' }
+                  ]}
+                  placeholder="Select tone of voice..."
+                  multiple={false}
+                  editable={false}
+                  className="min-h-[44px] py-1"
+                />
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                You can customize the tone of voice for this article
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center mb-2">
+                <ClockIcon className="h-5 w-5 text-blue-500 mr-2" />
+                <label htmlFor="desiredLength" className="block text-sm font-medium text-gray-700">
+                  Desired article length
+                </label>
+              </div>
+              <div className="rounded-md shadow-sm">
+                <TaggedSelect
+                  value={[watch('desiredLength') || 'medium']}
+                  onChange={(value) => {
+                    const length = Array.isArray(value) && value.length > 0 ? value[0] : 'medium';
+                    setValue('desiredLength', length as 'short' | 'medium' | 'long');
+                  }}
+                  options={[
+                    { value: 'short', label: 'Short (300-500 words)' },
+                    { value: 'medium', label: 'Medium (500-1000 words)' },
+                    { value: 'long', label: 'Long (1000+ words)' }
+                  ]}
+                  placeholder="Select article length..."
+                  multiple={false}
+                  editable={false}
+                  className="min-h-[44px] py-1"
+                />
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                Select the desired article length. You need to decide this according to your audiences!
               </p>
             </div>
           </div>
@@ -287,10 +350,13 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
             </button>
           )}
 
-          {step < 3 ? (
+          {step < totalSteps ? (
             <button
               type="button"
-              onClick={nextStep}
+              onClick={(e) => {
+                e.preventDefault(); // Prevent form submission
+                nextStep();
+              }}
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
             >
               Next
