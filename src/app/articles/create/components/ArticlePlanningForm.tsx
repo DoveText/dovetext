@@ -13,7 +13,8 @@ import {
   ClockIcon,
   SpeakerWaveIcon,
   ChevronRightIcon,
-  ChevronLeftIcon
+  ChevronLeftIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 
 // Types for article planning
@@ -38,6 +39,7 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
   const [loading, setLoading] = useState(false);
   const [businessKeywords, setBusinessKeywords] = useState<string[]>([]);
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
   
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ArticlePlanningData>({
     defaultValues: {
@@ -65,7 +67,14 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
           try {
             const parsedKeywords = JSON.parse(keywordsItem.value);
             if (Array.isArray(parsedKeywords)) {
+              // Create business keywords with proper value/label pairs
               setBusinessKeywords(parsedKeywords);
+              
+              // Initialize selected keywords from form data if any
+              const formKeywords = watch('keywords');
+              if (formKeywords && Array.isArray(formKeywords) && formKeywords.length > 0) {
+                setSelectedKeywords(formKeywords);
+              }
             }
           } catch (e) {
             console.error('Error parsing business keywords:', e);
@@ -79,17 +88,19 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
     };
     
     loadBusinessKeywords();
-  }, [user]);
+  }, [user, watch]);
 
   const handleKeywordsChange = (value: string | string[]) => {
     const newKeywords = Array.isArray(value) ? value : [];
+    setSelectedKeywords(newKeywords);
     setValue('keywords', newKeywords);
   };
 
   const handleCreateKeyword = (newKeyword: string) => {
-    const currentKeywords = watch('keywords') || [];
-    if (!currentKeywords.includes(newKeyword)) {
-      setValue('keywords', [...currentKeywords, newKeyword]);
+    if (!selectedKeywords.includes(newKeyword)) {
+      const newKeywords = [...selectedKeywords, newKeyword];
+      setSelectedKeywords(newKeywords);
+      setValue('keywords', newKeywords);
     }
   };
 
@@ -103,11 +114,14 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
   };
 
   const onSubmit = (data: ArticlePlanningData) => {
+    // Set loading state
+    setIsGenerating(true);
+    
     // Add selected keywords to form data
     const finalData = {
       ...data,
-      // Keywords is already an array, no need to split
-      keywords: data.keywords || []
+      // Use the selected keywords
+      keywords: selectedKeywords || []
     };
     
     // Only complete when on the final step and Generate Article button is clicked
@@ -250,7 +264,7 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                 </label>
               </div>
               <TaggedSelect
-                value={watch('keywords') || []}
+                value={selectedKeywords}
                 onChange={handleKeywordsChange}
                 options={businessKeywords.map(kw => ({ value: kw, label: kw }))}
                 placeholder="Select or add keywords..."
@@ -365,15 +379,19 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
           ) : (
             <button
               type="submit"
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              disabled={isGenerating}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed"
             >
-              {loading ? (
+              {isGenerating ? (
                 <>
                   <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-                  Processing...
+                  Generating...
                 </>
               ) : (
-                <>Generate Article</>
+                <>
+                  Generate Article
+                  <SparklesIcon className="h-5 w-5 ml-1" />
+                </>
               )}
             </button>
           )}
