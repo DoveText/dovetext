@@ -244,16 +244,24 @@ const ArticlePlanningForm = forwardRef<ArticlePlanningFormRef, Omit<ArticlePlann
     // Set loading state
     setIsGenerating(true);
     
-    // Add selected keywords to form data
+    // Get full labels for better LLM understanding
+    const getFullLabel = (options: { value: string, label: string }[], value: string) => {
+      const option = options.find(opt => opt.value === value);
+      return option ? option.label : value;
+    };
+    
+    // Add selected keywords to form data with full labels
     const finalData = {
       ...data,
       // Use the selected values from state
       keywords: selectedKeywords || [],
-      tone: selectedTone,
-      desiredLength: selectedLength,
-      intent: selectedIntents.join(','),
-      targetAudience: selectedAudiences.join(',')
+      tone: getFullLabel(toneOptions, selectedTone),
+      desiredLength: getFullLabel(lengthOptions, selectedLength),
+      intent: selectedIntents.map(intent => getFullLabel(intentOptions, intent)).join(', '),
+      targetAudience: selectedAudiences.map(audience => getFullLabel(audienceOptions, audience)).join(', ')
     };
+    
+    console.log('Sending article generation data with full labels:', finalData);
     
     // Only complete when on the final step and Generate Article button is clicked
     // This prevents automatic transition to the summary page
