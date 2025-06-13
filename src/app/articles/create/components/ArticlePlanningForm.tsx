@@ -359,7 +359,7 @@ const ArticlePlanningForm = forwardRef<ArticlePlanningFormRef, ArticlePlanningFo
                   What do you want to write about?
                 </label>
               </div>
-              <div className="flex items-center min-h-[44px] w-full cursor-text rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-indigo-600 sm:text-sm sm:leading-6">                
+              <div className="flex flex-col w-full cursor-text rounded-md bg-white py-1.5 pl-3 pr-3 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-indigo-600 sm:text-sm sm:leading-6">                
                 <textarea
                   id="purpose"
                   {...register('purpose', { 
@@ -375,8 +375,9 @@ const ArticlePlanningForm = forwardRef<ArticlePlanningFormRef, ArticlePlanningFo
                     }
                   })}
                   rows={5}
-                  className="block w-full border-none focus:ring-0 focus:outline-none text-base py-1 px-1"
+                  className="block w-full border-none focus:ring-0 focus:outline-none text-base py-1 px-1 resize-none"
                   placeholder="Describe the topic and main points you want to cover in your article..."
+                  style={{ width: '100%' }}
                 />
               </div>
               {errors.purpose && (

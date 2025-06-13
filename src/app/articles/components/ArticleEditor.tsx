@@ -49,6 +49,7 @@ export default function ArticleEditor({
   useEffect(() => {
     setTitle(initialTitle);
     setContent(initialContent);
+    console.log('ArticleEditor: initialContent updated', initialContent);
     setStatus(initialStatus);
     setCategory(initialCategory);
     setTags(initialTags);
@@ -300,7 +301,8 @@ export default function ArticleEditor({
           </label>
           <div className="border border-gray-300 rounded-md overflow-hidden shadow-sm">
             <MarkdownEditor
-              initialContent={content}
+              key={initialContent} /* Force re-render when initialContent changes */
+              initialContent={initialContent || content}
               onChange={setContent}
               placeholder="Write your article content here..."
               minHeight="500px"
