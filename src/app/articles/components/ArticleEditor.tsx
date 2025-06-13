@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor';
 import { documentsApi } from '@/app/api/documents';
-import { TagIcon, DocumentTextIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { articleAiApi } from '@/app/api/article-ai';
+import { TagIcon, DocumentTextIcon, XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import TaggedSelect from '@/components/common/TaggedSelect';
+import { TitleGenerationDialog } from './TitleGenerationDialog';
 
 interface ArticleEditorProps {
   mode: 'create' | 'edit';
@@ -15,6 +17,10 @@ interface ArticleEditorProps {
     status: string;
     category: string;
     tags: string[];
+    meta?: {
+      suggested_titles?: string[];
+      [key: string]: any;
+    };
   }) => Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
@@ -44,6 +50,11 @@ export default function ArticleEditor({
   const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(initialCategory);
   const [tags, setTags] = useState<string[]>(initialTags);
+  const [suggestedTitles, setSuggestedTitles] = useState<string[]>([]);
+  const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
+  
+  // Ref to track the latest content
+  const contentRef = useRef(initialContent);
   
   // Update state when props change, but only if they're different from current state
   useEffect(() => {
@@ -90,6 +101,11 @@ export default function ArticleEditor({
           setStatus(document.state || 'draft');
           setCategory(document.meta?.category || '');
           setTags(tags || []);
+          
+          // Set suggested titles if available in document meta
+          if (document.meta?.suggested_titles && Array.isArray(document.meta.suggested_titles)) {
+            setSuggestedTitles(document.meta.suggested_titles);
+          }
         } catch (error) {
           console.error('Error fetching document:', error);
           alert('Failed to load document. Please try again.');
@@ -133,14 +149,76 @@ export default function ArticleEditor({
       return;
     }
     
-    // Save article
+    // Include suggested titles in the metadata
     await onSave({
       title,
       content,
       status,
       category,
-      tags
+      tags,
+      meta: {
+        suggested_titles: suggestedTitles
+      }
     });
+  };
+  
+  // Handle opening the title generation dialog
+  const handleOpenTitleDialog = () => {
+    setIsTitleDialogOpen(true);
+  };
+  
+  // Handle title generation request
+  const handleGenerateTitles = async (direction: string) => {
+    // Validate content length
+    if (!content || content.trim().length < 50) {
+      throw new Error('Content is too short for title generation. Please provide more content in your article first.');
+    }
+    
+    try {
+      const request = {
+        content: content,
+        keywords: tags,
+        direction
+      };
+      
+      const response = await articleAiApi.generateTitles(request);
+      if (response.titles && response.titles.length > 0) {
+        // Update suggested titles
+        setSuggestedTitles(prev => {
+          // Add new titles that don't already exist
+          const newTitles = [...prev];
+          response.titles.forEach(title => {
+            if (!newTitles.includes(title)) {
+              newTitles.push(title);
+            }
+          });
+          return newTitles;
+        });
+        
+        return response.titles;
+      }
+      return [];
+    } catch (error) {
+      console.error('Error generating titles:', error);
+      throw error;
+    }
+  };
+  
+  // Handle selecting a title from the dropdown or dialog
+  const handleTitleSelect = (selectedTitle: string) => {
+    if (selectedTitle === "__generate_new__") {
+      setIsTitleDialogOpen(true);
+    } else {
+      setTitle(selectedTitle);
+    }
+  };
+  
+  // Handle new titles generated from the dialog
+  const handleNewTitlesGenerated = (newTitles: string[]) => {
+    setSuggestedTitles(newTitles);
+    if (newTitles.length > 0) {
+      setTitle(newTitles[0]);
+    }
   };
   
   // Handle tag selection
@@ -285,18 +363,39 @@ export default function ArticleEditor({
           <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
             Title
           </label>
-          <div className="flex items-center min-h-[44px] w-full cursor-text rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-indigo-600 sm:text-sm sm:leading-6">
-            <input
-              type="text"
+          <div className="relative">
+            <TaggedSelect
               id="title"
-              name="title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="block w-full border-none focus:ring-0 focus:outline-none text-base py-1 px-1"
+              onChange={(value) => handleTitleSelect(value as string)}
+              options={[
+                ...(title && !suggestedTitles.includes(title) ? [{ value: title, label: title }] : []),
+                ...suggestedTitles.map(suggestedTitle => ({ value: suggestedTitle, label: suggestedTitle })),
+                { value: "__generate_new__", label: "✨ Generate New Titles..." }
+              ]}
               placeholder="Enter article title"
-              required
+              editable={true}
+              multiple={false}
+              className="min-h-[44px] py-1"
             />
           </div>
+          
+          {/* Title generation dialog */}
+          <TitleGenerationDialog
+            isOpen={isTitleDialogOpen}
+            onClose={() => {
+              setIsTitleDialogOpen(false);
+            }}
+            onSelectTitle={(selectedTitle) => {
+              setTitle(selectedTitle);
+              // Add to suggested titles if not already there
+              if (!suggestedTitles.includes(selectedTitle)) {
+                setSuggestedTitles([...suggestedTitles, selectedTitle]);
+              }
+              setIsTitleDialogOpen(false);
+            }}
+            onGenerateTitles={handleGenerateTitles}
+          />
         </div>
         
         {/* Content Editor */}
@@ -308,7 +407,10 @@ export default function ArticleEditor({
             <MarkdownEditor
               key={initialContent} /* Force re-render when initialContent changes */
               initialContent={initialContent || content}
-              onChange={setContent}
+              onChange={(newContent) => {
+                setContent(newContent);
+                contentRef.current = newContent;
+              }}
               placeholder="Write your article content here..."
               minHeight="500px"
               format="markdown"
