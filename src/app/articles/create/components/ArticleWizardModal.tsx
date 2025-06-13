@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Dialog } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import ArticlePlanningForm, { ArticlePlanningData } from './ArticlePlanningForm';
+import ArticlePlanningForm, { ArticlePlanningData, ArticlePlanningFormRef } from './ArticlePlanningForm';
 import AIArticleSuggestions, { AIGeneratedArticle } from './AIArticleSuggestions';
 import { articleAiApi } from '@/app/api/article-ai';
 import { toast } from 'react-hot-toast';
@@ -27,24 +27,72 @@ export default function ArticleWizardModal({
   const [planningData, setPlanningData] = useState<ArticlePlanningData | null>(null);
   const [generatedArticle, setGeneratedArticle] = useState<AIGeneratedArticle | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const planningFormRef = useRef<ArticlePlanningFormRef>(null);
 
   // Handle completion of the planning form
-  const handlePlanningComplete = async (data: ArticlePlanningData) => {
+  const handlePlanningComplete = (data: ArticlePlanningData) => {
     setPlanningData(data);
     setIsLoading(true);
     
-    try {
-      toast.loading('Generating article suggestions...', { id: 'generating' });
-      const article = await articleAiApi.generateArticle(data);
-      setGeneratedArticle(article);
-      setCurrentStep('suggestions');
-      toast.success('Article suggestions generated!', { id: 'generating' });
-    } catch (error) {
-      console.error('Error generating article:', error);
-      toast.error('Failed to generate article suggestions. Please try again.', { id: 'generating' });
-    } finally {
-      setIsLoading(false);
-    }
+    toast.loading('Generating article suggestions...', { id: 'generating' });
+    
+    articleAiApi.generateArticle(data)
+      .then(article => {
+        // Check if we received a valid article structure
+        if (!article || !article.titles || !article.outline) {
+          throw new Error('Received invalid article structure from API');
+        }
+        
+        setGeneratedArticle(article);
+        setCurrentStep('suggestions');
+        toast.success('Article suggestions generated!', { id: 'generating' });
+      })
+      .catch(error => {
+        console.error('Error generating article:', error);
+        
+        // Provide more specific error messages based on the error type
+        let errorMessage = 'Failed to generate article suggestions. Please try again.';
+        
+        if (error.response) {
+          // Handle specific HTTP error codes
+          switch (error.response.status) {
+            case 401:
+              errorMessage = 'Authentication error. Please sign in again and retry.';
+              break;
+            case 403:
+              errorMessage = 'You don\'t have permission to use this feature.';
+              break;
+            case 429:
+              errorMessage = 'Too many requests. Please wait a moment and try again.';
+              break;
+            case 500:
+              errorMessage = 'Server error. Our team has been notified.';
+              break;
+            case 404:
+              errorMessage = 'API endpoint not found. Please check the configuration.';
+              break;
+            default:
+              if (error.response.data?.error) {
+                errorMessage = `Error: ${error.response.data.error}`;
+              }
+          }
+        } else if (error.message) {
+          errorMessage = `Error: ${error.message}`;
+        }
+        
+        toast.error(errorMessage, { id: 'generating', duration: 5000 });
+        
+        // Reset the generating state in the planning form
+        if (planningFormRef.current) {
+          planningFormRef.current.resetGeneratingState();
+        }
+        
+        // Stay on the planning form so the user can retry
+        setCurrentStep('planning');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   };
 
   // Handle title selection in the suggestions view
@@ -66,34 +114,85 @@ export default function ArticleWizardModal({
   };
 
   // Handle regeneration request
-  const handleRegenerateRequest = async () => {
+  const handleRegenerateRequest = () => {
     if (!planningData) return;
     
     setIsLoading(true);
-    try {
-      toast.loading('Regenerating article suggestions...', { id: 'regenerating' });
-      const article = await articleAiApi.regenerateArticle(planningData);
-      setGeneratedArticle(article);
-      toast.success('Article suggestions regenerated!', { id: 'regenerating' });
-    } catch (error) {
-      console.error('Error regenerating article:', error);
-      toast.error('Failed to regenerate article suggestions. Please try again.', { id: 'regenerating' });
-    } finally {
-      setIsLoading(false);
-    }
+    toast.loading('Regenerating article suggestions...', { id: 'regenerating' });
+    
+    articleAiApi.regenerateArticle(planningData)
+      .then(article => {
+        // Check if we received a valid article structure
+        if (!article || !article.titles || !article.outline) {
+          throw new Error('Received invalid article structure from API');
+        }
+        
+        setGeneratedArticle(article);
+        toast.success('Article suggestions regenerated!', { id: 'regenerating' });
+      })
+      .catch(error => {
+        console.error('Error regenerating article:', error);
+        
+        // Provide more specific error messages based on the error type
+        let errorMessage = 'Failed to regenerate article suggestions. Please try again.';
+        
+        if (error.response) {
+          // Handle specific HTTP error codes
+          switch (error.response.status) {
+            case 401:
+              errorMessage = 'Authentication error. Please sign in again and retry.';
+              break;
+            case 403:
+              errorMessage = 'You don\'t have permission to use this feature.';
+              break;
+            case 429:
+              errorMessage = 'Too many requests. Please wait a moment and try again.';
+              break;
+            case 500:
+              errorMessage = 'Server error. Our team has been notified.';
+              break;
+            case 404:
+              errorMessage = 'API endpoint not found. Please check the configuration.';
+              break;
+            default:
+              if (error.response.data?.error) {
+                errorMessage = `Error: ${error.response.data.error}`;
+              }
+          }
+        } else if (error.message) {
+          errorMessage = `Error: ${error.message}`;
+        }
+        
+        toast.error(errorMessage, { id: 'regenerating', duration: 5000 });
+        
+        // Reset to planning form if we get a serious error
+        if (error.response && [401, 403, 404].includes(error.response.status)) {
+          setCurrentStep('planning');
+          // Reset the generating state in the planning form
+          if (planningFormRef.current) {
+            planningFormRef.current.resetGeneratingState();
+          }
+        }
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   };
 
   // Handle acceptance of the AI suggestions
   const handleAcceptSuggestions = (article: AIGeneratedArticle) => {
+    if (!planningData) return;
+    
     // Pass both the generated article and the form data to the parent component
-    onComplete(article, planningData!);
+    onComplete(article, planningData);
   };
 
   return (
     <Dialog
       open={isOpen}
       onClose={() => {
-        if (!isLoading) onClose();
+        // Do nothing when clicking outside - modal can only be closed via buttons
+        // This prevents accidental closing during article generation
       }}
       className="relative z-50"
     >
@@ -129,6 +228,7 @@ export default function ArticleWizardModal({
           <div className="max-h-[80vh] overflow-y-auto">
             {currentStep === 'planning' ? (
               <ArticlePlanningForm 
+                ref={planningFormRef}
                 onComplete={handlePlanningComplete}
                 onCancel={onClose}
                 initialData={initialFormData}

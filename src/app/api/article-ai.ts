@@ -2,9 +2,7 @@
 
 import { ArticlePlanningData } from '../articles/create/components/ArticlePlanningForm';
 import { AIGeneratedArticle } from '../articles/create/components/AIArticleSuggestions';
-
-// Base API URL from environment variables
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:9090/api/v1';
+import { apiClient } from './client';
 
 /**
  * API client for AI article generation
@@ -17,44 +15,45 @@ export const articleAiApi = {
    */
   generateArticle: async (planningData: ArticlePlanningData): Promise<AIGeneratedArticle> => {
     try {
-      // In a real implementation, this would make an API call to your AI service
-      // For now, we'll simulate a response with mock data
+      console.log('Making API call to /api/v1/gen/schema with data:', planningData);
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Make API call to the schema generation endpoint using apiClient for authentication
+      const { data } = await apiClient.post('/api/v1/gen/schema', planningData);
       
-      // Generate mock response based on planning data
-      return {
-        titles: [
-          `${getTitlePrefix(planningData.intent)}: ${getTopicFromPurpose(planningData.purpose)}`,
-          `${getAlternativeTitlePrefix(planningData.intent)}: ${getTopicFromPurpose(planningData.purpose)}`,
-          `${getTopicFromPurpose(planningData.purpose)}: ${getTitleSuffix(planningData.intent)}`
-        ],
-        selectedTitle: `${getTitlePrefix(planningData.intent)}: ${getTopicFromPurpose(planningData.purpose)}`,
-        outline: generateOutline(planningData),
-        introduction: generateIntroduction(planningData),
-        conclusion: generateConclusion(planningData),
-        tags: planningData.keywords || []
-      };
+      console.log('API response received:', data);
       
-      // When implementing the real API call, it would look something like this:
-      /*
-      const response = await fetch(`${API_BASE_URL}/gen/article`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(planningData),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      // Validate the API response
+      if (!data || !data.title || !data.outline || !Array.isArray(data.outline)) {
+        console.error('Invalid API response structure:', data);
+        throw new Error('Received invalid data structure from API');
       }
       
-      return await response.json();
-      */
-    } catch (error) {
+      // Transform the API response to match our AIGeneratedArticle interface
+      return {
+        titles: [data.title, ...(data.alternativeTitles || []).slice(0, 3)],
+        selectedTitle: data.title,
+        outline: data.outline.map((item: any) => ({
+          level: item.level,
+          heading: item.heading,
+          content: item.content || ''
+        })),
+        introduction: data.introduction,
+        conclusion: data.conclusion,
+        tags: data.tags || planningData.keywords || []
+      };
+    } catch (error: any) {
       console.error('Error generating article:', error);
+      
+      // Enhance error with more context
+      if (error.response) {
+        const enhancedError = new Error(
+          `API error (${error.response.status}): ${error.response.data?.error || error.message}`
+        );
+        (enhancedError as any).originalError = error;
+        (enhancedError as any).status = error.response.status;
+        throw enhancedError;
+      }
+      
       throw error;
     }
   },
@@ -65,9 +64,12 @@ export const articleAiApi = {
    * @returns AI-generated article suggestions
    */
   regenerateArticle: async (planningData: ArticlePlanningData): Promise<AIGeneratedArticle> => {
-    // For now, this just calls the same function as generateArticle
-    // In a real implementation, you might want to add a parameter to indicate this is a regeneration
-    return articleAiApi.generateArticle(planningData);
+    // Add a flag to indicate this is a regeneration request
+    const regenerationData = {
+      ...planningData,
+      isRegeneration: true
+    };
+    return articleAiApi.generateArticle(regenerationData);
   }
 };
 

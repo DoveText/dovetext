@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '@/context/AuthContext';
 import { businessInfoApi } from '@/app/api/business-info';
@@ -29,11 +29,17 @@ export interface ArticlePlanningData {
 
 interface ArticlePlanningFormProps {
   onComplete: (data: ArticlePlanningData) => void;
-  onCancel: () => void;
+  onCancel?: () => void;
   initialData?: ArticlePlanningData;
+  ref?: React.ForwardedRef<ArticlePlanningFormRef>;
 }
 
-export default function ArticlePlanningForm({ onComplete, onCancel, initialData }: ArticlePlanningFormProps) {
+export interface ArticlePlanningFormRef {
+  resetGeneratingState: () => void;
+}
+
+const ArticlePlanningForm = forwardRef<ArticlePlanningFormRef, Omit<ArticlePlanningFormProps, 'ref'>>(
+  ({ onComplete, onCancel, initialData }, ref) => {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const totalSteps = 2; // Reduced from 3 to 2 steps
@@ -46,6 +52,20 @@ export default function ArticlePlanningForm({ onComplete, onCancel, initialData 
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>(initialData?.targetAudience ? initialData.targetAudience.split(',') : []);
   const [isGenerating, setIsGenerating] = useState(false);
   const [wordCount, setWordCount] = useState<number>(initialData?.purpose ? initialData.purpose.trim().split(/\s+/).filter(Boolean).length : 0);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    resetGeneratingState: () => {
+      console.log('Resetting generating state from parent');
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      setIsGenerating(false);
+    }
+  }));
+
   
   // Define options for dropdowns
   const intentOptions = [
@@ -238,6 +258,18 @@ export default function ArticlePlanningForm({ onComplete, onCancel, initialData 
     // Only complete when on the final step and Generate Article button is clicked
     // This prevents automatic transition to the summary page
     onComplete(finalData);
+    
+    // Set up a timeout to reset the generating state if it's still active after 30 seconds
+    // This prevents the button from being stuck in loading state if the API call fails silently
+    const timeout = setTimeout(() => {
+      setIsGenerating(false);
+    }, 30000);
+    
+    // Store the timeout ID in a ref so we can clear it if needed
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = timeout;
   };
 
   return (
@@ -532,4 +564,6 @@ export default function ArticlePlanningForm({ onComplete, onCancel, initialData 
       </form>
     </div>
   );
-}
+});
+
+export default ArticlePlanningForm;
