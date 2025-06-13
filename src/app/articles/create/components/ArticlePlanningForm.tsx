@@ -39,9 +39,13 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
   const [loading, setLoading] = useState(false);
   const [businessKeywords, setBusinessKeywords] = useState<string[]>([]);
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
+  const [selectedTone, setSelectedTone] = useState<string>('professional');
+  const [selectedLength, setSelectedLength] = useState<'short' | 'medium' | 'long'>('medium');
+  const [selectedIntents, setSelectedIntents] = useState<string[]>([]);
+  const [selectedAudiences, setSelectedAudiences] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ArticlePlanningData>({
+  const { register, handleSubmit, setValue, watch, formState: { errors }, trigger } = useForm<ArticlePlanningData>({
     defaultValues: {
       purpose: '',
       intent: 'growth',
@@ -53,6 +57,20 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
   });
 
   // Load business keywords from business info
+  // Initialize form state values
+  useEffect(() => {
+    // Initialize intent and audience from default values
+    const intentValue = watch('intent');
+    if (typeof intentValue === 'string' && intentValue) {
+      setSelectedIntents(intentValue.split(','));
+    }
+    
+    const audienceValue = watch('targetAudience');
+    if (typeof audienceValue === 'string' && audienceValue) {
+      setSelectedAudiences(audienceValue.split(','));
+    }
+  }, [watch]);
+
   useEffect(() => {
     const loadBusinessKeywords = async () => {
       if (!user) return;
@@ -104,9 +122,50 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
     }
   };
 
-  const nextStep = () => {
-    // Prevent automatic transition beyond the last step
-    setStep(prev => Math.min(prev + 1, totalSteps));
+  const nextStep = async () => {
+    // Validate fields based on current step
+    if (step === 1) {
+      // Validate purpose field
+      const purposeValid = await trigger('purpose');
+      const purposeText = watch('purpose') || '';
+      
+      // Check if purpose has at least 20 words
+      const wordCount = purposeText.trim().split(/\s+/).length;
+      if (wordCount < 20) {
+        setValue('purpose', purposeText); // Keep the current text
+        // Set custom error
+        errors.purpose = {
+          type: 'manual',
+          message: 'Please provide a more detailed description (at least 20 words)'
+        };
+        return; // Don't proceed to next step
+      }
+      
+      if (!purposeValid) {
+        return; // Don't proceed if validation fails
+      }
+    } else if (step === 2) {
+      // Validate tone and length on the second step
+      if (!selectedTone) {
+        // Set error for tone
+        errors.tone = {
+          type: 'manual',
+          message: 'Please select a tone of voice'
+        };
+        return;
+      }
+      
+      if (!selectedLength) {
+        // Set error for length
+        errors.desiredLength = {
+          type: 'manual',
+          message: 'Please select a desired article length'
+        };
+        return;
+      }
+    }
+    
+    setStep(step + 1);
   };
 
   const prevStep = () => {
@@ -120,8 +179,12 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
     // Add selected keywords to form data
     const finalData = {
       ...data,
-      // Use the selected keywords
-      keywords: selectedKeywords || []
+      // Use the selected values from state
+      keywords: selectedKeywords || [],
+      tone: selectedTone,
+      desiredLength: selectedLength,
+      intent: selectedIntents.join(','),
+      targetAudience: selectedAudiences.join(',')
     };
     
     // Only complete when on the final step and Generate Article button is clicked
@@ -168,7 +231,13 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
               <div className="flex items-center min-h-[44px] w-full cursor-text rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-indigo-600 sm:text-sm sm:leading-6">                
                 <textarea
                   id="purpose"
-                  {...register('purpose', { required: 'Please describe what you want to write about' })}
+                  {...register('purpose', { 
+                    required: 'Please describe what you want to write about',
+                    validate: value => {
+                      const wordCount = (value || '').trim().split(/\s+/).length;
+                      return wordCount >= 20 || 'Please provide a more detailed description (at least 20 words)';
+                    }
+                  })}
                   rows={5}
                   className="block w-full border-none focus:ring-0 focus:outline-none text-base py-1 px-1"
                   placeholder="Describe the topic and main points you want to cover in your article..."
@@ -191,9 +260,10 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
               </div>
               <div className="rounded-md shadow-sm">
                 <TaggedSelect
-                  value={typeof watch('intent') === 'string' ? watch('intent').split(',') : []}
+                  value={selectedIntents}
                   onChange={(value) => {
                     const intents = Array.isArray(value) ? value : [];
+                    setSelectedIntents(intents);
                     setValue('intent', intents.join(','));
                   }}
                   options={[
@@ -225,9 +295,10 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
               </div>
               <div className="rounded-md shadow-sm">
                 <TaggedSelect
-                  value={typeof watch('targetAudience') === 'string' ? watch('targetAudience').split(',') : []}
+                  value={selectedAudiences}
                   onChange={(value) => {
                     const audiences = Array.isArray(value) ? value : [];
+                    setSelectedAudiences(audiences);
                     setValue('targetAudience', audiences.join(','));
                   }}
                   options={[
@@ -287,10 +358,23 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
               </div>
               <div className="rounded-md shadow-sm">
                 <TaggedSelect
-                  value={[watch('tone') || 'professional']}
+                  value={selectedTone ? [selectedTone] : []}
+                  error={errors.tone?.message}
                   onChange={(value) => {
-                    const tone = Array.isArray(value) && value.length > 0 ? value[0] : 'professional';
-                    setValue('tone', tone as string);
+                    if (Array.isArray(value)) {
+                      // If array is empty, clear the selection
+                      if (value.length === 0) {
+                        setSelectedTone('');
+                        setValue('tone', '');
+                      } else {
+                        // Otherwise take the first value
+                        setSelectedTone(value[0]);
+                        setValue('tone', value[0]);
+                      }
+                    } else if (typeof value === 'string') {
+                      setSelectedTone(value);
+                      setValue('tone', value);
+                    }
                   }}
                   options={[
                     { value: 'professional', label: 'Professional' },
@@ -306,6 +390,9 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                   className="min-h-[44px] py-1"
                 />
               </div>
+              {errors.tone && (
+                <p className="mt-1 text-sm text-red-600">{errors.tone.message}</p>
+              )}
               <p className="mt-1 text-sm text-gray-500">
                 You can customize the tone of voice for this article
               </p>
@@ -320,10 +407,25 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
               </div>
               <div className="rounded-md shadow-sm">
                 <TaggedSelect
-                  value={[watch('desiredLength') || 'medium']}
+                  value={selectedLength ? [selectedLength] : []}
+                  error={errors.desiredLength?.message}
                   onChange={(value) => {
-                    const length = Array.isArray(value) && value.length > 0 ? value[0] : 'medium';
-                    setValue('desiredLength', length as 'short' | 'medium' | 'long');
+                    if (Array.isArray(value)) {
+                      // If array is empty, clear the selection
+                      if (value.length === 0) {
+                        setSelectedLength('' as 'short' | 'medium' | 'long');
+                        setValue('desiredLength', '' as 'short' | 'medium' | 'long');
+                      } else {
+                        // Otherwise take the first value
+                        const length = value[0] as 'short' | 'medium' | 'long';
+                        setSelectedLength(length);
+                        setValue('desiredLength', length);
+                      }
+                    } else if (typeof value === 'string') {
+                      const length = value as 'short' | 'medium' | 'long';
+                      setSelectedLength(length);
+                      setValue('desiredLength', length);
+                    }
                   }}
                   options={[
                     { value: 'short', label: 'Short (300-500 words)' },
@@ -336,6 +438,9 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                   className="min-h-[44px] py-1"
                 />
               </div>
+              {errors.desiredLength && (
+                <p className="mt-1 text-sm text-red-600">{errors.desiredLength.message}</p>
+              )}
               <p className="mt-1 text-sm text-gray-500">
                 Select the desired article length. You need to decide this according to your audiences!
               </p>
