@@ -33,6 +33,7 @@ import { Separator } from './components/separator';
 import AIMenu from './components/ai-menu';
 import AICommandDialog, { AICommandType } from './components/ai-command-dialog';
 import { AICommandService } from './services/ai-command-service';
+import { ToolbarButton } from './components/toolbar-button';
 
 interface EditorProps {
   initialContent?: string | JSONContent;
@@ -54,6 +55,7 @@ export function MarkdownEditor({
   // State for UI elements
   const [saveStatus, setSaveStatus] = useState('Saved');
   const [wordCount, setWordCount] = useState<number | null>(null);
+  const [showBubbleMenu, setShowBubbleMenu] = useState(true); // Toggle for bubble menu
   
   // AI command dialog state
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
@@ -338,16 +340,162 @@ export function MarkdownEditor({
         }
       `}</style>
       
-      {/* Status indicators */}
-      <div className="flex absolute right-5 top-5 z-10 mb-5 gap-2">
-        <div className="rounded-lg bg-stone-100 px-2 py-1 text-sm text-stone-600">
-          {saveStatus}
-        </div>
-        {wordCount !== null && (
-          <div className="rounded-lg bg-stone-100 px-2 py-1 text-sm text-stone-600">
-            {wordCount} words
+      {/* Fixed Toolbar */}
+      <div className="sticky top-0 z-20 w-full bg-white border-b border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center space-x-1 flex-wrap flex-grow mr-4">
+            {/* Text Formatting Tools */}
+            <ToolbarButton 
+              icon={<span className="font-bold">B</span>} 
+              isActive={editorInstance?.isActive('bold')} 
+              onClick={() => editorInstance?.chain().focus().toggleBold().run()}
+              disabled={!editorInstance}
+              tooltip="Bold"
+            />
+            <ToolbarButton 
+              icon={<span className="italic">I</span>} 
+              isActive={editorInstance?.isActive('italic')} 
+              onClick={() => editorInstance?.chain().focus().toggleItalic().run()}
+              disabled={!editorInstance}
+              tooltip="Italic"
+            />
+            <ToolbarButton 
+              icon={<span className="underline">U</span>} 
+              isActive={editorInstance?.isActive('underline')} 
+              onClick={() => editorInstance?.chain().focus().toggleUnderline().run()}
+              disabled={!editorInstance}
+              tooltip="Underline"
+            />
+            <ToolbarButton 
+              icon={<span className="line-through">S</span>} 
+              isActive={editorInstance?.isActive('strike')} 
+              onClick={() => editorInstance?.chain().focus().toggleStrike().run()}
+              disabled={!editorInstance}
+              tooltip="Strikethrough"
+            />
+            <ToolbarButton 
+              icon={<span className="font-mono">{'<>'}</span>} 
+              isActive={editorInstance?.isActive('code')} 
+              onClick={() => editorInstance?.chain().focus().toggleCode().run()}
+              disabled={!editorInstance}
+              tooltip="Inline Code"
+            />
+
+            <div className="h-4 w-px bg-gray-200 mx-2" />
+
+            {/* Headings */}
+            <ToolbarButton 
+              icon={<span className="font-bold">H1</span>} 
+              isActive={editorInstance?.isActive('heading', { level: 1 })} 
+              onClick={() => editorInstance?.chain().focus().toggleHeading({ level: 1 }).run()}
+              disabled={!editorInstance}
+              tooltip="Heading 1"
+            />
+            <ToolbarButton 
+              icon={<span className="font-bold">H2</span>} 
+              isActive={editorInstance?.isActive('heading', { level: 2 })} 
+              onClick={() => editorInstance?.chain().focus().toggleHeading({ level: 2 }).run()}
+              disabled={!editorInstance}
+              tooltip="Heading 2"
+            />
+            <ToolbarButton 
+              icon={<span className="font-bold">H3</span>} 
+              isActive={editorInstance?.isActive('heading', { level: 3 })} 
+              onClick={() => editorInstance?.chain().focus().toggleHeading({ level: 3 }).run()}
+              disabled={!editorInstance}
+              tooltip="Heading 3"
+            />
+
+            <div className="h-4 w-px bg-gray-200 mx-2" />
+
+            {/* Lists */}
+            <ToolbarButton 
+              icon={<span>•</span>} 
+              isActive={editorInstance?.isActive('bulletList')} 
+              onClick={() => editorInstance?.chain().focus().toggleBulletList().run()}
+              disabled={!editorInstance}
+              tooltip="Bullet List"
+            />
+            <ToolbarButton 
+              icon={<span>1.</span>} 
+              isActive={editorInstance?.isActive('orderedList')} 
+              onClick={() => editorInstance?.chain().focus().toggleOrderedList().run()}
+              disabled={!editorInstance}
+              tooltip="Numbered List"
+            />
+            <ToolbarButton 
+              icon={<span>[ ]</span>} 
+              isActive={editorInstance?.isActive('taskList')} 
+              onClick={() => editorInstance?.chain().focus().toggleTaskList().run()}
+              disabled={!editorInstance}
+              tooltip="Task List"
+            />
+
+            <div className="h-4 w-px bg-gray-200 mx-2" />
+
+            {/* Block formatting */}
+            <ToolbarButton 
+              icon={<span>"</span>} 
+              isActive={editorInstance?.isActive('blockquote')} 
+              onClick={() => editorInstance?.chain().focus().toggleBlockquote().run()}
+              disabled={!editorInstance}
+              tooltip="Blockquote"
+            />
+            <ToolbarButton 
+              icon={<span className="font-mono">```</span>} 
+              isActive={editorInstance?.isActive('codeBlock')} 
+              onClick={() => editorInstance?.chain().focus().toggleCodeBlock().run()}
+              disabled={!editorInstance}
+              tooltip="Code Block"
+            />
+
+            <div className="h-4 w-px bg-gray-200 mx-2" />
+
+            {/* AI Tools */}
+            <ToolbarButton 
+              icon={<span>✨</span>} 
+              isActive={false} 
+              onClick={() => { setAiCommandType('generate'); setAiDialogOpen(true); }}
+              disabled={!editorInstance}
+              tooltip="Generate Content"
+            />
+            <ToolbarButton 
+              icon={<span>🔄</span>} 
+              isActive={false} 
+              onClick={() => { setAiCommandType('refine'); setAiDialogOpen(true); }}
+              disabled={!editorInstance}
+              tooltip="Refine Content"
+            />
           </div>
-        )}
+
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            {/* Bubble Menu Toggle */}
+            <div className="flex items-center">
+              <label className="inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={showBubbleMenu} 
+                  onChange={() => setShowBubbleMenu(!showBubbleMenu)} 
+                  className="sr-only peer"
+                />
+                <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                <span className="ms-2 text-sm font-medium text-gray-600">Bubble Menu</span>
+              </label>
+            </div>
+
+            {/* Status indicators */}
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-stone-100 px-2 py-1 text-sm text-stone-600">
+                {saveStatus}
+              </div>
+              {wordCount !== null && (
+                <div className="rounded-lg bg-stone-100 px-2 py-1 text-sm text-stone-600">
+                  {wordCount} words
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
       
       <EditorRoot>
@@ -399,8 +547,8 @@ export function MarkdownEditor({
             </EditorCommandList>
           </EditorCommand>
           
-          {/* Bubble Menu - appears when text is selected, hidden when AI dialog is open */}
-          {!aiDialogOpen && (
+          {/* Bubble Menu - appears when text is selected, hidden when AI dialog is open or disabled */}
+          {!aiDialogOpen && showBubbleMenu && (
             <EditorBubble
               className="flex w-fit divide-x divide-stone-200 rounded-md border border-stone-200 bg-white shadow-xl"
               tippyOptions={{ duration: 100 }}
