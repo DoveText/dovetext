@@ -45,6 +45,41 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   
+  // Define options for dropdowns
+  const intentOptions = [
+    { value: 'growth', label: 'Growth - Drive business growth' },
+    { value: 'educate', label: 'Educate - Share knowledge' },
+    { value: 'inform', label: 'Inform - Provide updates' },
+    { value: 'analyze', label: 'Analyze - Examine a topic' },
+    { value: 'instruct', label: 'Instruct - Teach a process' },
+    { value: 'persuade', label: 'Persuade - Change opinions' },
+    { value: 'entertain', label: 'Entertain - Engage readers' },
+  ];
+  
+  const audienceOptions = [
+    { value: 'potential', label: 'Potential Customers' },
+    { value: 'customers', label: 'Existing Customers' },
+    { value: 'beginners', label: 'Beginners' },
+    { value: 'intermediate', label: 'Intermediate Knowledge' },
+    { value: 'experts', label: 'Industry Experts' },
+    { value: 'general', label: 'General Public' },
+  ];
+  
+  const toneOptions = [
+    { value: 'professional', label: 'Professional' },
+    { value: 'conversational', label: 'Conversational' },
+    { value: 'technical', label: 'Technical' },
+    { value: 'friendly', label: 'Friendly' },
+    { value: 'authoritative', label: 'Authoritative' },
+    { value: 'humorous', label: 'Humorous' }
+  ];
+  
+  const lengthOptions = [
+    { value: 'short', label: 'Short (300-500 words)' },
+    { value: 'medium', label: 'Medium (500-1000 words)' },
+    { value: 'long', label: 'Long (1000+ words)' }
+  ];
+  
   const { register, handleSubmit, setValue, watch, formState: { errors }, trigger } = useForm<ArticlePlanningData>({
     defaultValues: {
       purpose: '',
@@ -266,15 +301,7 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                     setSelectedIntents(intents);
                     setValue('intent', intents.join(','));
                   }}
-                  options={[
-                    { value: 'growth', label: 'Growth - Drive business growth' },
-                    { value: 'educate', label: 'Educate - Share knowledge' },
-                    { value: 'inform', label: 'Inform - Provide updates' },
-                    { value: 'analyze', label: 'Analyze - Examine a topic' },
-                    { value: 'instruct', label: 'Instruct - Teach a process' },
-                    { value: 'persuade', label: 'Persuade - Change opinions' },
-                    { value: 'entertain', label: 'Entertain - Engage readers' },
-                  ]}
+                  options={intentOptions}
                   placeholder="Select your primary intent..."
                   multiple={true}
                   editable={false}
@@ -301,14 +328,7 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                     setSelectedAudiences(audiences);
                     setValue('targetAudience', audiences.join(','));
                   }}
-                  options={[
-                    { value: 'potential', label: 'Potential Customers' },
-                    { value: 'customers', label: 'Existing Customers' },
-                    { value: 'beginners', label: 'Beginners' },
-                    { value: 'intermediate', label: 'Intermediate Knowledge' },
-                    { value: 'experts', label: 'Industry Experts' },
-                    { value: 'general', label: 'General Public' },
-                  ]}
+                  options={audienceOptions}
                   placeholder="Select your target audience..."
                   multiple={true}
                   editable={false}
@@ -358,7 +378,7 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
               </div>
               <div className="rounded-md shadow-sm">
                 <TaggedSelect
-                  value={selectedTone ? [selectedTone] : []}
+                  value={selectedTone ? toneOptions.filter(opt => opt.value === selectedTone).map(opt => opt.value) : []}
                   error={errors.tone?.message}
                   onChange={(value) => {
                     if (Array.isArray(value)) {
@@ -376,14 +396,7 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                       setValue('tone', value);
                     }
                   }}
-                  options={[
-                    { value: 'professional', label: 'Professional' },
-                    { value: 'conversational', label: 'Conversational' },
-                    { value: 'technical', label: 'Technical' },
-                    { value: 'friendly', label: 'Friendly' },
-                    { value: 'authoritative', label: 'Authoritative' },
-                    { value: 'humorous', label: 'Humorous' }
-                  ]}
+                  options={toneOptions}
                   placeholder="Select tone of voice..."
                   multiple={false}
                   editable={false}
@@ -407,7 +420,7 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
               </div>
               <div className="rounded-md shadow-sm">
                 <TaggedSelect
-                  value={selectedLength ? [selectedLength] : []}
+                  value={selectedLength ? lengthOptions.filter(opt => opt.value === selectedLength).map(opt => opt.value) : []}
                   error={errors.desiredLength?.message}
                   onChange={(value) => {
                     if (Array.isArray(value)) {
@@ -427,13 +440,9 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                       setValue('desiredLength', length);
                     }
                   }}
-                  options={[
-                    { value: 'short', label: 'Short (300-500 words)' },
-                    { value: 'medium', label: 'Medium (500-1000 words)' },
-                    { value: 'long', label: 'Long (1000+ words)' }
-                  ]}
+                  options={lengthOptions}
                   placeholder="Select article length..."
-                  multiple={false}
+                  multiple={true}
                   editable={false}
                   className="min-h-[44px] py-1"
                 />
