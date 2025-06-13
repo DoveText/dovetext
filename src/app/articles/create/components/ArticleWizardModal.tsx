@@ -11,7 +11,8 @@ import { toast } from 'react-hot-toast';
 interface ArticleWizardModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onComplete: (article: AIGeneratedArticle) => void;
+  onComplete: (article: AIGeneratedArticle, formData: ArticlePlanningData) => void;
+  initialFormData?: ArticlePlanningData;
 }
 
 type WizardStep = 'planning' | 'suggestions';
@@ -19,7 +20,8 @@ type WizardStep = 'planning' | 'suggestions';
 export default function ArticleWizardModal({
   isOpen,
   onClose,
-  onComplete
+  onComplete,
+  initialFormData
 }: ArticleWizardModalProps) {
   const [currentStep, setCurrentStep] = useState<WizardStep>('planning');
   const [planningData, setPlanningData] = useState<ArticlePlanningData | null>(null);
@@ -83,7 +85,8 @@ export default function ArticleWizardModal({
 
   // Handle acceptance of the AI suggestions
   const handleAcceptSuggestions = (article: AIGeneratedArticle) => {
-    onComplete(article);
+    // Pass both the generated article and the form data to the parent component
+    onComplete(article, planningData!);
   };
 
   return (
@@ -128,6 +131,7 @@ export default function ArticleWizardModal({
               <ArticlePlanningForm 
                 onComplete={handlePlanningComplete}
                 onCancel={onClose}
+                initialData={initialFormData}
               />
             ) : generatedArticle ? (
               <AIArticleSuggestions

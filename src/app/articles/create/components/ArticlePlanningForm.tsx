@@ -30,20 +30,22 @@ export interface ArticlePlanningData {
 interface ArticlePlanningFormProps {
   onComplete: (data: ArticlePlanningData) => void;
   onCancel: () => void;
+  initialData?: ArticlePlanningData;
 }
 
-export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePlanningFormProps) {
+export default function ArticlePlanningForm({ onComplete, onCancel, initialData }: ArticlePlanningFormProps) {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const totalSteps = 2; // Reduced from 3 to 2 steps
   const [loading, setLoading] = useState(false);
   const [businessKeywords, setBusinessKeywords] = useState<string[]>([]);
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
-  const [selectedTone, setSelectedTone] = useState<string>('professional');
-  const [selectedLength, setSelectedLength] = useState<'short' | 'medium' | 'long'>('medium');
-  const [selectedIntents, setSelectedIntents] = useState<string[]>([]);
-  const [selectedAudiences, setSelectedAudiences] = useState<string[]>([]);
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>(initialData?.keywords || []);
+  const [selectedTone, setSelectedTone] = useState<string>(initialData?.tone || 'professional');
+  const [selectedLength, setSelectedLength] = useState<'short' | 'medium' | 'long'>(initialData?.desiredLength || 'medium');
+  const [selectedIntents, setSelectedIntents] = useState<string[]>(initialData?.intent ? initialData.intent.split(',') : []);
+  const [selectedAudiences, setSelectedAudiences] = useState<string[]>(initialData?.targetAudience ? initialData.targetAudience.split(',') : []);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [wordCount, setWordCount] = useState<number>(initialData?.purpose ? initialData.purpose.trim().split(/\s+/).filter(Boolean).length : 0);
   
   // Define options for dropdowns
   const intentOptions = [
@@ -81,7 +83,7 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
   ];
   
   const { register, handleSubmit, setValue, watch, formState: { errors }, trigger } = useForm<ArticlePlanningData>({
-    defaultValues: {
+    defaultValues: initialData || {
       purpose: '',
       intent: 'growth',
       targetAudience: 'potential',
@@ -280,8 +282,13 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
                   {...register('purpose', { 
                     required: 'Please describe what you want to write about',
                     validate: value => {
-                      const wordCount = (value || '').trim().split(/\s+/).length;
+                      const wordCount = (value || '').trim().split(/\s+/).filter(Boolean).length;
                       return wordCount >= 20 || 'Please provide a more detailed description (at least 20 words)';
+                    },
+                    onChange: (e) => {
+                      const text = e.target.value || '';
+                      const count = text.trim().split(/\s+/).filter(Boolean).length;
+                      setWordCount(count);
                     }
                   })}
                   rows={5}
@@ -292,9 +299,14 @@ export default function ArticlePlanningForm({ onComplete, onCancel }: ArticlePla
               {errors.purpose && (
                 <p className="mt-1 text-sm text-red-600">{errors.purpose.message}</p>
               )}
-              <p className="mt-1 text-sm text-gray-500">
-                Be specific about your topic and what you want readers to learn or understand
-              </p>
+              <div className="flex justify-between items-center">
+                <p className="mt-1 text-sm text-gray-500">
+                  Be specific about your topic and what you want readers to learn or understand
+                </p>
+                <p className={`text-sm ${wordCount >= 20 ? 'text-green-600' : 'text-amber-600'}`}>
+                  {wordCount} / 20 words {wordCount >= 20 ? '✓' : ''}
+                </p>
+              </div>
             </div>
 
             <div>

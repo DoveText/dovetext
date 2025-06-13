@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import ArticleEditor from '../components/ArticleEditor';
 import ArticleWizardModal from './components/ArticleWizardModal';
+import { ArticlePlanningData } from './components/ArticlePlanningForm';
 import { AIGeneratedArticle } from './components/AIArticleSuggestions';
 
 export default function CreateArticlePage() {
@@ -15,6 +16,16 @@ export default function CreateArticlePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(true);
   const [generatedArticle, setGeneratedArticle] = useState<AIGeneratedArticle | null>(null);
+  
+  // State to store wizard form data
+  const [wizardFormData, setWizardFormData] = useState({
+    purpose: '',
+    targetAudience: 'potential',
+    intent: 'growth',
+    desiredLength: 'medium' as 'short' | 'medium' | 'long',
+    tone: 'professional',
+    keywords: [] as string[]
+  });
 
   const handleSave = async (articleData: {
     title: string;
@@ -86,8 +97,9 @@ export default function CreateArticlePage() {
     }
   };
 
-  const handleWizardComplete = (article: AIGeneratedArticle) => {
+  const handleWizardComplete = (article: AIGeneratedArticle, formData: any) => {
     setGeneratedArticle(article);
+    setWizardFormData(formData); // Save the form data when wizard completes
     setIsWizardOpen(false);
   };
 
@@ -113,6 +125,7 @@ export default function CreateArticlePage() {
               isOpen={isWizardOpen}
               onClose={() => setIsWizardOpen(false)}
               onComplete={handleWizardComplete}
+              initialFormData={wizardFormData}
             />
           )}
         </div>
