@@ -77,7 +77,8 @@ export default function ArticleWizardModal({
               }
           }
         } else if (error.message) {
-          errorMessage = `Error: ${error.message}`;
+          console.error(error);
+          errorMessage = 'Failed to generate article suggestions. Please try again.';
         }
         
         toast.error(errorMessage, { id: 'generating', duration: 5000 });

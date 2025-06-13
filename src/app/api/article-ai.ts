@@ -18,28 +18,44 @@ export const articleAiApi = {
       console.log('Making API call to /api/v1/gen/schema with data:', planningData);
       
       // Make API call to the schema generation endpoint using apiClient for authentication
-      const { data } = await apiClient.post('/api/v1/gen/schema', planningData);
+      const response = await apiClient.post('/api/v1/gen/schema', planningData);
       
-      console.log('API response received:', data);
+      console.log('API response received:', response.data);
       
-      // Validate the API response
-      if (!data || !data.title || !data.outline || !Array.isArray(data.outline)) {
-        console.error('Invalid API response structure:', data);
+      // Handle the case where the API returns a content property with a JSON string
+      let parsedData;
+      if (response.data && response.data.content && typeof response.data.content === 'string') {
+        try {
+          // Parse the JSON string in the content property
+          parsedData = JSON.parse(response.data.content);
+          console.log('Successfully parsed content JSON:', parsedData);
+        } catch (parseError) {
+          console.error('Error parsing content JSON:', parseError);
+          throw new Error('Failed to parse API response content');
+        }
+      } else {
+        // If the response is already in the expected format
+        parsedData = response.data;
+      }
+      
+      // Validate the parsed data
+      if (!parsedData || !parsedData.title || !parsedData.outline || !Array.isArray(parsedData.outline)) {
+        console.error('Invalid API response structure after parsing:', parsedData);
         throw new Error('Received invalid data structure from API');
       }
       
       // Transform the API response to match our AIGeneratedArticle interface
       return {
-        titles: [data.title, ...(data.alternativeTitles || []).slice(0, 3)],
-        selectedTitle: data.title,
-        outline: data.outline.map((item: any) => ({
+        titles: [parsedData.title, ...(parsedData.alternativeTitles || []).slice(0, 3)],
+        selectedTitle: parsedData.title,
+        outline: parsedData.outline.map((item: any) => ({
           level: item.level,
           heading: item.heading,
           content: item.content || ''
         })),
-        introduction: data.introduction,
-        conclusion: data.conclusion,
-        tags: data.tags || planningData.keywords || []
+        introduction: parsedData.introduction,
+        conclusion: parsedData.conclusion,
+        tags: parsedData.tags || planningData.keywords || []
       };
     } catch (error: any) {
       console.error('Error generating article:', error);
@@ -69,6 +85,8 @@ export const articleAiApi = {
       ...planningData,
       isRegeneration: true
     };
+    
+    // Use the same generateArticle method which now handles the content property correctly
     return articleAiApi.generateArticle(regenerationData);
   }
 };
