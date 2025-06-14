@@ -556,8 +556,15 @@ export function MarkdownEditor({
               class: "prose prose-lg prose-stone dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full",
             },
           }}
-          onUpdate={({ editor }) => {
+          onCreate={({ editor }) => {
+            // Set editor instance immediately on creation
             setEditorInstance(editor);
+          }}
+          onUpdate={({ editor }) => {
+            // Ensure editor instance is set
+            if (!editorInstance) {
+              setEditorInstance(editor);
+            }
             debouncedUpdates({ editor });
             setSaveStatus('Unsaved');
           }}
