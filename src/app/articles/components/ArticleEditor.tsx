@@ -85,8 +85,6 @@ export default function ArticleEditor({
           setCategory(document.meta?.category || '');
           setTags(tags || []);
           
-          console.log('Set content', content.length)
-
           // Set suggested titles if available in document meta
           if (document.meta?.suggested_titles && Array.isArray(document.meta.suggested_titles)) {
             setSuggestedTitles(document.meta.suggested_titles);
@@ -243,8 +241,6 @@ export default function ArticleEditor({
     );
   }
   
-  console.log('isTitleDialogOpen', isTitleDialogOpen, 'content', content.length)
-
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -450,7 +446,6 @@ export default function ArticleEditor({
                 key={initialContent} /* Force re-render when initialContent changes */
                 initialContent={initialContent || content}
                 onChange={(newContent) => {
-                  console.log('newContent', newContent)
                   setContent(newContent);
                 }}
                 placeholder="Write your article content here..."

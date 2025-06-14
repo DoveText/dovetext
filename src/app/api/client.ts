@@ -21,7 +21,7 @@ export const apiClient = axios.create({
 // Add request interceptor to add authentication token
 apiClient.interceptors.request.use(
   async (config) => {
-    console.log('[API Client] Request interceptor called for:', config.url);
+    // console.log('[API Client] Request interceptor called for:', config.url);
     
     // Skip authentication for public endpoints
     if (config.url?.startsWith('/public/')) {
@@ -37,14 +37,14 @@ apiClient.interceptors.request.use(
         return Promise.reject(new Error('Not authenticated'));
       }
 
-      console.log('[API Client] Successfully obtained token for request');
+      // console.log('[API Client] Successfully obtained token for request');
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('[API Client] Request headers set:', {
-        contentType: config.headers['Content-Type'],
-        hasAuth: !!config.headers.Authorization,
-        method: config.method,
-        url: config.url
-      });
+      // console.log('[API Client] Request headers set:', {
+      //   contentType: config.headers['Content-Type'],
+      //   hasAuth: !!config.headers.Authorization,
+      //   method: config.method,
+      //   url: config.url
+      // });
     } catch (error) {
       console.error('[API Client] Error getting authentication token:', error);
       return Promise.reject(error);
@@ -60,20 +60,20 @@ apiClient.interceptors.request.use(
 // Add response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => {
-    console.log('[API Client] Response received:', {
-      status: response.status,
-      url: response.config.url,
-      data: response.data
-    });
+    // console.log('[API Client] Response received:', {
+    //   status: response.status,
+    //   url: response.config.url,
+    //   data: response.data
+    // });
     return response;
   },
   (error) => {
-    console.error('[API Client] Response error:', {
-      url: error.config?.url,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      message: error.message
-    });
+    // console.error('[API Client] Response error:', {
+    //   url: error.config?.url,
+    //   status: error.response?.status,
+    //   statusText: error.response?.statusText,
+    //   message: error.message
+    // });
     
     if (error.response) {
       // Handle specific error cases

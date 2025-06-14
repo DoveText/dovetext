@@ -157,15 +157,13 @@ export default function ArticlesList({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-full">
                 Title
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Author
-              </th>
+
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Category
               </th>
@@ -174,9 +172,6 @@ export default function ArticlesList({
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Last Modified
-              </th>
-              <th scope="col" className="relative px-6 py-3">
-                <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
@@ -190,16 +185,16 @@ export default function ArticlesList({
                     toggleRowExpansion(article.id);
                   }}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="text-gray-400">
+                  <td className="px-6 py-4">
+                    <div className="flex items-start">
+                      <div className="text-gray-400 mt-1 flex-shrink-0 mr-2">
                         {expandedRows[article.id] ? (
                           <ChevronUpIcon className="h-5 w-5" />
                         ) : (
                           <ChevronDownIcon className="h-5 w-5" />
                         )}
                       </div>
-                      <div className="text-sm font-medium text-gray-900">{article.title}</div>
+                      <div className="text-sm font-medium text-gray-900 break-words">{article.title}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -207,9 +202,7 @@ export default function ArticlesList({
                       {article.status.charAt(0).toUpperCase() + article.status.slice(1)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {article.author}
-                  </td>
+
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {article.category}
                   </td>
@@ -235,15 +228,8 @@ export default function ArticlesList({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(article.lastModified).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button 
-                      onClick={(e) => toggleRowExpansion(article.id, e)}
-                      className="text-gray-600 hover:text-gray-900"
-                      title={expandedRows[article.id] ? "Collapse" : "Expand"}
-                    >
-                      {expandedRows[article.id] ? "Collapse" : "Expand"}
-                    </button>
+                    <br/>
+                    {new Date(article.lastModified).toLocaleTimeString()}
                   </td>
                 </tr>
                 
