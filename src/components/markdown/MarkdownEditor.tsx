@@ -34,6 +34,7 @@ import AIMenu from './components/ai-menu';
 import AICommandDialog, { AICommandType } from './components/ai-command-dialog';
 import { AICommandService } from './services/ai-command-service';
 import { ToolbarButton } from './components/toolbar-button';
+import { FixedToolbar } from './components/fixed-toolbar';
 
 interface EditorProps {
   initialContent?: string | JSONContent;
@@ -69,10 +70,30 @@ export function MarkdownEditor({
   // Editor reference
   const [editorInstance, setEditorInstance] = useState<any>(null);
   
+  // Toolbar sync state - forces re-render when editor state changes
+  const [toolbarSyncCounter, setToolbarSyncCounter] = useState(0);
+  
   // Initialize AI service when editor is ready
   useEffect(() => {
     if (editorInstance) {
       setAiService(new AICommandService(editorInstance));
+      
+      // Set up event listeners for toolbar sync
+      const updateToolbarState = () => setToolbarSyncCounter(prev => prev + 1);
+      
+      // Listen for selection changes, document updates, and focus changes
+      editorInstance.on('selectionUpdate', updateToolbarState);
+      editorInstance.on('update', updateToolbarState);
+      editorInstance.on('focus', updateToolbarState);
+      editorInstance.on('blur', updateToolbarState);
+      
+      return () => {
+        // Clean up event listeners
+        editorInstance.off('selectionUpdate', updateToolbarState);
+        editorInstance.off('update', updateToolbarState);
+        editorInstance.off('focus', updateToolbarState);
+        editorInstance.off('blur', updateToolbarState);
+      };
     }
   }, [editorInstance]);
   
@@ -348,8 +369,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span className="font-bold">B</span>} 
               isActive={editorInstance?.isActive('bold')} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleBold().run()
               }}
               disabled={!editorInstance}
@@ -358,8 +378,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span className="italic">I</span>} 
               isActive={editorInstance?.isActive('italic')} 
-              onClick={(e) => {
-                e.preventDefault();                
+              onClick={() => {
                 editorInstance?.chain().focus().toggleItalic().run()
               }}
               disabled={!editorInstance}
@@ -368,8 +387,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span className="underline">U</span>} 
               isActive={editorInstance?.isActive('underline')} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleUnderline().run()
               }}
               disabled={!editorInstance}
@@ -378,8 +396,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span className="line-through">S</span>} 
               isActive={editorInstance?.isActive('strike')} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleStrike().run()
               }}
               disabled={!editorInstance}
@@ -388,8 +405,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span className="font-mono">{'<>'}</span>} 
               isActive={editorInstance?.isActive('code')} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleCode().run()
               }}
               disabled={!editorInstance}
@@ -402,8 +418,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span className="font-bold">H1</span>} 
               isActive={editorInstance?.isActive('heading', { level: 1 })} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleHeading({ level: 1 }).run()
               }}
               disabled={!editorInstance}
@@ -412,8 +427,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span className="font-bold">H2</span>} 
               isActive={editorInstance?.isActive('heading', { level: 2 })} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleHeading({ level: 2 }).run()
               }}
               disabled={!editorInstance}
@@ -422,8 +436,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span className="font-bold">H3</span>} 
               isActive={editorInstance?.isActive('heading', { level: 3 })} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleHeading({ level: 3 }).run()
               }}
               disabled={!editorInstance}
@@ -436,8 +449,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span>•</span>} 
               isActive={editorInstance?.isActive('bulletList')} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleBulletList().run()
               }}
               disabled={!editorInstance}
@@ -446,8 +458,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span>1.</span>} 
               isActive={editorInstance?.isActive('orderedList')} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleOrderedList().run()
               }}
               disabled={!editorInstance}
@@ -456,8 +467,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span>[ ]</span>} 
               isActive={editorInstance?.isActive('taskList')} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleTaskList().run()
               }}
               disabled={!editorInstance}
@@ -470,8 +480,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span>"</span>} 
               isActive={editorInstance?.isActive('blockquote')} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleBlockquote().run()
               }}
               disabled={!editorInstance}
@@ -480,8 +489,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span className="font-mono">```</span>} 
               isActive={editorInstance?.isActive('codeBlock')} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 editorInstance?.chain().focus().toggleCodeBlock().run()
               }}
               disabled={!editorInstance}
@@ -494,8 +502,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span>✨</span>} 
               isActive={false} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 setAiCommandType('generate'); setAiDialogOpen(true); 
               }}
               disabled={!editorInstance}
@@ -504,8 +511,7 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span>🔄</span>} 
               isActive={false} 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 setAiCommandType('refine'); setAiDialogOpen(true); 
               }}
               disabled={!editorInstance}
@@ -619,6 +625,8 @@ export function MarkdownEditor({
               <LinkSelector open={openLink} onOpenChange={setOpenLink} />
             </EditorBubble>
           )}
+          {/* Fixed toolbar - syncs with editor state */}
+          <FixedToolbar />
       </EditorContent>
     </EditorRoot>
     
