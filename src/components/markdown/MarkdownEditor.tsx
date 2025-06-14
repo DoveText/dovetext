@@ -348,35 +348,50 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span className="font-bold">B</span>} 
               isActive={editorInstance?.isActive('bold')} 
-              onClick={() => editorInstance?.chain().focus().toggleBold().run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleBold().run()
+              }}
               disabled={!editorInstance}
               tooltip="Bold"
             />
             <ToolbarButton 
               icon={<span className="italic">I</span>} 
               isActive={editorInstance?.isActive('italic')} 
-              onClick={() => editorInstance?.chain().focus().toggleItalic().run()}
+              onClick={(e) => {
+                e.preventDefault();                
+                editorInstance?.chain().focus().toggleItalic().run()
+              }}
               disabled={!editorInstance}
               tooltip="Italic"
             />
             <ToolbarButton 
               icon={<span className="underline">U</span>} 
               isActive={editorInstance?.isActive('underline')} 
-              onClick={() => editorInstance?.chain().focus().toggleUnderline().run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleUnderline().run()
+              }}
               disabled={!editorInstance}
               tooltip="Underline"
             />
             <ToolbarButton 
               icon={<span className="line-through">S</span>} 
               isActive={editorInstance?.isActive('strike')} 
-              onClick={() => editorInstance?.chain().focus().toggleStrike().run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleStrike().run()
+              }}
               disabled={!editorInstance}
               tooltip="Strikethrough"
             />
             <ToolbarButton 
               icon={<span className="font-mono">{'<>'}</span>} 
               isActive={editorInstance?.isActive('code')} 
-              onClick={() => editorInstance?.chain().focus().toggleCode().run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleCode().run()
+              }}
               disabled={!editorInstance}
               tooltip="Inline Code"
             />
@@ -387,21 +402,30 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span className="font-bold">H1</span>} 
               isActive={editorInstance?.isActive('heading', { level: 1 })} 
-              onClick={() => editorInstance?.chain().focus().toggleHeading({ level: 1 }).run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleHeading({ level: 1 }).run()
+              }}
               disabled={!editorInstance}
               tooltip="Heading 1"
             />
             <ToolbarButton 
               icon={<span className="font-bold">H2</span>} 
               isActive={editorInstance?.isActive('heading', { level: 2 })} 
-              onClick={() => editorInstance?.chain().focus().toggleHeading({ level: 2 }).run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleHeading({ level: 2 }).run()
+              }}
               disabled={!editorInstance}
               tooltip="Heading 2"
             />
             <ToolbarButton 
               icon={<span className="font-bold">H3</span>} 
               isActive={editorInstance?.isActive('heading', { level: 3 })} 
-              onClick={() => editorInstance?.chain().focus().toggleHeading({ level: 3 }).run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleHeading({ level: 3 }).run()
+              }}
               disabled={!editorInstance}
               tooltip="Heading 3"
             />
@@ -412,21 +436,30 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span>•</span>} 
               isActive={editorInstance?.isActive('bulletList')} 
-              onClick={() => editorInstance?.chain().focus().toggleBulletList().run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleBulletList().run()
+              }}
               disabled={!editorInstance}
               tooltip="Bullet List"
             />
             <ToolbarButton 
               icon={<span>1.</span>} 
               isActive={editorInstance?.isActive('orderedList')} 
-              onClick={() => editorInstance?.chain().focus().toggleOrderedList().run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleOrderedList().run()
+              }}
               disabled={!editorInstance}
               tooltip="Numbered List"
             />
             <ToolbarButton 
               icon={<span>[ ]</span>} 
               isActive={editorInstance?.isActive('taskList')} 
-              onClick={() => editorInstance?.chain().focus().toggleTaskList().run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleTaskList().run()
+              }}
               disabled={!editorInstance}
               tooltip="Task List"
             />
@@ -437,14 +470,20 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span>"</span>} 
               isActive={editorInstance?.isActive('blockquote')} 
-              onClick={() => editorInstance?.chain().focus().toggleBlockquote().run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleBlockquote().run()
+              }}
               disabled={!editorInstance}
               tooltip="Blockquote"
             />
             <ToolbarButton 
               icon={<span className="font-mono">```</span>} 
               isActive={editorInstance?.isActive('codeBlock')} 
-              onClick={() => editorInstance?.chain().focus().toggleCodeBlock().run()}
+              onClick={(e) => {
+                e.preventDefault();
+                editorInstance?.chain().focus().toggleCodeBlock().run()
+              }}
               disabled={!editorInstance}
               tooltip="Code Block"
             />
@@ -455,14 +494,20 @@ export function MarkdownEditor({
             <ToolbarButton 
               icon={<span>✨</span>} 
               isActive={false} 
-              onClick={() => { setAiCommandType('generate'); setAiDialogOpen(true); }}
+              onClick={(e) => {
+                e.preventDefault();
+                setAiCommandType('generate'); setAiDialogOpen(true); 
+              }}
               disabled={!editorInstance}
               tooltip="Generate Content"
             />
             <ToolbarButton 
               icon={<span>🔄</span>} 
               isActive={false} 
-              onClick={() => { setAiCommandType('refine'); setAiDialogOpen(true); }}
+              onClick={(e) => {
+                e.preventDefault();
+                setAiCommandType('refine'); setAiDialogOpen(true); 
+              }}
               disabled={!editorInstance}
               tooltip="Refine Content"
             />
@@ -505,7 +550,7 @@ export function MarkdownEditor({
           className="relative w-full border border-gray-200 bg-white rounded-lg shadow-sm overflow-hidden"
           editorProps={{
             handleDOMEvents: {
-              keydown: (_view, event) => handleCommandNavigation(event),
+              keydown: (_view, event) => handleCommandNavigation(event, suggestionItems),
             },
             attributes: {
               class: "prose prose-lg prose-stone dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full",

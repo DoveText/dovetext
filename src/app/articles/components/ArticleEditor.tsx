@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor';
 import { documentsApi } from '@/app/api/documents';
@@ -52,11 +52,16 @@ export default function ArticleEditor({
   const [tags, setTags] = useState<string[]>(initialTags);
   const [suggestedTitles, setSuggestedTitles] = useState<string[]>([]);
   const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
+  // State for available options
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(mode === 'edit');
   
+  // State for loading and error
+  const [isLoading, setIsLoading] = useState(mode === 'edit');
+  const [error, setError] = useState<string | null>(null);
+
   // Get document ID from URL if in edit mode
   const searchParams = useSearchParams();
   const documentId = searchParams ? searchParams.get('id') : null;
@@ -64,8 +69,16 @@ export default function ArticleEditor({
   // Fetch document data if in edit mode
   useEffect(() => {
     const fetchDocumentData = async () => {
-      if (mode === 'edit' && documentId) {
+      if (mode === 'edit') {
         setIsLoading(true);
+        
+        // Check if document ID exists
+        if (!documentId) {
+          setError('No document ID provided. Please select a document to edit.');
+          setIsLoading(false);
+          return;
+        }
+        
         try {
           // Fetch document
           const document = await documentsApi.getDocument(documentId);
@@ -85,15 +98,13 @@ export default function ArticleEditor({
           setCategory(document.meta?.category || '');
           setTags(tags || []);
           
-          console.log('Set content', content.length)
-
           // Set suggested titles if available in document meta
           if (document.meta?.suggested_titles && Array.isArray(document.meta.suggested_titles)) {
             setSuggestedTitles(document.meta.suggested_titles);
           }
         } catch (error) {
           console.error('Error fetching document:', error);
-          alert('Failed to load document. Please try again.');
+          setError('Failed to load document. Please try again.');
         } finally {
           setIsLoading(false);
         }
@@ -108,9 +119,9 @@ export default function ArticleEditor({
     const fetchAvailableOptions = async () => {
       try {
         // In a real app, you would fetch these from the server
-        // For now, we'll use some mock data
-        setAvailableTags(['technology', 'business', 'marketing', 'design', 'development']);
-        setAvailableCategories(['Technology', 'Business', 'Marketing', 'Design', 'Development']);
+        // For now, we'll use some dummy data
+        setAvailableTags(['technology', 'programming', 'design', 'business', 'marketing']);
+        setAvailableCategories(['tutorial', 'blog', 'news', 'review', 'opinion']);
       } catch (error) {
         console.error('Error fetching available options:', error);
       }
@@ -123,79 +134,42 @@ export default function ArticleEditor({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
-    if (!title.trim()) {
-      alert('Please enter a title');
-      return;
-    }
-    
-    if (!content.trim()) {
-      alert('Please enter content');
-      return;
-    }
-    
-    // Include suggested titles in the metadata
-    await onSave({
-      title,
-      content,
-      status,
-      category,
-      tags,
-      meta: {
-        suggested_titles: suggestedTitles
-      }
-    });
-  };
-  
-  // Handle title generation request
-  const handleGenerateTitles = useCallback(async (direction: string) => {
-    // Validate content length
-    if (!content || content.trim().length < 50) {
-      throw new Error('Content is too short for title generation. Please provide more content in your article first.');
-    }
-    
     try {
-      const request = {
-        content: content,
-        keywords: tags,
-        direction
-      };
-      
-      const response = await articleAiApi.generateTitles(request);
-      if (response.titles && response.titles.length > 0) {
-        // Update suggested titles
-        setSuggestedTitles(prev => {
-          // Add new titles that don't already exist
-          const newTitles = [...prev];
-          response.titles.forEach(title => {
-            if (!newTitles.includes(title)) {
-              newTitles.push(title);
-            }
-          });
-          return newTitles;
-        });
-        
-        return response.titles;
-      }
-      return [];
+      // Call onSave with article data
+      await onSave({
+        title,
+        content,
+        status,
+        category,
+        tags,
+        meta: {
+          suggested_titles: suggestedTitles
+        }
+      });
     } catch (error) {
-      console.error('Error generating titles:', error);
-      throw error;
-    }
-  }, [content, tags]);
-  
-  // Handle selecting a title from the dropdown or dialog
-  const handleTitleSelect = (selectedTitle: string) => {
-    if (selectedTitle === "__generate_new__") {
-      setIsTitleDialogOpen(true);
-    } else {
-      setTitle(selectedTitle);
+      console.error('Error saving article:', error);
     }
   };
   
-  // Handle new titles generated from the dialog
+  // Handle title dropdown toggle
+  const handleTitleDropdownToggle = () => {
+    setIsDropdownOpen(!isDropdownOpen);
+  };
+  
+  // Handle title input change
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTitle(e.target.value);
+  };
+  
+  // Handle title selection from dropdown
+  const handleTitleSelect = (selectedTitle: string) => {
+    setTitle(selectedTitle);
+    setIsDropdownOpen(false);
+  };
+  
+  // Handle new titles generated from dialog
   const handleNewTitlesGenerated = (newTitles: string[]) => {
-    setSuggestedTitles(newTitles);
+    setSuggestedTitles([...newTitles]);
     if (newTitles.length > 0) {
       setTitle(newTitles[0]);
     }
@@ -203,189 +177,112 @@ export default function ArticleEditor({
   
   // Handle tag selection
   const handleTagsChange = (value: string | string[]) => {
-    const newTags = Array.isArray(value) ? value : [];
-    setTags(newTags);
-    
-    // Add any new tags to the available tags list
-    const newAvailableTags = [...availableTags];
-    newTags.forEach(tag => {
-      if (!availableTags.includes(tag)) {
-        newAvailableTags.push(tag);
-      }
-    });
-    
-    if (newAvailableTags.length !== availableTags.length) {
-      setAvailableTags(newAvailableTags);
+    if (Array.isArray(value)) {
+      setTags(value);
+    } else {
+      setTags([value]);
     }
   };
   
   // Handle creating a new tag
   const handleCreateTag = (newTag: string) => {
-    // Add the new tag to both selected tags and available tags
+    setAvailableTags([...availableTags, newTag]);
     setTags([...tags, newTag]);
-    if (!availableTags.includes(newTag)) {
-      setAvailableTags([...availableTags, newTag]);
-    }
   };
+  
+  // Handle generating titles with AI
+  const handleGenerateTitles = useCallback(async (prompt: string) => {
+    try {
+      const generatedTitles = await articleAiApi.generateTitles(content, prompt);
+      return generatedTitles;
+    } catch (error) {
+      console.error('Error generating titles:', error);
+      return [];
+    }
+  }, [content]);
   
   // Convert available tags to TaggedSelect options
   const tagOptions = availableTags.map(tag => ({
     value: tag,
     label: tag
   }));
-  
-  if (isLoading) {
+
+  // If there's an error (like no document ID), show an error message
+  if (error) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-        <p className="ml-2 text-gray-500">Loading document...</p>
+      <div className="flex flex-col items-center justify-center h-64 p-6 bg-white rounded-lg shadow">
+        <div className="text-center">
+          <XMarkIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Error</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.href = '/articles'}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+          >
+            Return to Articles
+          </button>
+        </div>
       </div>
     );
   }
-  
-  console.log('isTitleDialogOpen', isTitleDialogOpen, 'content', content.length)
 
-  return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      {/* Header */}
-      <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <DocumentTextIcon className="h-6 w-6 text-blue-600 mr-2" />
-            <h1 className="text-xl font-bold text-gray-900">
-              {mode === 'create' ? 'Create New Article' : 'Edit Article'}
-            </h1>
-          </div>
-          <div className="flex items-center space-x-2">
-            {mode === 'create' && onWizardOpen && (
-              <button
-                type="button"
-                onClick={onWizardOpen}
-                className="inline-flex items-center px-3 py-1.5 border border-blue-500 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                </svg>
-                AI Wizard
-              </button>
-            )}
-          </div>
+  // Show loading spinner while fetching document
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-indigo-600 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+          <p className="mt-2 text-gray-600">Loading document...</p>
         </div>
       </div>
-      
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="p-6">
-        {/* Status and Category */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {/* Status */}
-          <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <div className="rounded-md shadow-sm">
-              <TaggedSelect
-                value={status}
-                onChange={(value) => setStatus(Array.isArray(value) ? value[0] : value)}
-                options={[
-                  { value: 'draft', label: 'Draft' },
-                  { value: 'published', label: 'Published' },
-                  { value: 'archived', label: 'Archived' }
-                ]}
-                placeholder="Select a status"
-                multiple={false}
-                editable={false}
-                className="min-h-[44px] py-1"
-              />
-            </div>
-          </div>
-          
-          {/* Category */}
-          <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-              Category
-            </label>
-            <div className="rounded-md shadow-sm">
-              <TaggedSelect
-                value={category}
-                onChange={(value) => setCategory(Array.isArray(value) ? value[0] : value)}
-                options={availableCategories.map(cat => ({ value: cat, label: cat }))}
-                placeholder="Select a category"
-                multiple={false}
-                editable={false}
-                className="min-h-[44px] py-1"
-              />
-            </div>
-          </div>
-        </div>
-        
-        {/* Tags */}
-        <div className="mb-6">
-          <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
-            Tags
-          </label>
-          <div className="rounded-md shadow-sm">
-            <TaggedSelect
-              value={tags}
-              onChange={handleTagsChange}
-              options={tagOptions}
-              placeholder="Add tags..."
-              multiple={true}
-              editable={true}
-              className="min-h-[44px] py-1"
-              onCreateOption={handleCreateTag}
-            />
-          </div>
-          <p className="mt-1 text-sm text-gray-500">
-            Tags help categorize your article and make it more discoverable
-          </p>
-        </div>
-        
-        {/* Title */}
+    );
+  }
+
+  // Main editor form
+  return (
+    <div className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Title Input with Dropdown */}
         <div className="mb-6">
           <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
             Title
           </label>
           <div className="relative">
-            <div className="relative w-full">
+            <div className="flex">
               <input
                 type="text"
                 id="title"
+                name="title"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="block w-full rounded-md py-2 pl-3 pr-10 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                onChange={handleTitleChange}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 placeholder="Enter article title"
+                required
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </div>
-              
-              {/* Custom dropdown */}
-              <div 
-                onClick={() => document.getElementById('titleDropdown')?.classList.toggle('hidden')}
-                className="absolute inset-0 w-full h-full cursor-pointer"
-              />
-              
-              <div id="titleDropdown" className="hidden absolute z-50 top-full mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
-                {/* Current title if not in suggested titles */}
-                {title && !suggestedTitles.includes(title) && (
-                  <div 
-                    className="text-gray-900 cursor-default select-none relative py-2 pl-3 pr-9 bg-indigo-50 font-medium"
-                  >
-                    {title}
-                  </div>
-                )}
-                
+              <button
+                type="button"
+                className="ml-2 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                onClick={handleTitleDropdownToggle}
+              >
+                <DocumentTextIcon className="h-4 w-4 mr-1" />
+                <span>Select</span>
+              </button>
+            </div>
+            
+            {/* Title dropdown */}
+            <div
+              id="titleDropdown"
+              className={`absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm ${
+                isDropdownOpen ? '' : 'hidden'
+              }`}
+            >
+              <div className="py-1">
                 {/* Suggested titles */}
                 {suggestedTitles.map((suggestedTitle, index) => (
                   <div
                     key={index}
-                    className={`cursor-pointer select-none relative py-2 pl-3 pr-9 ${title === suggestedTitle ? 'bg-indigo-100 text-indigo-700 font-medium' : 'text-gray-900 hover:bg-gray-100'}`}
-                    onClick={() => {
-                      setTitle(suggestedTitle);
-                      document.getElementById('titleDropdown')?.classList.add('hidden');
-                    }}
+                    className="cursor-pointer select-none relative py-2 pl-3 pr-9 text-gray-900 hover:bg-gray-100"
+                    onClick={() => handleTitleSelect(suggestedTitle)}
                   >
                     {suggestedTitle}
                     {title === suggestedTitle && (
@@ -403,7 +300,7 @@ export default function ArticleEditor({
                   className="cursor-pointer select-none relative py-2 pl-3 pr-9 text-blue-600 hover:bg-gray-100 border-t border-gray-200"
                   onClick={() => {
                     setIsTitleDialogOpen(true);
-                    document.getElementById('titleDropdown')?.classList.add('hidden');
+                    setIsDropdownOpen(false);
                   }}
                 >
                   <div className="flex items-center">
@@ -418,21 +315,77 @@ export default function ArticleEditor({
           {/* Title generation dialog */}
           {isTitleDialogOpen && (
             <TitleGenerationDialog
-            isOpen={isTitleDialogOpen}
-            onClose={() => {
-              setIsTitleDialogOpen(false);
-            }}
-            onSelectTitle={(selectedTitle) => {
-              setTitle(selectedTitle);
-              // Add to suggested titles if not already there
-              if (!suggestedTitles.includes(selectedTitle)) {
-                setSuggestedTitles([...suggestedTitles, selectedTitle]);
-              }
-              setIsTitleDialogOpen(false);
-            }}
-            onGenerateTitles={handleGenerateTitles}
-          />
+              isOpen={isTitleDialogOpen}
+              onClose={() => setIsTitleDialogOpen(false)}
+              onSelectTitle={(selectedTitle) => {
+                setTitle(selectedTitle);
+                // Add to suggested titles if not already there
+                if (!suggestedTitles.includes(selectedTitle)) {
+                  setSuggestedTitles([...suggestedTitles, selectedTitle]);
+                }
+                setIsTitleDialogOpen(false);
+              }}
+              onGenerateTitles={handleGenerateTitles}
+            />
           )}
+        </div>
+        
+        {/* Status and Category */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Status */}
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+              Status
+            </label>
+            <select
+              id="status"
+              name="status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            >
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          
+          {/* Category */}
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+              Category
+            </label>
+            <select
+              id="category"
+              name="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            >
+              <option value="">Select a category</option>
+              {availableCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        {/* Tags */}
+        <div className="mb-6">
+          <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
+            Tags
+          </label>
+          <TaggedSelect
+            options={tagOptions}
+            value={tags}
+            onChange={handleTagsChange}
+            onCreateOption={handleCreateTag}
+            placeholder="Select or create tags"
+            isMulti
+            className="w-full"
+          />
         </div>
         
         {/* Content Editor */}
@@ -442,12 +395,9 @@ export default function ArticleEditor({
           </label>
           <div className="border border-gray-300 rounded-md overflow-hidden shadow-sm">
             <MarkdownEditor
-              key={initialContent} /* Force re-render when initialContent changes */
-              initialContent={initialContent || content}
-              onChange={(newContent) => {
-                console.log('newContent', newContent)
-                setContent(newContent);
-              }}
+              key={documentId || 'new'} /* Force re-render when documentId changes */
+              initialContent={content}
+              onChange={(newContent) => setContent(newContent)}
               placeholder="Write your article content here..."
               minHeight="500px"
               format="markdown"
