@@ -111,6 +111,8 @@ export default function ArticleEditor({
       }
     };
     
+    console.log('Try fetch document - ' + mode, documentId);
+
     fetchDocumentData();
   }, [mode, documentId]);
   
@@ -133,7 +135,7 @@ export default function ArticleEditor({
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       // Call onSave with article data
       await onSave({
@@ -241,7 +243,7 @@ export default function ArticleEditor({
   // Main editor form
   return (
     <div className="space-y-8">
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-6">
         {/* Title Input with Dropdown */}
         <div className="mb-6">
           <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
@@ -416,7 +418,11 @@ export default function ArticleEditor({
             Cancel
           </button>
           <button
-            type="submit"
+            type="button"
+            onClick={(e) => {
+              // Call handleSubmit directly instead of relying on form submission
+              handleSubmit(e);
+            }}
             className="inline-flex items-center px-5 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             disabled={isSubmitting}
           >
@@ -430,7 +436,7 @@ export default function ArticleEditor({
             )}
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

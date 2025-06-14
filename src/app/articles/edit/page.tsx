@@ -19,6 +19,8 @@ export default function EditArticlePage() {
     category: string;
     tags: string[];
   }) => {
+    console.log('Try save article - ' + articleData.title, isSubmitting);
+    
     if (isSubmitting) return;
     
     // Get document ID from URL
