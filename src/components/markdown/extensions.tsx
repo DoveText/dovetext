@@ -4,7 +4,6 @@ import {
   StarterKit,
   TiptapLink,
   TiptapUnderline,
-  HorizontalRule,
   HighlightExtension,
   Placeholder,
   UpdatedImage,
@@ -28,7 +27,6 @@ export const defaultExtensions = [
   }),
   TiptapUnderline,
   HighlightExtension,
-  HorizontalRule,
   Placeholder.configure({
     placeholder: ({ node }) => {
       if (node.type.name === 'heading') {

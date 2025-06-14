@@ -15,7 +15,11 @@ const AIMenu = ({ onGenerateContent, onRefineContent, onCreateSchema }: AIMenuPr
     <div className="flex flex-nowrap min-w-fit whitespace-nowrap pt-1 pl-1">
       <button
         className="inline-flex h-8 w-8 items-center justify-center rounded-md p-1 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-500 flex-shrink-0"
-        onClick={onGenerateContent}
+        onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onGenerateContent();
+          }}
         title="Generate Content"
       >
         ✨
@@ -23,7 +27,11 @@ const AIMenu = ({ onGenerateContent, onRefineContent, onCreateSchema }: AIMenuPr
       </button>
       <button
         className="inline-flex h-8 w-8 items-center justify-center rounded-md p-1 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-500 flex-shrink-0"
-        onClick={onRefineContent}
+        onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRefineContent();
+          }}
         title="Refine Content"
       >
         ✏️
@@ -31,7 +39,11 @@ const AIMenu = ({ onGenerateContent, onRefineContent, onCreateSchema }: AIMenuPr
       </button>
       <button
         className="inline-flex h-8 w-8 items-center justify-center rounded-md p-1 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-500 flex-shrink-0"
-        onClick={onCreateSchema}
+        onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onCreateSchema();
+          }}
         title="Create Outline"
       >
         📋
