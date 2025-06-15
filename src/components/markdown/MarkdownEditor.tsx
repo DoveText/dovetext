@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   EditorRoot,
   EditorContent,
@@ -10,11 +10,10 @@ import {
   EditorCommandList,
   EditorBubble,
   ImageResizer,
-  handleCommandNavigation,
-  handleImageDrop,
-  handleImagePaste,
-  useEditor
+  EditorInstance
 } from 'novel';
+import { defaultExtensions } from './extensions';
+import { slashCommand, suggestionItems } from './components/slash-command';
 import { JSONContent } from '@tiptap/react';
 import { useDebouncedCallback } from 'use-debounce';
 
@@ -23,16 +22,18 @@ import { marked } from 'marked';
 import TurndownService from 'turndown';
 import { generateJSON } from '@tiptap/html';
 
-// Import our custom components and extensions
-import { defaultExtensions } from './extensions';
-import { slashCommand, suggestionItems } from './components/slash-command';
+// Import our custom components and hooks
+import { useSelectionManager } from './hooks/useSelectionManager';
+import { useAICommandManager } from './hooks/useAICommandManager';
+import { countWords, getFormattedContent } from './utils/content-formatter';
+import { getEditorConfig } from './components/editor-config';
+import { EditorUI, EditorStatusBar } from './components/editor-ui';
+import AICommandDialog from './components/ai-command-dialog';
 import { TextButtons } from './components/text-buttons';
 import { LinkSelector } from './components/link-selector';
 import { NodeSelector } from './components/node-selector';
 import { Separator } from './components/separator';
 import AIMenu from './components/ai-menu';
-import AICommandDialog, { AICommandType } from './components/ai-command-dialog';
-import { AICommandService } from './services/ai-command-service';
 import { ToolbarButton } from './components/toolbar-button';
 
 interface EditorProps {
@@ -55,145 +56,16 @@ export function MarkdownEditor({
   // State for UI elements
   const [saveStatus, setSaveStatus] = useState('Saved');
   const [wordCount, setWordCount] = useState<number | null>(null);
-  const [showBubbleMenu, setShowBubbleMenu] = useState(true); // Toggle for bubble menu
+  const [showBubbleMenu, setShowBubbleMenu] = useState(true);
   
-  // AI command dialog state
-  const [aiDialogOpen, setAiDialogOpen] = useState(false);
-  const [aiCommandType, setAiCommandType] = useState<AICommandType>(null);
-  const [aiCommandLoading, setAiCommandLoading] = useState(false);
-  const [aiService, setAiService] = useState<AICommandService | null>(null);
-  const [selectedText, setSelectedText] = useState<string>('');
-  const [hasSelection, setHasSelection] = useState(false);
+  // Editor reference and instance
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [editorInstance, setEditorInstance] = useState<EditorInstance | null>(null);
+  const [content, setContent] = useState<JSONContent | null>(null);
   
-  // Store selection state to restore it when dialog closes or when clicking outside editor
-  const [selectionState, setSelectionState] = useState<{from: number, to: number} | null>(null);
+  // UI state
   const [openNode, setOpenNode] = useState(false);
   const [openLink, setOpenLink] = useState(false);
-  
-  // Editor reference
-  const [editorInstance, setEditorInstance] = useState<any>(null);
-  
-  // Initialize AI service when editor is ready
-  useEffect(() => {
-    if (editorInstance) {
-      setAiService(new AICommandService(editorInstance));
-      
-      // Store selection state when selection changes
-      editorInstance.on('selectionUpdate', ({ editor }) => {
-        const { from, to } = editor.state.selection;
-        const hasCurrentSelection = from !== to;
-        
-        if (hasCurrentSelection) {
-          console.log('🔍 Storing selection state:', { from, to });
-          setSelectionState({ from, to });
-          setHasSelection(true);
-        }
-      });
-      
-      // Add document-level click handler to maintain selection when clicking outside editor
-      const handleDocumentClick = (event: MouseEvent) => {
-        // Skip if dialog is open
-        if (aiDialogOpen) return;
-        
-        // If we have a stored selection
-        if (selectionState) {
-          // Check if the click is outside the editor
-          if (!editorInstance.view.dom.contains(event.target as Node)) {
-            console.log('🔍 Click outside editor, restoring selection');
-            
-            // Focus the editor
-            editorInstance.view.focus();
-            
-            // Restore the selection
-            const { from, to } = selectionState;
-            const transaction = editorInstance.state.tr.setSelection(
-              editorInstance.state.selection.constructor.create(
-                editorInstance.state.doc,
-                from,
-                to
-              )
-            );
-            editorInstance.view.dispatch(transaction);
-            
-            // Prevent default behavior
-            event.preventDefault();
-          }
-        }
-      };
-      
-      // Add the click handler to the document
-      document.addEventListener('click', handleDocumentClick);
-      
-      return () => {
-        // Clean up event listeners
-        document.removeEventListener('click', handleDocumentClick);
-      };
-    }
-  }, [editorInstance, selectionState, aiDialogOpen]);
-  
-  // Listen for custom events from slash commands
-  useEffect(() => {
-    const handleAiCommandDialogEvent = (event: CustomEvent) => {
-      const { commandType } = event.detail;
-      
-      // Get the current selection if any
-      if (editorInstance) {
-        const { from, to } = editorInstance.state.selection;
-        const hasCurrentSelection = from !== to;
-        setHasSelection(hasCurrentSelection);
-        
-        // Store selection state to restore it later
-        if (hasCurrentSelection) {
-          setSelectionState({ from, to });
-        }
-        
-        // Get the selected text or text at cursor position
-        if (hasCurrentSelection) {
-          const selectedContent = editorInstance.state.doc.textBetween(from, to);
-          setSelectedText(selectedContent);
-        } else {
-          // If no selection, get the paragraph or sentence at cursor
-          const currentNode = editorInstance.state.doc.nodeAt(from);
-          if (currentNode) {
-            const nodeText = currentNode.textContent;
-            
-            // Check if the paragraph is empty (only contains whitespace)
-            const isEmptyParagraph = !nodeText || nodeText.trim() === '';
-            
-            if (isEmptyParagraph) {
-              // For empty paragraphs, try to get the text from the previous paragraph
-              const prevPos = Math.max(0, from - 1);
-              const prevNode = editorInstance.state.doc.nodeAt(prevPos);
-              if (prevNode && prevNode !== currentNode) {
-                const prevNodeText = prevNode.textContent;
-                setSelectedText(prevNodeText || '');
-              } else {
-                setSelectedText('');
-              }
-            } else {
-              setSelectedText(nodeText);
-            }
-          } else {
-            setSelectedText('');
-          }
-        }
-      }
-      
-      setAiCommandType(commandType);
-      setAiDialogOpen(true);
-    };
-    
-    // Add event listener
-    document.addEventListener('openAiCommandDialog', handleAiCommandDialogEvent as EventListener);
-    
-    // Clean up
-    return () => {
-      document.removeEventListener('openAiCommandDialog', handleAiCommandDialogEvent as EventListener);
-    };
-  }, [editorInstance]);
-  
-  // Create extensions array with slash command
-  const extensions = [...defaultExtensions, slashCommand];
   
   // Function to normalize initial content to JSONContent
   const getInitialContent = useCallback((): JSONContent => {
@@ -214,7 +86,7 @@ export function MarkdownEditor({
         // Convert markdown to HTML
         const html = marked.parse(initialContent as string) as string;
         // Convert HTML to JSON
-        return generateJSON(html, extensions);
+        return generateJSON(html, [...defaultExtensions, slashCommand]);
       } catch (error) {
         console.error('Error converting markdown to JSON:', error);
       }
@@ -230,54 +102,49 @@ export function MarkdownEditor({
         }
       ]
     };
-  }, [initialContent, format, extensions]);
+  }, [initialContent, format]);
   
-  // Convert editor content to the specified format
-  const getFormattedContent = useCallback((editor: any) => {
-    if (!editor) return '';
+  // Initialize AI command manager
+  const {
+    aiDialogOpen,
+    aiCommandType,
+    aiCommandLoading,
+    openAiCommandDialog,
+    closeAiCommandDialog,
+    handleAiCommandSubmit,
+    handleAcceptResult
+  } = useAICommandManager(editorInstance);
+  
+  // Initialize selection manager
+  const {
+    hasSelection,
+    selectedText,
+    selectionState,
+    restoreSelection
+  } = useSelectionManager(editorInstance, aiDialogOpen);
+  
+  // We'll initialize the editor through the EditorContent component
+  
+  // Listen for custom events from slash commands
+  useEffect(() => {
+    const handleAiCommandDialogEvent = (event: CustomEvent) => {
+      const { commandType } = event.detail;
+      
+      // Get the current selection if any
+      openAiCommandDialog(commandType);
+    };
     
-    switch (format) {
-      case 'markdown': {
-        const html = editor.getHTML();
-        const turndownService = new TurndownService({
-          headingStyle: 'atx',
-          codeBlockStyle: 'fenced'
-        });
-        // Add rules for better markdown conversion
-        turndownService.addRule('codeBlocks', {
-          filter: (node) => {
-            return node.nodeName === 'PRE' && 
-              node.firstChild && 
-              node.firstChild.nodeName === 'CODE';
-          },
-          replacement: (content, node) => {
-            if (node.firstChild) {
-              const code = node.firstChild.textContent || '';
-              let lang = '';
-              
-              // Safe type checking for getAttribute
-              if (node.firstChild.nodeType === 1) { // Element node
-                const element = node.firstChild as Element;
-                lang = element.getAttribute?.('class')?.replace('language-', '') || '';
-              }
-              
-              return '\n```' + lang + '\n' + code + '\n```\n';
-            }
-            return content;
-          }
-        });
-        return turndownService.turndown(html);
-      }
-      case 'json':
-        return JSON.stringify(editor.getJSON());
-      case 'html':
-      default:
-        return editor.getHTML();
-    }
-  }, [format]);
+    // Add event listener
+    document.addEventListener('ai-command-dialog', handleAiCommandDialogEvent as EventListener);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('ai-command-dialog', handleAiCommandDialogEvent as EventListener);
+    };
+  }, [openAiCommandDialog]);
   
-  // Debounced update function
-  const debouncedUpdates = useDebouncedCallback(
+  // Debounced save handler
+  const debouncedSave = useDebouncedCallback(
     ({ editor }) => {
       // Calculate word count
       const text = editor.getText();
@@ -290,123 +157,39 @@ export function MarkdownEditor({
       }, 500);
       
       if (onChange) {
-        const formattedContent = getFormattedContent(editor);
-        onChange(formattedContent);
+        const formattedContent = getFormattedContent(editor, format);
+        onChange(formattedContent as string);
       }
     },
     500
   );
-
-  // Handle AI command dialog submission
-  const handleAiCommandSubmit = async (commandType: AICommandType, params: Record<string, any>): Promise<string> => {
-    if (!aiService || !editorInstance) {
-      return 'Error: Editor not initialized';
+  
+  // Filter function for image resizing
+  const filter = (node: HTMLElement) => {
+    if (node.nodeName === 'IMG') {
+      return true;
     }
-    
-    try {
-      setAiCommandLoading(true);
-      
-      // Execute the AI command and return the result
-      const result = await aiService.executeCommand(commandType, params);
-      return result;
-      
-    } catch (error) {
-      console.error('Error executing AI command:', error);
-      return 'Error: Failed to execute AI command.';
-    } finally {
-      setAiCommandLoading(false);
-    }
+    return false;
   };
   
-  // Handle accepting the AI command result
-  const handleAcceptResult = (commandType: AICommandType, result: string) => {
-    if (!aiService || !editorInstance) return;
-    
-    try {
-      // Get the current selection if any
-      const { from, to } = editorInstance.state.selection;
-      const hasCurrentSelection = from !== to;
+  // Replacement function for image resizing
+  const replacement = (content: string, node: HTMLElement) => {
+    if (node.nodeName === 'IMG') {
+      const width = node.getAttribute('width');
+      const height = node.getAttribute('height');
       
-      // Apply the result based on command type and selection state
-      if (commandType === 'refine' && hasCurrentSelection) {
-        aiService.insertContent(result, { from, to });
-      } else if (commandType === 'refine' && !hasCurrentSelection) {
-        aiService.replaceAll(result);
-      } else if (commandType === 'summarize') {
-        // For summarize, insert at current position
-        aiService.insertContent(result);
-      } else {
-        // For generate, insert at current position
-        aiService.insertContent(result);
+      if (width && height) {
+        return `<img src="${node.getAttribute('src')}" width="${width}" height="${height}" />`;
       }
-      
-      // Close the dialog
-      setAiDialogOpen(false);
-      
-    } catch (error) {
-      console.error('Error applying AI command result:', error);
     }
-  };
-  
-  // Open AI command dialog
-  const openAiCommandDialog = (type: AICommandType) => {
-    console.log('🔍 openAiCommandDialog called with type:', type);
-    
-    // Store current selection state before opening dialog
-    if (editorInstance) {
-      const { from, to } = editorInstance.state.selection;
-      const hasCurrentSelection = from !== to;
-      console.log('🔍 Current selection state:', { from, to, hasCurrentSelection });
-      
-      setHasSelection(hasCurrentSelection);
-      
-      if (hasCurrentSelection) {
-        console.log('🔍 Storing selection state:', { from, to });
-        setSelectionState({ from, to });
-        // Get the selected text
-        const selectedContent = editorInstance.state.doc.textBetween(from, to);
-        console.log('🔍 Selected content:', selectedContent);
-        setSelectedText(selectedContent);
-      } else {
-        // If no selection, get the paragraph or sentence at cursor
-        const currentNode = editorInstance.state.doc.nodeAt(from);
-        if (currentNode) {
-          const nodeText = currentNode.textContent;
-          console.log('🔍 Current node text:', nodeText);
-          
-          // Check if the paragraph is empty (only contains whitespace)
-          const isEmptyParagraph = !nodeText || nodeText.trim() === '';
-          console.log('🔍 Is empty paragraph:', isEmptyParagraph);
-          
-          if (isEmptyParagraph) {
-            // For empty paragraphs, try to get the text from the previous paragraph
-            const prevPos = Math.max(0, from - 1);
-            const prevNode = editorInstance.state.doc.nodeAt(prevPos);
-            if (prevNode && prevNode !== currentNode) {
-              const prevNodeText = prevNode.textContent;
-              console.log('🔍 Previous node text:', prevNodeText);
-              setSelectedText(prevNodeText || '');
-            } else {
-              setSelectedText('');
-            }
-          } else {
-            setSelectedText(nodeText);
-          }
-        } else {
-          setSelectedText('');
-        }
-      }
-    } else {
-      console.warn('⚠️ editorInstance is null in openAiCommandDialog');
-    }
-    
-    setAiCommandType(type);
-    setAiDialogOpen(true);
-    console.log('🔍 Dialog opened');
+    return content;
   };
   
   return (
-    <div className={`novel-editor-wrapper ${className}`} style={{ minHeight }}>
+    <div
+      className={`novel-editor-wrapper ${className}`}
+      style={{ minHeight }}
+    >
       {/* Custom CSS for placeholder styling and editor appearance */}
       <style jsx global>{`
         /* Placeholder for empty paragraphs */
@@ -440,71 +223,6 @@ export function MarkdownEditor({
           min-height: ${minHeight};
           outline: none;
         }
-        
-        /* Typography */
-        .ProseMirror h1 {
-          font-size: 2rem;
-          font-weight: 700;
-          margin-top: 1.5rem;
-          margin-bottom: 1rem;
-        }
-        
-        .ProseMirror h2 {
-          font-size: 1.5rem;
-          font-weight: 600;
-          margin-top: 1.25rem;
-          margin-bottom: 0.75rem;
-        }
-        
-        .ProseMirror h3 {
-          font-size: 1.25rem;
-          font-weight: 600;
-          margin-top: 1rem;
-          margin-bottom: 0.5rem;
-        }
-        
-        .ProseMirror p {
-          margin-top: 0.75rem;
-          margin-bottom: 0.75rem;
-          line-height: 1.6;
-        }
-        
-        /* Lists */
-        .ProseMirror ul,
-        .ProseMirror ol {
-          padding-left: 1.5rem;
-          margin-top: 0.5rem;
-          margin-bottom: 0.5rem;
-        }
-        
-        .ProseMirror li {
-          margin-top: 0.25rem;
-          margin-bottom: 0.25rem;
-        }
-        
-        /* Links */
-        .ProseMirror a {
-          color: #2563eb;
-          text-decoration: underline;
-          cursor: pointer;
-        }
-        
-        /* Code blocks */
-        .ProseMirror pre {
-          background-color: #f1f5f9;
-          border-radius: 0.375rem;
-          padding: 0.75rem 1rem;
-          overflow-x: auto;
-          margin: 1rem 0;
-        }
-        
-        /* Blockquotes */
-        .ProseMirror blockquote {
-          border-left: 4px solid #e2e8f0;
-          padding-left: 1rem;
-          font-style: italic;
-          margin: 1rem 0;
-        }
       `}</style>
       
       {/* Fixed Toolbar */}
@@ -516,7 +234,7 @@ export function MarkdownEditor({
               icon={<span>⚡</span>} 
               isActive={false} 
               onClick={() => {
-                setAiCommandType('generate'); setAiDialogOpen(true); 
+                openAiCommandDialog('generate');
               }}
               disabled={!editorInstance}
               tooltip="Generate Content"
@@ -525,7 +243,7 @@ export function MarkdownEditor({
               icon={<span>✨</span>} 
               isActive={false} 
               onClick={() => {
-                setAiCommandType('refine'); setAiDialogOpen(true); 
+                openAiCommandDialog('refine');
               }}
               disabled={!editorInstance}
               tooltip="Refine Selected Content"
@@ -534,7 +252,7 @@ export function MarkdownEditor({
               icon={<span>⭐</span>} 
               isActive={false} 
               onClick={() => {
-                setAiCommandType('summarize'); setAiDialogOpen(true); 
+                openAiCommandDialog('summarize');
               }}
               disabled={!editorInstance}
               tooltip="Summarize Selected Content"
@@ -706,37 +424,34 @@ export function MarkdownEditor({
       
       <EditorRoot>
         <EditorContent
+          ref={editorRef}
           initialContent={getInitialContent()}
-          extensions={extensions}
+          extensions={[...defaultExtensions, slashCommand]}
           className="relative w-full border border-gray-200 bg-white rounded-lg shadow-sm overflow-hidden"
           editorProps={{
-            handleDOMEvents: {
-              keydown: (_view, event) => handleCommandNavigation(event),
-            },
             attributes: {
               class: "prose prose-lg prose-stone dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full",
             },
+            transformPastedHTML: (html) => {
+              return html.replace(/<img.*?>/g, (match) => {
+                return match.replace(/width="(\d+)"/, 'width="100%"').replace(/height="(\d+)"/, '');
+              });
+            }
           }}
           onCreate={({ editor }) => {
-            // Set editor instance immediately on creation
             setEditorInstance(editor);
           }}
           onUpdate={({ editor }) => {
-            // Ensure editor instance is set
-            if (!editorInstance) {
-              setEditorInstance(editor);
-            }
-            debouncedUpdates({ editor });
-            setSaveStatus('Unsaved');
+            // Update content when editor changes
+            const content = editor.getJSON();
+            setContent(content);
+            setWordCount(countWords(editor.getText()));
+            setSaveStatus('unsaved');
             
-            // Log selection changes
-            const { from, to } = editor.state.selection;
-            console.log('🔍 Editor selection changed:', { 
-              from, 
-              to, 
-              hasSelection: from !== to,
-              selectedText: from !== to ? editor.state.doc.textBetween(from, to) : ''
-            });
+            // Call onChange with the new content
+            if (onChange) {
+              onChange(getFormattedContent(editor, format) as string);
+            }
           }}
           slotAfter={<ImageResizer />}
         >
@@ -789,49 +504,26 @@ export function MarkdownEditor({
               <LinkSelector open={openLink} onOpenChange={setOpenLink} />
             </EditorBubble>
           )}
-      </EditorContent>
-    </EditorRoot>
-    
-    {/* AI Command Dialog */}
-    <AICommandDialog
-      isOpen={aiDialogOpen}
-      onClose={() => {
-        console.log('🔍 Dialog closing');
-        setAiDialogOpen(false);
-        
-        // Restore selection when dialog closes
-        if (editorInstance && selectionState) {
-          console.log('🔍 Restoring selection state:', selectionState);
+        </EditorContent>
+      </EditorRoot>
+      
+      {/* AI Command Dialog */}
+      <AICommandDialog
+        isOpen={aiDialogOpen}
+        onClose={() => {
+          console.log('🔍 Dialog closing');
+          closeAiCommandDialog();
           
-          // Use setTimeout to ensure the dialog is fully closed
-          setTimeout(() => {
-            if (!editorInstance) return;
-            
-            // Focus the editor
-            editorInstance.view.focus();
-            
-            // Restore the selection
-            const { from, to } = selectionState;
-            const transaction = editorInstance.state.tr.setSelection(
-              editorInstance.state.selection.constructor.create(
-                editorInstance.state.doc,
-                from,
-                to
-              )
-            );
-            editorInstance.view.dispatch(transaction);
-            
-            console.log('🔍 Selection restored after dialog close');
-          }, 10);
-        }
-      }}
-      onSubmit={handleAiCommandSubmit}
-      onAccept={handleAcceptResult}
-      commandType={aiCommandType}
-      initialContent={typeof initialContent === 'string' ? initialContent : ''}
-      hasSelection={hasSelection}
-      selectedText={selectedText}
-    />
+          // Restore selection when dialog closes
+          restoreSelection();
+        }}
+        onSubmit={handleAiCommandSubmit}
+        onAccept={handleAcceptResult}
+        commandType={aiCommandType}
+        initialContent={typeof initialContent === 'string' ? initialContent : ''}
+        hasSelection={hasSelection}
+        selectedText={selectedText}
+      />
     </div>
   );
 }
