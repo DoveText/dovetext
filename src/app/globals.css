@@ -94,6 +94,75 @@
   margin: 2rem 0;
 }
 
+/* Task list styles */
+.novel-editor-wrapper .ProseMirror ul[data-type="taskList"] {
+  list-style-type: none !important;
+  padding-left: 1rem;
+}
+
+/* Task list styles - comprehensive solution targeting all possible selectors */
+
+/* Base styles for task lists */
+.novel-editor-wrapper .ProseMirror ul.task-list,
+.novel-editor-wrapper .ProseMirror ul[data-type="taskList"] {
+  list-style-type: none !important;
+  padding-left: 1rem;
+  margin: 0.5em 0;
+}
+
+/* Target all possible task item selectors */
+.novel-editor-wrapper .ProseMirror li.task-item,
+.novel-editor-wrapper .ProseMirror li[data-type="taskItem"],
+.novel-editor-wrapper .ProseMirror li[data-checked="true"],
+.novel-editor-wrapper .ProseMirror li[data-checked="false"] {
+  display: flex !important;
+  align-items: center !important;
+  margin-bottom: 0.5em;
+  background-color: transparent !important;
+}
+
+/* Style all possible checkbox selectors */
+.novel-editor-wrapper .ProseMirror li[data-checked] input[type="checkbox"],
+.novel-editor-wrapper .ProseMirror li.task-item input[type="checkbox"],
+.novel-editor-wrapper .ProseMirror li[data-type="taskItem"] input[type="checkbox"] {
+  margin-right: 0.5em;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* Style all possible label selectors */
+.novel-editor-wrapper .ProseMirror li[data-checked] > label,
+.novel-editor-wrapper .ProseMirror li.task-item > label,
+.novel-editor-wrapper .ProseMirror li[data-type="taskItem"] > label {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.5em;
+}
+
+/* Make all paragraphs inside task items inline */
+.novel-editor-wrapper .ProseMirror li[data-checked] p,
+.novel-editor-wrapper .ProseMirror li.task-item p,
+.novel-editor-wrapper .ProseMirror li[data-type="taskItem"] p {
+  display: inline;
+  margin: 0;
+  background-color: transparent !important;
+}
+
+/* Fix for spans inside task items */
+.novel-editor-wrapper .ProseMirror li[data-checked] span,
+.novel-editor-wrapper .ProseMirror li.task-item span,
+.novel-editor-wrapper .ProseMirror li[data-type="taskItem"] span {
+  display: inline;
+  background-color: transparent !important;
+}
+
+/* Remove any background colors from all elements inside task items */
+.novel-editor-wrapper .ProseMirror li[data-checked] *,
+.novel-editor-wrapper .ProseMirror li.task-item *,
+.novel-editor-wrapper .ProseMirror li[data-type="taskItem"] * {
+  background-color: transparent !important;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

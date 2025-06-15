@@ -11,6 +11,8 @@ import {
   createSuggestionItems,
   renderItems
 } from 'novel';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 
 // Define default extensions to be used in the editor
 export const defaultExtensions = [
@@ -41,4 +43,16 @@ export const defaultExtensions = [
     emptyEditorClass: 'is-editor-empty',
   }),
   UpdatedImage,
+  // Add TaskList and TaskItem extensions for task list support
+  TaskList.configure({
+    HTMLAttributes: {
+      class: 'task-list',
+    },
+  }),
+  TaskItem.configure({
+    HTMLAttributes: {
+      class: 'task-item',
+    },
+    nested: true,
+  }),
 ];
