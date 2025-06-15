@@ -34,7 +34,6 @@ import AIMenu from './components/ai-menu';
 import AICommandDialog, { AICommandType } from './components/ai-command-dialog';
 import { AICommandService } from './services/ai-command-service';
 import { ToolbarButton } from './components/toolbar-button';
-import { FixedToolbar } from './components/fixed-toolbar';
 
 interface EditorProps {
   initialContent?: string | JSONContent;
@@ -625,8 +624,6 @@ export function MarkdownEditor({
               <LinkSelector open={openLink} onOpenChange={setOpenLink} />
             </EditorBubble>
           )}
-          {/* Fixed toolbar - syncs with editor state */}
-          <FixedToolbar />
       </EditorContent>
     </EditorRoot>
     
