@@ -65,7 +65,7 @@ export function MarkdownEditor({
   const [selectedText, setSelectedText] = useState<string>('');
   const [hasSelection, setHasSelection] = useState(false);
   
-  // Store selection state to restore it when dialog closes
+  // Store selection state to restore it when dialog closes or when clicking outside editor
   const [selectionState, setSelectionState] = useState<{from: number, to: number} | null>(null);
   const [openNode, setOpenNode] = useState(false);
   const [openLink, setOpenLink] = useState(false);
@@ -91,15 +91,62 @@ export function MarkdownEditor({
       editorInstance.on('focus', updateToolbarState);
       editorInstance.on('blur', updateToolbarState);
       
+      // Store selection state when selection changes
+      editorInstance.on('selectionUpdate', ({ editor }) => {
+        const { from, to } = editor.state.selection;
+        const hasCurrentSelection = from !== to;
+        
+        if (hasCurrentSelection) {
+          console.log('🔍 Storing selection state:', { from, to });
+          setSelectionState({ from, to });
+          setHasSelection(true);
+        }
+      });
+      
+      // Add document-level click handler to maintain selection when clicking outside editor
+      const handleDocumentClick = (event: MouseEvent) => {
+        // Skip if dialog is open
+        if (aiDialogOpen) return;
+        
+        // If we have a stored selection
+        if (selectionState) {
+          // Check if the click is outside the editor
+          if (!editorInstance.view.dom.contains(event.target as Node)) {
+            console.log('🔍 Click outside editor, restoring selection');
+            
+            // Focus the editor
+            editorInstance.view.focus();
+            
+            // Restore the selection
+            const { from, to } = selectionState;
+            const transaction = editorInstance.state.tr.setSelection(
+              editorInstance.state.selection.constructor.create(
+                editorInstance.state.doc,
+                from,
+                to
+              )
+            );
+            editorInstance.view.dispatch(transaction);
+            
+            // Prevent default behavior
+            event.preventDefault();
+          }
+        }
+      };
+      
+      // Add the click handler to the document
+      document.addEventListener('click', handleDocumentClick);
+      
       return () => {
         // Clean up event listeners
         editorInstance.off('selectionUpdate', updateToolbarState);
         editorInstance.off('update', updateToolbarState);
         editorInstance.off('focus', updateToolbarState);
         editorInstance.off('blur', updateToolbarState);
+        document.removeEventListener('click', handleDocumentClick);
       };
     }
-  }, [editorInstance]);
+  }, [editorInstance, selectionState, aiDialogOpen]);
   
   // Listen for custom events from slash commands
   useEffect(() => {
@@ -772,62 +819,27 @@ export function MarkdownEditor({
         // Restore selection when dialog closes
         if (editorInstance && selectionState) {
           console.log('🔍 Restoring selection state:', selectionState);
-          const { from, to } = selectionState;
           
-          try {
-            console.log('🔍 About to restore selection', { from, to });
+          // Use setTimeout to ensure the dialog is fully closed
+          setTimeout(() => {
+            if (!editorInstance) return;
             
-            // Use setTimeout to ensure the dialog is fully closed before restoring selection
-            setTimeout(() => {
-              if (!editorInstance) {
-                console.warn('⚠️ Editor instance no longer available');
-                return;
-              }
-              
-              // Create and dispatch the transaction
-              const transaction = editorInstance.state.tr.setSelection(
-                editorInstance.state.selection.constructor.create(
-                  editorInstance.state.doc,
-                  from,
-                  to
-                )
-              );
-              console.log('🔍 Transaction created for selection restoration');
-              editorInstance.view.dispatch(transaction);
-              console.log('🔍 Transaction dispatched');
-              
-              // Focus the editor to make the selection visible
-              editorInstance.view.focus();
-              console.log('🔍 Editor focused');
-              
-              // Force the editor to update its view
-              requestAnimationFrame(() => {
-                if (editorInstance) {
-                  // Verify the selection was restored correctly
-                  const newSelection = editorInstance.state.selection;
-                  console.log('🔍 New selection after restoration:', {
-                    from: newSelection.from,
-                    to: newSelection.to,
-                    text: newSelection.from !== newSelection.to ? 
-                      editorInstance.state.doc.textBetween(newSelection.from, newSelection.to) : 'No selection'
-                  });
-                  
-                  // Double-check focus
-                  if (document.activeElement !== editorInstance.view.dom) {
-                    console.log('🔍 Re-focusing editor as it lost focus');
-                    editorInstance.view.focus();
-                  }
-                }
-              });
-            }, 50); // Small delay to ensure dialog is closed
-          } catch (error) {
-            console.error('❌ Error restoring selection:', error);
-          }
-        } else {
-          console.warn('⚠️ Cannot restore selection:', {
-            hasEditorInstance: !!editorInstance,
-            selectionState
-          });
+            // Focus the editor
+            editorInstance.view.focus();
+            
+            // Restore the selection
+            const { from, to } = selectionState;
+            const transaction = editorInstance.state.tr.setSelection(
+              editorInstance.state.selection.constructor.create(
+                editorInstance.state.doc,
+                from,
+                to
+              )
+            );
+            editorInstance.view.dispatch(transaction);
+            
+            console.log('🔍 Selection restored after dialog close');
+          }, 10);
         }
       }}
       onSubmit={handleAiCommandSubmit}
