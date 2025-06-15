@@ -72,8 +72,8 @@ export default function AICommandDialog({
         instructions: 'Improve clarity and readability',
         topic: initialContent ? initialContent.substring(0, 100) : '',
         description: 'Create a document outline',
-        // Store the selected text or content at cursor position
-        content: selectedText || initialContent,
+        // Only store the selected text, not the entire initialContent
+        content: selectedText,
       });
     }
   }, [isOpen, commandType, initialContent, selectedText]);
@@ -147,13 +147,33 @@ export default function AICommandDialog({
   const getCommandDescription = () => {
     switch (commandType) {
       case 'generate': 
-        return 'Generate new content using AI based on your prompt.';
+        if (hasSelection) {
+          return 'Generate a new paragraph based on selected text below.';
+        } else if (selectedText.trim() === '') {
+          return 'Generate a new paragraph and insert to current position.';
+        } else {
+          return 'Expand current paragraph with additional content.';
+        }
       case 'refine': 
         return 'Refine the selected text to improve clarity and readability.';
       case 'summarize': 
         return 'Create a concise summary of the selected content.';
       default: 
         return 'Use AI to enhance your content.';
+    }
+  };
+
+  const getContentLabel = () => {
+    if (commandType === 'generate') {
+      if (hasSelection) {
+        return 'Selected text:';
+      } else if (selectedText.trim() === '') {
+        return 'Paragraph right before:';
+      } else {
+        return 'The paragraph to be expanded:';
+      }
+    } else {
+      return 'Content to process:';
     }
   };
 
@@ -181,7 +201,7 @@ export default function AICommandDialog({
         {/* Show selected content or content at cursor position */}
         {(selectedText || params.content) && (
           <div className="mb-4">
-            <Label htmlFor="selected-content">Content to process:</Label>
+            <Label htmlFor="selected-content">{getContentLabel()}</Label>
             <div 
               id="selected-content"
               className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700 max-h-[150px] overflow-y-auto"

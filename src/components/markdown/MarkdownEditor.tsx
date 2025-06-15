@@ -64,6 +64,9 @@ export function MarkdownEditor({
   const [aiService, setAiService] = useState<AICommandService | null>(null);
   const [selectedText, setSelectedText] = useState<string>('');
   const [hasSelection, setHasSelection] = useState(false);
+  
+  // Store selection state to restore it when dialog closes
+  const [selectionState, setSelectionState] = useState<{from: number, to: number} | null>(null);
   const [openNode, setOpenNode] = useState(false);
   const [openLink, setOpenLink] = useState(false);
   const [openAI, setOpenAI] = useState(false);
@@ -109,6 +112,11 @@ export function MarkdownEditor({
         const hasCurrentSelection = from !== to;
         setHasSelection(hasCurrentSelection);
         
+        // Store selection state to restore it later
+        if (hasCurrentSelection) {
+          setSelectionState({ from, to });
+        }
+        
         // Get the selected text or text at cursor position
         if (hasCurrentSelection) {
           const selectedContent = editorInstance.state.doc.textBetween(from, to);
@@ -118,7 +126,23 @@ export function MarkdownEditor({
           const currentNode = editorInstance.state.doc.nodeAt(from);
           if (currentNode) {
             const nodeText = currentNode.textContent;
-            setSelectedText(nodeText || '');
+            
+            // Check if the paragraph is empty (only contains whitespace)
+            const isEmptyParagraph = !nodeText || nodeText.trim() === '';
+            
+            if (isEmptyParagraph) {
+              // For empty paragraphs, try to get the text from the previous paragraph
+              const prevPos = Math.max(0, from - 1);
+              const prevNode = editorInstance.state.doc.nodeAt(prevPos);
+              if (prevNode && prevNode !== currentNode) {
+                const prevNodeText = prevNode.textContent;
+                setSelectedText(prevNodeText || '');
+              } else {
+                setSelectedText('');
+              }
+            } else {
+              setSelectedText(nodeText);
+            }
           } else {
             setSelectedText('');
           }
@@ -296,8 +320,59 @@ export function MarkdownEditor({
   
   // Open AI command dialog
   const openAiCommandDialog = (type: AICommandType) => {
+    console.log('🔍 openAiCommandDialog called with type:', type);
+    
+    // Store current selection state before opening dialog
+    if (editorInstance) {
+      const { from, to } = editorInstance.state.selection;
+      const hasCurrentSelection = from !== to;
+      console.log('🔍 Current selection state:', { from, to, hasCurrentSelection });
+      
+      setHasSelection(hasCurrentSelection);
+      
+      if (hasCurrentSelection) {
+        console.log('🔍 Storing selection state:', { from, to });
+        setSelectionState({ from, to });
+        // Get the selected text
+        const selectedContent = editorInstance.state.doc.textBetween(from, to);
+        console.log('🔍 Selected content:', selectedContent);
+        setSelectedText(selectedContent);
+      } else {
+        // If no selection, get the paragraph or sentence at cursor
+        const currentNode = editorInstance.state.doc.nodeAt(from);
+        if (currentNode) {
+          const nodeText = currentNode.textContent;
+          console.log('🔍 Current node text:', nodeText);
+          
+          // Check if the paragraph is empty (only contains whitespace)
+          const isEmptyParagraph = !nodeText || nodeText.trim() === '';
+          console.log('🔍 Is empty paragraph:', isEmptyParagraph);
+          
+          if (isEmptyParagraph) {
+            // For empty paragraphs, try to get the text from the previous paragraph
+            const prevPos = Math.max(0, from - 1);
+            const prevNode = editorInstance.state.doc.nodeAt(prevPos);
+            if (prevNode && prevNode !== currentNode) {
+              const prevNodeText = prevNode.textContent;
+              console.log('🔍 Previous node text:', prevNodeText);
+              setSelectedText(prevNodeText || '');
+            } else {
+              setSelectedText('');
+            }
+          } else {
+            setSelectedText(nodeText);
+          }
+        } else {
+          setSelectedText('');
+        }
+      }
+    } else {
+      console.warn('⚠️ editorInstance is null in openAiCommandDialog');
+    }
+    
     setAiCommandType(type);
     setAiDialogOpen(true);
+    console.log('🔍 Dialog opened');
   };
   
   return (
@@ -623,6 +698,15 @@ export function MarkdownEditor({
             }
             debouncedUpdates({ editor });
             setSaveStatus('Unsaved');
+            
+            // Log selection changes
+            const { from, to } = editor.state.selection;
+            console.log('🔍 Editor selection changed:', { 
+              from, 
+              to, 
+              hasSelection: from !== to,
+              selectedText: from !== to ? editor.state.doc.textBetween(from, to) : ''
+            });
           }}
           slotAfter={<ImageResizer />}
         >
@@ -663,9 +747,9 @@ export function MarkdownEditor({
             >
               <AIMenu 
                 editor={editorInstance!} 
-                onGenerateContent={() => { setAiCommandType('generate'); setAiDialogOpen(true); }} 
-                onRefineContent={() => { setAiCommandType('refine'); setAiDialogOpen(true); }} 
-                onSummarizeContent={() => { setAiCommandType('summarize'); setAiDialogOpen(true); }} 
+                onGenerateContent={() => openAiCommandDialog('generate')} 
+                onRefineContent={() => openAiCommandDialog('refine')} 
+                onSummarizeContent={() => openAiCommandDialog('summarize')} 
               />
               <Separator orientation="vertical" />
               <NodeSelector open={openNode} onOpenChange={setOpenNode} />
@@ -681,7 +765,71 @@ export function MarkdownEditor({
     {/* AI Command Dialog */}
     <AICommandDialog
       isOpen={aiDialogOpen}
-      onClose={() => setAiDialogOpen(false)}
+      onClose={() => {
+        console.log('🔍 Dialog closing');
+        setAiDialogOpen(false);
+        
+        // Restore selection when dialog closes
+        if (editorInstance && selectionState) {
+          console.log('🔍 Restoring selection state:', selectionState);
+          const { from, to } = selectionState;
+          
+          try {
+            console.log('🔍 About to restore selection', { from, to });
+            
+            // Use setTimeout to ensure the dialog is fully closed before restoring selection
+            setTimeout(() => {
+              if (!editorInstance) {
+                console.warn('⚠️ Editor instance no longer available');
+                return;
+              }
+              
+              // Create and dispatch the transaction
+              const transaction = editorInstance.state.tr.setSelection(
+                editorInstance.state.selection.constructor.create(
+                  editorInstance.state.doc,
+                  from,
+                  to
+                )
+              );
+              console.log('🔍 Transaction created for selection restoration');
+              editorInstance.view.dispatch(transaction);
+              console.log('🔍 Transaction dispatched');
+              
+              // Focus the editor to make the selection visible
+              editorInstance.view.focus();
+              console.log('🔍 Editor focused');
+              
+              // Force the editor to update its view
+              requestAnimationFrame(() => {
+                if (editorInstance) {
+                  // Verify the selection was restored correctly
+                  const newSelection = editorInstance.state.selection;
+                  console.log('🔍 New selection after restoration:', {
+                    from: newSelection.from,
+                    to: newSelection.to,
+                    text: newSelection.from !== newSelection.to ? 
+                      editorInstance.state.doc.textBetween(newSelection.from, newSelection.to) : 'No selection'
+                  });
+                  
+                  // Double-check focus
+                  if (document.activeElement !== editorInstance.view.dom) {
+                    console.log('🔍 Re-focusing editor as it lost focus');
+                    editorInstance.view.focus();
+                  }
+                }
+              });
+            }, 50); // Small delay to ensure dialog is closed
+          } catch (error) {
+            console.error('❌ Error restoring selection:', error);
+          }
+        } else {
+          console.warn('⚠️ Cannot restore selection:', {
+            hasEditorInstance: !!editorInstance,
+            selectionState
+          });
+        }
+      }}
       onSubmit={handleAiCommandSubmit}
       onAccept={handleAcceptResult}
       commandType={aiCommandType}
