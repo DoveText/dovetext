@@ -81,6 +81,33 @@ export const suggestionItems = createSuggestionItems([
     },
   },
   {
+    title: "Summarize Content",
+    description: "Create a summary of your content",
+    searchTerms: ["summarize", "summary", "tldr"],
+    icon: <span className="flex h-6 w-6 items-center justify-center text-lg">⭐</span>,
+    command: ({ editor, range }) => {
+      // Delete the slash command text
+      editor.chain().focus().deleteRange(range).run();
+
+      // Get the current content for context
+      const currentContent = editor.getText();
+
+      if (!currentContent.trim()) {
+        editor.chain().focus().insertContent('Please add some content to summarize.').run();
+        return;
+      }
+
+      // Dispatch a custom event to open the AI command dialog
+      const event = new CustomEvent('openAiCommandDialog', {
+        detail: {
+          commandType: 'summarize',
+          initialContent: currentContent
+        }
+      });
+      document.dispatchEvent(event);
+    },
+  },
+  {
     title: "Heading 1",
     description: "Large section heading",
     searchTerms: ["h1", "header", "heading", "large"],

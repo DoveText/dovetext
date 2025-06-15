@@ -25,7 +25,7 @@ import { generateJSON } from '@tiptap/html';
 
 // Import our custom components and extensions
 import { defaultExtensions } from './extensions';
-import { slashCommand, suggestionItems } from './slash-command';
+import { slashCommand, suggestionItems } from './components/slash-command';
 import { TextButtons } from './components/text-buttons';
 import { LinkSelector } from './components/link-selector';
 import { NodeSelector } from './components/node-selector';
