@@ -14,7 +14,7 @@ interface AIMenuProps {
   editor: Editor;
   onGenerateContent: () => void;
   onRefineContent: () => void;
-  onCreateSchema: () => void;
+  onSummarizeContent: () => void;
 }
 
 // Helper interface for menu items
@@ -24,7 +24,7 @@ interface MenuItemProps {
   onClick: (e: React.MouseEvent) => void;
 }
 
-const AIMenu = ({ onGenerateContent, onRefineContent, onCreateSchema }: AIMenuProps) => {
+const AIMenu = ({ onGenerateContent, onRefineContent, onSummarizeContent }: AIMenuProps) => {
   // Helper function to create menu items with tooltips
   const createMenuItem = ({ icon, tooltip, onClick }: MenuItemProps) => {
     return (
@@ -57,21 +57,21 @@ const AIMenu = ({ onGenerateContent, onRefineContent, onCreateSchema }: AIMenuPr
   return (
     <div className="flex flex-nowrap min-w-fit whitespace-nowrap pt-1 pl-1">
       {createMenuItem({
-        icon: '✨',
+        icon: '⚡',
         tooltip: 'Generate Content',
         onClick: onGenerateContent
       })}
       
       {createMenuItem({
-        icon: '✏️',
+        icon: '✨',
         tooltip: 'Refine Content',
         onClick: onRefineContent
       })}
       
       {createMenuItem({
-        icon: '📋',
-        tooltip: 'Create Outline',
-        onClick: onCreateSchema
+        icon: '⭐',
+        tooltip: 'Summarize Content',
+        onClick: onSummarizeContent
       })}
     </div>
   );

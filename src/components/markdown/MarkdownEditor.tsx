@@ -238,7 +238,7 @@ export function MarkdownEditor({
       } else if (commandType === 'refine' && !hasSelection) {
         aiService.replaceAll(result);
       } else {
-        // For generate and schema, insert at current position
+        // For generate and summarize, insert at current position
         aiService.insertContent(result);
       }
       
@@ -364,6 +364,37 @@ export function MarkdownEditor({
       <div className="sticky top-0 z-20 w-full bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center space-x-1 flex-wrap flex-grow mr-4">
+            {/* AI Tools */}
+            <ToolbarButton 
+              icon={<span>⚡</span>} 
+              isActive={false} 
+              onClick={() => {
+                setAiCommandType('generate'); setAiDialogOpen(true); 
+              }}
+              disabled={!editorInstance}
+              tooltip="Generate Content"
+            />
+            <ToolbarButton 
+              icon={<span>✨</span>} 
+              isActive={false} 
+              onClick={() => {
+                setAiCommandType('refine'); setAiDialogOpen(true); 
+              }}
+              disabled={!editorInstance}
+              tooltip="Refine Selected Content"
+            />
+            <ToolbarButton 
+              icon={<span>⭐</span>} 
+              isActive={false} 
+              onClick={() => {
+                setAiCommandType('summarize'); setAiDialogOpen(true); 
+              }}
+              disabled={!editorInstance}
+              tooltip="Summarize Selected Content"
+            />
+
+            <div className="h-4 w-px bg-gray-200 mx-2" />
+
             {/* Text Formatting Tools */}
             <ToolbarButton 
               icon={<span className="font-bold">B</span>} 
@@ -477,7 +508,7 @@ export function MarkdownEditor({
 
             {/* Block formatting */}
             <ToolbarButton 
-              icon={<span>"</span>} 
+              icon={<span>&#34;</span>}
               isActive={editorInstance?.isActive('blockquote')} 
               onClick={() => {
                 editorInstance?.chain().focus().toggleBlockquote().run()
@@ -493,28 +524,6 @@ export function MarkdownEditor({
               }}
               disabled={!editorInstance}
               tooltip="Code Block"
-            />
-
-            <div className="h-4 w-px bg-gray-200 mx-2" />
-
-            {/* AI Tools */}
-            <ToolbarButton 
-              icon={<span>✨</span>} 
-              isActive={false} 
-              onClick={() => {
-                setAiCommandType('generate'); setAiDialogOpen(true); 
-              }}
-              disabled={!editorInstance}
-              tooltip="Generate Content"
-            />
-            <ToolbarButton 
-              icon={<span>🔄</span>} 
-              isActive={false} 
-              onClick={() => {
-                setAiCommandType('refine'); setAiDialogOpen(true); 
-              }}
-              disabled={!editorInstance}
-              tooltip="Refine Content"
             />
           </div>
 
@@ -555,7 +564,7 @@ export function MarkdownEditor({
           className="relative w-full border border-gray-200 bg-white rounded-lg shadow-sm overflow-hidden"
           editorProps={{
             handleDOMEvents: {
-              keydown: (_view, event) => handleCommandNavigation(event, suggestionItems),
+              keydown: (_view, event) => handleCommandNavigation(event),
             },
             attributes: {
               class: "prose prose-lg prose-stone dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full",
@@ -614,7 +623,7 @@ export function MarkdownEditor({
                 editor={editorInstance!} 
                 onGenerateContent={() => { setAiCommandType('generate'); setAiDialogOpen(true); }} 
                 onRefineContent={() => { setAiCommandType('refine'); setAiDialogOpen(true); }} 
-                onCreateSchema={() => { setAiCommandType('schema'); setAiDialogOpen(true); }} 
+                onSummarizeContent={() => { setAiCommandType('summarize'); setAiDialogOpen(true); }} 
               />
               <Separator orientation="vertical" />
               <NodeSelector open={openNode} onOpenChange={setOpenNode} />

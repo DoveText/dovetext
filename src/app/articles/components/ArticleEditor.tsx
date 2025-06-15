@@ -489,7 +489,7 @@ export default function ArticleEditor({
                   {mode === 'create' ? 'Creating...' : 'Saving...'}
                 </>
             ) : (
-                mode === 'create' ? 'Create Article' : 'Save Changes'
+                mode === 'create' ? 'Create Article' : 'Update Article'
             )}
           </button>
         </div>

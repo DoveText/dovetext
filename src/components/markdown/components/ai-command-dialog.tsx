@@ -7,7 +7,7 @@ import { Textarea, FormInput as Input } from '@/components/common/form';
 import { Label } from '@/components/common/form';
 import { Spinner } from '@/components/common/Spinner';
 
-export type AICommandType = 'generate' | 'refine' | 'schema' | null;
+export type AICommandType = 'generate' | 'refine' | 'summarize' | null;
 
 interface AICommandDialogProps {
   isOpen: boolean;
@@ -66,7 +66,7 @@ export default function AICommandDialog({
     switch (commandType) {
       case 'generate': return 'Generate Content';
       case 'refine': return 'Refine Content';
-      case 'schema': return 'Create Document Outline';
+      case 'summarize': return 'Summarize Content';
       default: return 'AI Command';
     }
   };

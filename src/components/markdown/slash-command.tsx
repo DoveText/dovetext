@@ -29,7 +29,7 @@ export const suggestionItems = createSuggestionItems([
     title: "Generate Content",
     description: "Generate content using AI",
     searchTerms: ["generate", "ai", "content"],
-    icon: <span className="flex h-6 w-6 items-center justify-center text-lg">✨</span>,
+    icon: <span className="flex h-6 w-6 items-center justify-center text-lg">⚡</span>,
     command: ({ editor, range }) => {
       // Delete the slash command text
       editor.chain().focus().deleteRange(range).run();
@@ -51,7 +51,7 @@ export const suggestionItems = createSuggestionItems([
     title: "Refine Content",
     description: "Improve clarity and readability",
     searchTerms: ["refine", "improve", "clarity"],
-    icon: <span className="flex h-6 w-6 items-center justify-center text-lg">🔍</span>,
+    icon: <span className="flex h-6 w-6 items-center justify-center text-lg">✨</span>,
     command: ({ editor, range }) => {
       // Delete the slash command text
       editor.chain().focus().deleteRange(range).run();

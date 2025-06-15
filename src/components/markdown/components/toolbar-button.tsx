@@ -1,7 +1,13 @@
 'use client';
 
 import React from 'react';
-import Tooltip from '@/components/common/Tooltip';
+import { Tooltip as ReactTippyTooltip } from 'react-tippy';
+import 'react-tippy/dist/tippy.css';
+
+// Create a wrapper component for Tooltip to fix TypeScript issues
+const Tooltip = ({ children, ...props }: { children: React.ReactNode } & any) => {
+  return <ReactTippyTooltip {...props}>{children}</ReactTippyTooltip>;
+};
 
 interface ToolbarButtonProps {
   icon: React.ReactNode;
@@ -39,16 +45,22 @@ export const ToolbarButton: React.FC<ToolbarButtonProps> = ({
     </button>
   );
   
-  // If tooltip is provided, use a portal-based tooltip that doesn't affect layout
+  // If tooltip is provided, use Tippy.js tooltip for consistency with other tooltips
   if (tooltip) {
     return (
       <div className="relative inline-flex">
-        <Tooltip 
-          content={tooltip} 
-          position="bottom" 
-          delay={300}
+        <Tooltip
+          title={tooltip}
+          position="bottom"
+          animation="fade"
+          arrow={true}
+          delay={100}
+          distance={10}
+          theme="dark"
+          hideOnClick={false}
         >
           {buttonElement}
+          <span className="sr-only">{tooltip}</span>
         </Tooltip>
       </div>
     );
