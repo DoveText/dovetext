@@ -62,6 +62,8 @@ export function MarkdownEditor({
   const [aiCommandType, setAiCommandType] = useState<AICommandType>(null);
   const [aiCommandLoading, setAiCommandLoading] = useState(false);
   const [aiService, setAiService] = useState<AICommandService | null>(null);
+  const [selectedText, setSelectedText] = useState<string>('');
+  const [hasSelection, setHasSelection] = useState(false);
   const [openNode, setOpenNode] = useState(false);
   const [openLink, setOpenLink] = useState(false);
   const [openAI, setOpenAI] = useState(false);
@@ -99,7 +101,30 @@ export function MarkdownEditor({
   // Listen for custom events from slash commands
   useEffect(() => {
     const handleAiCommandDialogEvent = (event: CustomEvent) => {
-      const { commandType, initialContent, hasSelection } = event.detail;
+      const { commandType } = event.detail;
+      
+      // Get the current selection if any
+      if (editorInstance) {
+        const { from, to } = editorInstance.state.selection;
+        const hasCurrentSelection = from !== to;
+        setHasSelection(hasCurrentSelection);
+        
+        // Get the selected text or text at cursor position
+        if (hasCurrentSelection) {
+          const selectedContent = editorInstance.state.doc.textBetween(from, to);
+          setSelectedText(selectedContent);
+        } else {
+          // If no selection, get the paragraph or sentence at cursor
+          const currentNode = editorInstance.state.doc.nodeAt(from);
+          if (currentNode) {
+            const nodeText = currentNode.textContent;
+            setSelectedText(nodeText || '');
+          } else {
+            setSelectedText('');
+          }
+        }
+      }
+      
       setAiCommandType(commandType);
       setAiDialogOpen(true);
     };
@@ -111,7 +136,7 @@ export function MarkdownEditor({
     return () => {
       document.removeEventListener('openAiCommandDialog', handleAiCommandDialogEvent as EventListener);
     };
-  }, []);
+  }, [editorInstance]);
   
   // Create extensions array with slash command
   const extensions = [...defaultExtensions, slashCommand];
@@ -219,36 +244,53 @@ export function MarkdownEditor({
   );
 
   // Handle AI command dialog submission
-  const handleAiCommandSubmit = async (commandType: AICommandType, params: Record<string, any>) => {
-    if (!aiService || !editorInstance) return;
+  const handleAiCommandSubmit = async (commandType: AICommandType, params: Record<string, any>): Promise<string> => {
+    if (!aiService || !editorInstance) {
+      return 'Error: Editor not initialized';
+    }
     
     try {
       setAiCommandLoading(true);
       
-      // Get the current selection if any
-      const { from, to } = editorInstance.state.selection;
-      const hasSelection = from !== to;
-      
-      // Execute the AI command
+      // Execute the AI command and return the result
       const result = await aiService.executeCommand(commandType, params);
-      
-      // Insert the result based on command type and selection
-      if (commandType === 'refine' && hasSelection) {
-        aiService.replaceSelection(result);
-      } else if (commandType === 'refine' && !hasSelection) {
-        aiService.replaceAll(result);
-      } else {
-        // For generate and summarize, insert at current position
-        aiService.insertContent(result);
-      }
+      return result;
       
     } catch (error) {
       console.error('Error executing AI command:', error);
-      if (editorInstance) {
-        editorInstance.chain().focus().insertContent('\n\n**Error:** Failed to execute AI command.').run();
-      }
+      return 'Error: Failed to execute AI command.';
     } finally {
       setAiCommandLoading(false);
+    }
+  };
+  
+  // Handle accepting the AI command result
+  const handleAcceptResult = (commandType: AICommandType, result: string) => {
+    if (!aiService || !editorInstance) return;
+    
+    try {
+      // Get the current selection if any
+      const { from, to } = editorInstance.state.selection;
+      const hasCurrentSelection = from !== to;
+      
+      // Apply the result based on command type and selection state
+      if (commandType === 'refine' && hasCurrentSelection) {
+        aiService.insertContent(result, { from, to });
+      } else if (commandType === 'refine' && !hasCurrentSelection) {
+        aiService.replaceAll(result);
+      } else if (commandType === 'summarize') {
+        // For summarize, insert at current position
+        aiService.insertContent(result);
+      } else {
+        // For generate, insert at current position
+        aiService.insertContent(result);
+      }
+      
+      // Close the dialog
+      setAiDialogOpen(false);
+      
+    } catch (error) {
+      console.error('Error applying AI command result:', error);
     }
   };
   
@@ -637,12 +679,15 @@ export function MarkdownEditor({
     </EditorRoot>
     
     {/* AI Command Dialog */}
-    <AICommandDialog 
+    <AICommandDialog
       isOpen={aiDialogOpen}
       onClose={() => setAiDialogOpen(false)}
       onSubmit={handleAiCommandSubmit}
+      onAccept={handleAcceptResult}
       commandType={aiCommandType}
-      initialContent={editorInstance?.getText() || ''}
+      initialContent={typeof initialContent === 'string' ? initialContent : ''}
+      hasSelection={hasSelection}
+      selectedText={selectedText}
     />
     </div>
   );
