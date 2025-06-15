@@ -53,6 +53,11 @@ export default function ArticleEditor({
   const [tags, setTags] = useState<string[]>(initialTags);
   const [suggestedTitles, setSuggestedTitles] = useState<string[]>([]);
   const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
+  const [isTitleDropdownOpen, setIsTitleDropdownOpen] = useState(false);
+  
+  // Reference to the dropdown element for click outside handling
+  const titleDropdownRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLDivElement>(null);
   
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
@@ -101,6 +106,27 @@ export default function ArticleEditor({
     
     fetchDocumentData();
   }, [mode, documentId]);
+  
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (isTitleDropdownOpen && 
+          titleDropdownRef.current && 
+          titleInputRef.current && 
+          !titleDropdownRef.current.contains(event.target as Node) &&
+          !titleInputRef.current.contains(event.target as Node)) {
+        setIsTitleDropdownOpen(false);
+      }
+    }
+    
+    // Add event listener
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isTitleDropdownOpen]);
   
   // Fetch available tags and categories
   useEffect(() => {
@@ -369,18 +395,21 @@ export default function ArticleEditor({
                 </svg>
               </div>
 
-              {/* Custom dropdown */}
+              {/* Custom dropdown trigger */}
               <div
-                  onClick={() => document.getElementById('titleDropdown')?.classList.toggle('hidden')}
+                  ref={titleInputRef}
+                  onClick={() => setIsTitleDropdownOpen(!isTitleDropdownOpen)}
                   className="absolute inset-0 w-full h-full cursor-pointer"
               />
 
-              <div id="titleDropdown"
-                   className="hidden absolute z-50 top-full mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+              <div 
+                  ref={titleDropdownRef}
+                  className={`${isTitleDropdownOpen ? '' : 'hidden'} absolute z-50 top-full mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm`}>
                 {/* Current title if not in suggested titles */}
                 {title && !suggestedTitles.includes(title) && (
                     <div
-                        className="text-gray-900 cursor-default select-none relative py-2 pl-3 pr-9 bg-indigo-50 font-medium"
+                        className="text-gray-900 cursor-pointer select-none relative py-2 pl-3 pr-9 bg-indigo-50 font-medium"
+                        onClick={() => setIsTitleDropdownOpen(false)}
                     >
                       {title}
                     </div>
@@ -393,7 +422,7 @@ export default function ArticleEditor({
                         className={`cursor-pointer select-none relative py-2 pl-3 pr-9 ${title === suggestedTitle ? 'bg-indigo-100 text-indigo-700 font-medium' : 'text-gray-900 hover:bg-gray-100'}`}
                         onClick={() => {
                           setTitle(suggestedTitle);
-                          document.getElementById('titleDropdown')?.classList.add('hidden');
+                          setIsTitleDropdownOpen(false);
                         }}
                     >
                       {suggestedTitle}
@@ -414,7 +443,7 @@ export default function ArticleEditor({
                     className="cursor-pointer select-none relative py-2 pl-3 pr-9 text-blue-600 hover:bg-gray-100 border-t border-gray-200"
                     onClick={() => {
                       setIsTitleDialogOpen(true);
-                      document.getElementById('titleDropdown')?.classList.add('hidden');
+                      setIsTitleDropdownOpen(false);
                     }}
                 >
                   <div className="flex items-center">
