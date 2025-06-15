@@ -69,27 +69,14 @@ export function MarkdownEditor({
   const [selectionState, setSelectionState] = useState<{from: number, to: number} | null>(null);
   const [openNode, setOpenNode] = useState(false);
   const [openLink, setOpenLink] = useState(false);
-  const [openAI, setOpenAI] = useState(false);
   
   // Editor reference
   const [editorInstance, setEditorInstance] = useState<any>(null);
-  
-  // Toolbar sync state - forces re-render when editor state changes
-  const [toolbarSyncCounter, setToolbarSyncCounter] = useState(0);
   
   // Initialize AI service when editor is ready
   useEffect(() => {
     if (editorInstance) {
       setAiService(new AICommandService(editorInstance));
-      
-      // Set up event listeners for toolbar sync
-      const updateToolbarState = () => setToolbarSyncCounter(prev => prev + 1);
-      
-      // Listen for selection changes, document updates, and focus changes
-      editorInstance.on('selectionUpdate', updateToolbarState);
-      editorInstance.on('update', updateToolbarState);
-      editorInstance.on('focus', updateToolbarState);
-      editorInstance.on('blur', updateToolbarState);
       
       // Store selection state when selection changes
       editorInstance.on('selectionUpdate', ({ editor }) => {
@@ -139,10 +126,6 @@ export function MarkdownEditor({
       
       return () => {
         // Clean up event listeners
-        editorInstance.off('selectionUpdate', updateToolbarState);
-        editorInstance.off('update', updateToolbarState);
-        editorInstance.off('focus', updateToolbarState);
-        editorInstance.off('blur', updateToolbarState);
         document.removeEventListener('click', handleDocumentClick);
       };
     }
