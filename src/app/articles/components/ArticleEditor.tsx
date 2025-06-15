@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor';
 import { documentsApi } from '@/app/api/documents';
 import { articleAiApi } from '@/app/api/article-ai';
+import { tagsApi } from '@/app/api/tags';
 import { TagIcon, DocumentTextIcon, XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import TaggedSelect from '@/components/common/TaggedSelect';
 import { TitleGenerationDialog } from './TitleGenerationDialog';
@@ -105,9 +106,12 @@ export default function ArticleEditor({
   useEffect(() => {
     const fetchAvailableOptions = async () => {
       try {
-        // In a real app, you would fetch these from the server
-        // For now, we'll use some mock data
-        setAvailableTags(['technology', 'business', 'marketing', 'design', 'development']);
+        // Fetch document tags from the server using the tags API
+        const documentTags = await tagsApi.getTagsByType('documents') as string[];
+        setAvailableTags(documentTags);
+        
+        // For now, we'll still use mock data for categories
+        // In a real app, you would fetch these from the server as well
         setAvailableCategories(['Technology', 'Business', 'Marketing', 'Design', 'Development']);
       } catch (error) {
         console.error('Error fetching available options:', error);
@@ -144,7 +148,13 @@ export default function ArticleEditor({
       }
     });
   };
-  
+
+  const handleContentChange = useCallback(async (content : string) => {
+    setContent(content);
+
+    // TODO: how to save to backend ...
+  }, [setContent])
+
   // Handle title generation request
   const handleGenerateTitles = useCallback(async (direction: string) => {
     // Validate content length
@@ -445,9 +455,7 @@ export default function ArticleEditor({
             <MarkdownEditor
                 key={initialContent} /* Force re-render when initialContent changes */
                 initialContent={initialContent || content}
-                onChange={(newContent) => {
-                  setContent(newContent);
-                }}
+                onChange={handleContentChange}
                 placeholder="Write your article content here..."
                 minHeight="500px"
                 format="markdown"
