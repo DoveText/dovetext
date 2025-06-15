@@ -110,7 +110,7 @@ export default function AICommandDialog({
             </div>
           )}
 
-          {commandType === 'schema' && (
+          {commandType === 'summarize' && (
             <>
               <div className="space-y-2">
                 <Label htmlFor="topic">Document Topic</Label>

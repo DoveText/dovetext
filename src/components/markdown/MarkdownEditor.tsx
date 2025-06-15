@@ -130,7 +130,7 @@ export function MarkdownEditor({
     }
     
     // If format is markdown, convert markdown to HTML first, then to JSON
-    if (format === 'markdown' && typeof initialContent === 'string') {
+    if (format === 'markdown') {
       try {
         // Convert markdown to HTML
         const html = marked.parse(initialContent as string) as string;
