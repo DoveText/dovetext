@@ -2,8 +2,13 @@
 
 import React from 'react';
 import { Editor } from '@tiptap/react';
-import { Tooltip } from 'react-tippy';
+import { Tooltip as ReactTippyTooltip } from 'react-tippy';
 import 'react-tippy/dist/tippy.css';
+
+// Create a wrapper component for Tooltip to fix TypeScript issues
+const Tooltip = ({ children, ...props }: { children: React.ReactNode } & any) => {
+  return <ReactTippyTooltip {...props}>{children}</ReactTippyTooltip>;
+};
 
 interface AIMenuProps {
   editor: Editor;

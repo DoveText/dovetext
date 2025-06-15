@@ -2,6 +2,13 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditor } from 'novel';
+import { Tooltip as ReactTippyTooltip } from 'react-tippy';
+import 'react-tippy/dist/tippy.css';
+
+// Create a wrapper component for Tooltip to fix TypeScript issues
+const Tooltip = ({ children, ...props }: { children: React.ReactNode } & any) => {
+  return <ReactTippyTooltip {...props}>{children}</ReactTippyTooltip>;
+};
 
 // Helper functions for URL validation
 export function isValidUrl(url: string) {
@@ -77,14 +84,27 @@ export const LinkSelector = ({ open, onOpenChange }: LinkSelectorProps) => {
 
   return (
     <div className="relative">
-      <button 
-        onClick={() => onOpenChange(!open)}
-        className={`p-2 text-stone-600 hover:bg-stone-100 hover:text-stone-900 ${
-          editor.isActive("link") ? "bg-stone-100 text-stone-900" : ""
-        }`}
+      <Tooltip
+        title="Insert link"
+        position="bottom"
+        animation="fade"
+        arrow={true}
+        delay={100}
+        distance={10}
+        theme="dark"
+        hideOnClick={false}
       >
-        <span className="underline">Link</span>
-      </button>
+        <button 
+          onClick={() => onOpenChange(!open)}
+          className={`p-2 text-stone-600 hover:bg-stone-100 hover:text-stone-900 ${
+            editor.isActive("link") ? "bg-stone-100 text-stone-900" : ""
+          }`}
+          aria-label="Insert link"
+        >
+          <span className="underline">Link</span>
+          <span className="sr-only">Insert link</span>
+        </button>
+      </Tooltip>
       
       {open && (
         <div 

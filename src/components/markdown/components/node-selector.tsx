@@ -1,7 +1,14 @@
 'use client';
 
-import React from 'react';
-import { EditorBubbleItem, useEditor } from 'novel';
+import React, { useState } from "react";
+import { EditorBubbleItem, useEditor } from "novel";
+import { Tooltip as ReactTippyTooltip } from 'react-tippy';
+import 'react-tippy/dist/tippy.css';
+
+// Create a wrapper component for Tooltip to fix TypeScript issues
+const Tooltip = ({ children, ...props }: { children: React.ReactNode } & any) => {
+  return <ReactTippyTooltip {...props}>{children}</ReactTippyTooltip>;
+};
 
 export interface SelectorItem {
   name: string;
@@ -75,14 +82,27 @@ export const NodeSelector = ({ open, onOpenChange }: NodeSelectorProps) => {
 
   return (
     <div className="relative">
-      <button
-        onClick={() => onOpenChange(!open)}
-        className="flex h-10 items-center gap-1 rounded-md p-2 text-sm font-medium hover:bg-stone-100 active:bg-stone-200"
+      <Tooltip
+        title="Text style"
+        position="bottom"
+        animation="fade"
+        arrow={true}
+        delay={100}
+        distance={10}
+        theme="dark"
+        hideOnClick={false}
       >
-        <span>{activeItem?.icon}</span>
-        <span>{activeItem?.name || "Paragraph"}</span>
-        <span>▼</span>
-      </button>
+        <button
+          onClick={() => onOpenChange(!open)}
+          className="flex h-10 items-center gap-1 rounded-md p-2 text-sm font-medium hover:bg-stone-100 active:bg-stone-200"
+          aria-label="Text style"
+        >
+          <span>{activeItem?.icon}</span>
+          <span>{activeItem?.name || "Paragraph"}</span>
+          <span>▼</span>
+          <span className="sr-only">Text style</span>
+        </button>
+      </Tooltip>
       
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-md border border-stone-200 bg-white p-1 shadow-md">
