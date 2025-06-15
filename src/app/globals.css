@@ -18,12 +18,29 @@
   outline: none;
 }
 
-.novel-editor-wrapper .ProseMirror p.is-editor-empty:first-child::before {
+/* Placeholder styling for all empty paragraphs */
+.novel-editor-wrapper .ProseMirror p.is-editor-empty::before,
+.novel-editor-wrapper .ProseMirror p.is-empty::before {
   content: attr(data-placeholder);
   float: left;
   color: #adb5bd;
   pointer-events: none;
   height: 0;
+  opacity: 0.5;
+}
+
+/* Placeholder styling for headings */
+.novel-editor-wrapper .ProseMirror h1.is-empty::before,
+.novel-editor-wrapper .ProseMirror h2.is-empty::before,
+.novel-editor-wrapper .ProseMirror h3.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #64748b;
+  pointer-events: none;
+  height: 0;
+  font-style: normal;
+  font-weight: 500;
+  opacity: 0.8;
 }
 
 .novel-editor-wrapper .ProseMirror h1 {
