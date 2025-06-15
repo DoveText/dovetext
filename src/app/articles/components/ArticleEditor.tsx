@@ -486,7 +486,6 @@ export default function ArticleEditor({
                 initialContent={initialContent || content}
                 onChange={handleContentChange}
                 placeholder="Write your article content here..."
-                minHeight="500px"
                 format="markdown"
             />
           </div>

@@ -49,7 +49,6 @@ export function MarkdownEditor({
   onChange,
   placeholder = 'Start writing... (Type / for commands)',
   className = '',
-  minHeight = '500px',
   format = 'markdown'
 }: EditorProps) {
   // State for UI elements
@@ -212,10 +211,7 @@ export function MarkdownEditor({
   };
   
   return (
-    <div
-      className={`novel-editor-wrapper ${className}`}
-      style={{ minHeight }}
-    >
+    <div className={`novel-editor-wrapper ${className}`}>
       {/* Editor styles are now in globals.css */}
       
       {/* Fixed Toolbar with Status */}
