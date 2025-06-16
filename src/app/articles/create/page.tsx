@@ -154,6 +154,8 @@ export default function CreateArticlePage() {
     setWizardFormData(formData);
   };
 
+  console.log('Render with initial titles:', generatedArticle?.titles);
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50 py-8">

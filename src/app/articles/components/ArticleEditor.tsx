@@ -303,6 +303,8 @@ export default function ArticleEditor({
     );
   }
   
+  console.log('Render with initial titles:', suggestedTitles);
+
   return (
     <div className="space-y-8">
       {/* Header */}
