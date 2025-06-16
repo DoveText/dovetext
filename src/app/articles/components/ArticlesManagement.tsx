@@ -8,6 +8,7 @@ import { documentsApi } from '@/app/api/documents';
 import { PlusIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import ArticlesList from './ArticlesList';
 import ArticlesToolbar from './ArticlesToolbar';
+import ConfirmationDialog from '@/components/common/ConfirmationDialog';
 
 // Article interface that maps to DocumentDto from the backend
 export interface Article {
@@ -32,6 +33,8 @@ export default function ArticlesManagement() {
   const [filterState, setFilterState] = useState<string | undefined>(undefined);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [articleToDelete, setArticleToDelete] = useState<string | null>(null);
   const { user } = useAuth();
 
   // Apply filters (search query and tags)
@@ -144,19 +147,36 @@ export default function ArticlesManagement() {
     window.open(`/articles/edit?id=${id}`, id || '_blank');
   };
 
-  // Handle delete article
-  const handleDeleteArticle = async (id: string) => {
-    if (confirm('Are you sure you want to delete this article?')) {
+  // Open delete confirmation dialog
+  const handleDeleteArticle = (id: string) => {
+    setArticleToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  // Handle delete confirmation
+  const confirmDeleteArticle = async () => {
+    if (articleToDelete) {
       setIsLoading(true);
       try {
-        await documentsApi.deleteDocument(id);
+        await documentsApi.deleteDocument(articleToDelete);
         // Refresh the list after deletion
         fetchArticles();
       } catch (error) {
         console.error('Error deleting document:', error);
+        alert('Failed to delete article. Please try again.');
+      } finally {
         setIsLoading(false);
+        // Close the dialog and reset the article to delete
+        setIsDeleteDialogOpen(false);
+        setArticleToDelete(null);
       }
     }
+  };
+  
+  // Handle cancel delete
+  const cancelDeleteArticle = () => {
+    setIsDeleteDialogOpen(false);
+    setArticleToDelete(null);
   };
 
   // Handle article selection
@@ -215,6 +235,17 @@ export default function ArticlesManagement() {
           />
         </div>
       </div>
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        isOpen={isDeleteDialogOpen}
+        title="Delete Article"
+        message="Are you sure you want to delete this article? This action cannot be undone."
+        confirmButtonText="Delete"
+        cancelButtonText="Cancel"
+        confirmButtonColor="red"
+        onConfirm={confirmDeleteArticle}
+        onCancel={cancelDeleteArticle}
+      />
     </div>
   );
 }
