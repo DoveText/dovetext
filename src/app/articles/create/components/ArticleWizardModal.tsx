@@ -52,9 +52,15 @@ export default function ArticleWizardModal({
     articleAiApi.generateArticle(data)
       .then(article => {
         if (!article || !article.titles || !article.outline) throw new Error('Received invalid article structure from API');
-        setGeneratedArticle(article);
-        setCurrentStep('suggestions');
-        toast.success('Article suggestions generated!', { id: 'generating' });
+      
+      // Ensure a title is selected
+      if (!article.selectedTitle && article.titles.length > 0) {
+        article.selectedTitle = article.titles[0];
+      }
+      
+      setGeneratedArticle(article);
+      setCurrentStep('suggestions');
+      toast.success('Article suggestions generated!', { id: 'generating' });
         
         // Save the generated article and form data immediately
         // This ensures the data is saved even if user doesn't click "Accept & Continue"
@@ -137,6 +143,11 @@ export default function ArticleWizardModal({
         // Check if we received a valid article structure
         if (!article || !article.titles || !article.outline) {
           throw new Error('Received invalid article structure from API');
+        }
+        
+        // Ensure a title is selected
+        if (!article.selectedTitle && article.titles.length > 0) {
+          article.selectedTitle = article.titles[0];
         }
         
         setGeneratedArticle(article);

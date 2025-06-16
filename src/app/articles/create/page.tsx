@@ -136,6 +136,12 @@ export default function CreateArticlePage() {
   // Handle when the wizard is completed with a generated article
   const handleWizardComplete = (article: AIGeneratedArticle, formData: ArticlePlanningData) => {
     console.log('Wizard completed with article and form data:', { article, formData });
+    
+    // Ensure the article has a selectedTitle set
+    if (article && article.titles && article.titles.length > 0 && !article.selectedTitle) {
+      article.selectedTitle = article.titles[0];
+    }
+    
     setGeneratedArticle(article);
     setWizardFormData(formData); // Save the form data when wizard completes
     setIsWizardOpen(false);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Editor } from 'novel';
+import { EditorInstance as Editor } from 'novel';
 
 interface SelectionState {
   from: number;
@@ -32,6 +32,8 @@ export function useSelectionManager(editor: Editor | null, isDialogOpen: boolean
         setHasSelection(true);
         setSelectedText(text);
       } else {
+        // Clear selection state when text is deselected
+        setSelectionState(null);
         setHasSelection(false);
         setSelectedText('');
       }
@@ -42,8 +44,22 @@ export function useSelectionManager(editor: Editor | null, isDialogOpen: boolean
       // Skip if dialog is open
       if (isDialogOpen) return;
       
-      // If we have a stored selection
-      if (selectionState) {
+      // Skip if clicking on form controls or interactive elements
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || 
+          target.tagName === 'BUTTON' || 
+          target.tagName === 'SELECT' || 
+          target.tagName === 'TEXTAREA' || 
+          target.tagName === 'LABEL' ||
+          target.closest('.dropdown') || // Skip dropdown menus
+          target.closest('button') || // Skip buttons and their children
+          target.closest('input') || // Skip inputs and their children
+          target.getAttribute('role') === 'button') {
+        return;
+      }
+      
+      // If we have a stored selection and it's still valid
+      if (selectionState && hasSelection) {
         // Check if the click is outside the editor
         if (!editor.view.dom.contains(event.target as Node)) {
           console.log('🔍 Click outside editor, restoring selection');
@@ -51,16 +67,21 @@ export function useSelectionManager(editor: Editor | null, isDialogOpen: boolean
           // Focus the editor
           editor.view.focus();
           
-          // Restore the selection
-          const { from, to } = selectionState;
-          const transaction = editor.state.tr.setSelection(
-            editor.state.selection.constructor.create(
-              editor.state.doc,
-              from,
-              to
-            )
-          );
-          editor.view.dispatch(transaction);
+          // Restore the selection - safely handle different selection types
+          try {
+            const { from, to } = selectionState;
+            const { state } = editor;
+            
+            // Create a text selection directly instead of using constructor.create
+            const { TextSelection } = require('@tiptap/pm/state');
+            const newSelection = TextSelection.create(state.doc, from, to);
+            
+            const transaction = state.tr.setSelection(newSelection);
+            editor.view.dispatch(transaction);
+          } catch (error) {
+            console.error('Failed to restore selection:', error);
+            // Don't throw - just log the error and continue
+          }
           
           // Prevent default behavior
           event.preventDefault();
@@ -94,16 +115,23 @@ export function useSelectionManager(editor: Editor | null, isDialogOpen: boolean
       // Focus the editor
       editor.view.focus();
       
-      // Restore the selection
-      const { from, to } = selectionState;
-      const transaction = editor.state.tr.setSelection(
-        editor.state.selection.constructor.create(
-          editor.state.doc,
-          from,
-          to
-        )
-      );
-      editor.view.dispatch(transaction);
+      // Only restore if we have a valid selection
+      if (hasSelection) {
+        try {
+          const { from, to } = selectionState;
+          const { state } = editor;
+          
+          // Create a text selection directly instead of using constructor.create
+          const { TextSelection } = require('@tiptap/pm/state');
+          const newSelection = TextSelection.create(state.doc, from, to);
+          
+          const transaction = state.tr.setSelection(newSelection);
+          editor.view.dispatch(transaction);
+        } catch (error) {
+          console.error('Failed to restore selection:', error);
+          // Don't throw - just log the error and continue
+        }
+      }
       
       console.log('🔍 Selection restored');
     }, 10);
