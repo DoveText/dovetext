@@ -30,6 +30,7 @@ interface ArticleEditorProps {
   initialStatus?: string;
   initialCategory?: string;
   initialTags?: string[];
+  initialSuggestedTitles?: string[];
   onWizardOpen?: () => void;
 }
 
@@ -43,6 +44,7 @@ export default function ArticleEditor({
   initialStatus = 'draft',
   initialCategory = '',
   initialTags = [],
+  initialSuggestedTitles = [],
   onWizardOpen
 }: ArticleEditorProps) {
   // State for article data
@@ -51,7 +53,28 @@ export default function ArticleEditor({
   const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(initialCategory);
   const [tags, setTags] = useState<string[]>(initialTags);
-  const [suggestedTitles, setSuggestedTitles] = useState<string[]>([]);
+  const [suggestedTitles, setSuggestedTitles] = useState<string[]>(initialSuggestedTitles);
+  
+  // Update title when initialTitle changes
+  useEffect(() => {
+    if (initialTitle) {
+      setTitle(initialTitle);
+    }
+  }, [initialTitle]);
+  
+  // Update content when initialContent changes
+  useEffect(() => {
+    if (initialContent) {
+      setContent(initialContent);
+    }
+  }, [initialContent]);
+  
+  // Update suggestedTitles when initialSuggestedTitles changes
+  useEffect(() => {
+    if (initialSuggestedTitles && initialSuggestedTitles.length > 0) {
+      setSuggestedTitles(initialSuggestedTitles);
+    }
+  }, [initialSuggestedTitles]);
   const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
   const [isTitleDropdownOpen, setIsTitleDropdownOpen] = useState(false);
   
@@ -491,8 +514,8 @@ export default function ArticleEditor({
           </label>
           <div className="border border-gray-300 rounded-md overflow-hidden shadow-sm">
             <MarkdownEditor
-                key={initialContent} /* Force re-render when initialContent changes */
-                initialContent={initialContent || content}
+                key={`editor-${Date.now()}`} /* Force re-render with unique key */
+                initialContent={content || initialContent}
                 onChange={handleContentChange}
                 placeholder="Write your article content here..."
                 format="markdown"

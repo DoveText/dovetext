@@ -62,9 +62,8 @@ export default function ArticleWizardModal({
       setCurrentStep('suggestions');
       toast.success('Article suggestions generated!', { id: 'generating' });
         
-        // Save the generated article and form data immediately
-        // This ensures the data is saved even if user doesn't click "Accept & Continue"
-        onComplete(article, data);
+        // Don't auto-complete - wait for user to click "Accept & Continue"
+        // The user needs to explicitly accept the generated content
       })
       .catch(error => {
         console.error('Error generating article:', error);

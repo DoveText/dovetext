@@ -168,6 +168,7 @@ export default function CreateArticlePage() {
             initialStatus="draft"
             initialCategory=""
             initialTags={[]}
+            initialSuggestedTitles={generatedArticle?.titles || []}
             onWizardOpen={() => setIsWizardOpen(true)}
           />
           
