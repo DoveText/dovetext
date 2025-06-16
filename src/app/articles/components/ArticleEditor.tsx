@@ -55,9 +55,10 @@ export default function ArticleEditor({
   const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
   const [isTitleDropdownOpen, setIsTitleDropdownOpen] = useState(false);
   
-  // Reference to the dropdown element for click outside handling
+  // References for click outside handling
   const titleDropdownRef = useRef<HTMLDivElement>(null);
-  const titleInputRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const titleButtonRef = useRef<HTMLButtonElement>(null);
   
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
@@ -113,8 +114,10 @@ export default function ArticleEditor({
       if (isTitleDropdownOpen && 
           titleDropdownRef.current && 
           titleInputRef.current && 
+          titleButtonRef.current && 
           !titleDropdownRef.current.contains(event.target as Node) &&
-          !titleInputRef.current.contains(event.target as Node)) {
+          !titleInputRef.current.contains(event.target as Node) &&
+          !titleButtonRef.current.contains(event.target as Node)) {
         setIsTitleDropdownOpen(false);
       }
     }
@@ -381,26 +384,28 @@ export default function ArticleEditor({
               <input
                   type="text"
                   id="title"
+                  ref={titleInputRef}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onFocus={() => setIsTitleDropdownOpen(true)}
                   className="block w-full rounded-md py-2 pl-3 pr-10 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                   placeholder="Enter article title"
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+              {/* Dropdown toggle button */}
+              <button
+                  type="button"
+                  ref={titleButtonRef}
+                  onClick={() => setIsTitleDropdownOpen(!isTitleDropdownOpen)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-2"
+              >
                 <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
                      fill="currentColor" aria-hidden="true">
                   <path fillRule="evenodd"
                         d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                         clipRule="evenodd"/>
                 </svg>
-              </div>
-
-              {/* Custom dropdown trigger */}
-              <div
-                  ref={titleInputRef}
-                  onClick={() => setIsTitleDropdownOpen(!isTitleDropdownOpen)}
-                  className="absolute inset-0 w-full h-full cursor-pointer"
-              />
+              </button>
 
               <div 
                   ref={titleDropdownRef}
@@ -415,8 +420,12 @@ export default function ArticleEditor({
                     </div>
                 )}
 
-                {/* Suggested titles */}
-                {suggestedTitles.map((suggestedTitle, index) => (
+                {/* Suggested titles - filtered by current input */}
+                {suggestedTitles
+                  .filter(suggestedTitle => 
+                    !title || suggestedTitle.toLowerCase().includes(title.toLowerCase())
+                  )
+                  .map((suggestedTitle, index) => (
                     <div
                         key={index}
                         className={`cursor-pointer select-none relative py-2 pl-3 pr-9 ${title === suggestedTitle ? 'bg-indigo-100 text-indigo-700 font-medium' : 'text-gray-900 hover:bg-gray-100'}`}

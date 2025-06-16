@@ -9,6 +9,7 @@ import ArticleEditor from '../components/ArticleEditor';
 import ArticleWizardModal from './components/ArticleWizardModal';
 import { ArticlePlanningData } from './components/ArticlePlanningForm';
 import { AIGeneratedArticle } from './components/AIArticleSuggestions';
+import { extractSections, generateAIContext } from '../utils';
 
 export default function CreateArticlePage() {
   const router = useRouter();
@@ -58,12 +59,40 @@ export default function CreateArticlePage() {
       // Create file from blob
       const file = new File([contentBlob], filename, { type: 'text/markdown' });
       
-      // Create metadata
+      // Extract sections/headings from the content for AI context using our utility function
+      const sections = extractSections(articleData.content);
+      
+      // Create enhanced metadata with all planning data for AI context
       const metadata = {
+        // Basic metadata
         title: articleData.title,
         author: user?.email || 'Unknown',
         category: articleData.category || 'Uncategorized',
-        filename: filename
+        filename: filename,
+        contentType: 'text/markdown',
+        
+        // AI planning data (standard tier context)
+        aiContext: {
+          // Planning data from wizard
+          purpose: wizardFormData.purpose || '',
+          targetAudience: wizardFormData.targetAudience || '',
+          intent: wizardFormData.intent || '',
+          desiredLength: wizardFormData.desiredLength || 'medium',
+          tone: wizardFormData.tone || 'professional',
+          keywords: wizardFormData.keywords || [],
+          
+          // Structure data extracted from content
+          sections: sections,
+          
+          // If we have generated article data, include it
+          generatedOutline: generatedArticle?.outline || [],
+          alternativeTitles: generatedArticle?.titles || [],
+          suggestedTags: generatedArticle?.tags || []
+        },
+        
+        // Creation timestamp
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString()
       };
       
       console.log('Sending to API:', { metadata, state: articleData.status });
@@ -72,11 +101,12 @@ export default function CreateArticlePage() {
       const newDocument = await documentsApi.createDocument(file, metadata, articleData.status);
       console.log('Document created:', newDocument);
       
-      // Add tags if any
-      if (articleData.tags && articleData.tags.length > 0) {
-        console.log('Adding tags:', articleData.tags);
+      // Add tags if any - combine user tags with AI suggested tags for better context
+      const allTags = [...new Set([...articleData.tags, ...(generatedArticle?.tags || [])])];
+      if (allTags.length > 0) {
+        console.log('Adding tags:', allTags);
         await Promise.all(
-          articleData.tags.map(tag => documentsApi.addTagToDocument(newDocument.uuid, tag))
+          allTags.map(tag => documentsApi.addTagToDocument(newDocument.uuid, tag))
         );
       }
       
@@ -149,6 +179,8 @@ export default function CreateArticlePage() {
     </ProtectedRoute>
   );
 }
+
+// Function moved to /src/app/articles/utils/content-parser.ts
 
 // Helper function to generate markdown content from AI article
 function generateMarkdownContent(article: AIGeneratedArticle): string {

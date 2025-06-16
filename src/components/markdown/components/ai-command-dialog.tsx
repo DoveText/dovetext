@@ -6,6 +6,7 @@ import { Button } from '@/components/common/Button';
 import { Textarea, FormInput as Input } from '@/components/common/form';
 import { Label } from '@/components/common/form';
 import { Spinner } from '@/components/common/Spinner';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 // Simple Progress component for the dialog
 const Progress = ({ value, className = '' }: { value: number, className?: string }) => {
@@ -188,15 +189,26 @@ export default function AICommandDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>{getDialogTitle()}</DialogTitle>
-        </DialogHeader>
-        
-        {/* Common description for all command types */}
-        <div className="text-sm text-gray-600 mb-4">
-          {getCommandDescription()}
+      <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden">
+        {/* Custom header with improved styling */}
+        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-bold text-gray-900">{getDialogTitle()}</DialogTitle>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+            </button>
+          </div>
+          <p className="mt-1 text-sm text-gray-500">
+            {getCommandDescription()}
+          </p>
         </div>
+        
+        {/* Common description removed as it's now in the header */}
         
         {/* Show selected content or content at cursor position */}
         {(selectedText || params.content) && (
@@ -218,30 +230,30 @@ export default function AICommandDialog({
           </div>
         )}
         
-        {/* Show result if available */}
+        {/* Show the result if available */}
         {result ? (
-          <div className="space-y-4">
+          <div className="p-6 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="result">Result:</Label>
+              <Label htmlFor="result" className="text-base font-medium">Generated Content</Label>
               <div 
                 id="result"
-                className="p-3 bg-white border border-gray-200 rounded-md text-sm max-h-[300px] overflow-y-auto"
+                className="p-4 bg-white border border-gray-200 rounded-md text-sm max-h-[400px] overflow-y-auto whitespace-pre-wrap"
                 dangerouslySetInnerHTML={{ __html: result }}
               />
             </div>
             
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleRetry}>
+            <DialogFooter className="pt-4 border-t border-gray-100 mt-4">
+              <Button type="button" variant="outline" onClick={handleRetry} className="px-4 py-2">
                 Try Again
               </Button>
-              <Button type="button" onClick={handleAccept}>
+              <Button type="button" onClick={handleAccept} className="px-4 py-2 bg-blue-600 hover:bg-blue-700">
                 Accept
               </Button>
             </DialogFooter>
           </div>
         ) : (
           /* Only show form when there's no result */
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
             {/* Command-specific input forms */}
             {commandType === 'generate' && (
               <div className="space-y-2">
@@ -302,20 +314,31 @@ export default function AICommandDialog({
             
             {/* Show progress bar during loading - positioned right after the input fields */}
             {loading && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Processing...</span>
-                  <span>{Math.round(progress)}%</span>
+              <div className="space-y-2 bg-blue-50 p-4 rounded-md border border-blue-100">
+                <div className="flex justify-between text-sm font-medium">
+                  <span className="text-blue-700">Processing your request...</span>
+                  <span className="text-blue-700">{Math.round(progress)}%</span>
                 </div>
                 <Progress value={progress} className="w-full" />
+                <p className="text-xs text-blue-600 mt-2">Our AI is generating content based on your input. This may take a moment.</p>
               </div>
             )}
               
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+            <DialogFooter className="pt-4 border-t border-gray-100 mt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onClose} 
+                disabled={loading}
+                className="px-4 py-2"
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button 
+                type="submit" 
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700"
+              >
                 {loading ? (
                   <>
                     <Spinner size="sm" className="mr-2" /> Processing...
