@@ -53,33 +53,7 @@ export default function ArticleEditor({
   const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(initialCategory);
   const [tags, setTags] = useState<string[]>(initialTags);
-  const [suggestedTitles, setSuggestedTitles] = useState<string[]>(initialSuggestedTitles);
-  
-  // Update title when initialTitle changes
-  useEffect(() => {
-    if (initialTitle) {
-      setTitle(initialTitle);
-    }
-  }, [initialTitle]);
-  
-  // Update content when initialContent changes
-  useEffect(() => {
-    console.log('initialContent changed:', initialContent);
-    // Always update content when initialContent changes, even if empty
-    setContent(initialContent);
-  }, [initialContent]);
-  
-  // Update suggestedTitles when initialSuggestedTitles changes
-  useEffect(() => {
-    console.log('initialSuggestedTitles changed:', initialSuggestedTitles);
-    // Always update suggestedTitles when initialSuggestedTitles changes
-    setSuggestedTitles(initialSuggestedTitles || []);
-  }, [initialSuggestedTitles]);
-  
-  // Log suggestedTitles whenever they change
-  useEffect(() => {
-    console.log('suggestedTitles state updated:', suggestedTitles);
-  }, [suggestedTitles]);
+  const [suggestedTitles, setSuggestedTitles] = useState<string[]>([]);
   
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
@@ -128,8 +102,6 @@ export default function ArticleEditor({
     
     fetchDocumentData();
   }, [mode, documentId]);
-  
-  // Title dropdown handling is now in TitleSelectInput component
   
   // Fetch available tags and categories
   useEffect(() => {
@@ -387,8 +359,8 @@ export default function ArticleEditor({
           </label>
           <div className="border border-gray-300 rounded-md overflow-hidden shadow-sm">
             <MarkdownEditor
-                key={`editor-${Date.now()}`} /* Force re-render with unique key */
-                initialContent={content || initialContent}
+                key={initialContent} /* Force re-render when initialContent changes */
+                initialContent={initialContent || content}
                 onChange={handleContentChange}
                 placeholder="Write your article content here..."
                 format="markdown"
