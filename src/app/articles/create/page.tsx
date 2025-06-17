@@ -6,10 +6,9 @@ import { documentsApi } from '@/app/api/documents';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import ArticleEditor from '../components/ArticleEditor';
-import ArticleWizardModal from './components/ArticleWizardModal';
-import { ArticlePlanningData } from './components/ArticlePlanningForm';
-import { AIGeneratedArticle } from './components/AIArticleSuggestions';
+import { ArticleWizardModal, ArticlePlanningData, AIGeneratedArticle } from './components';
 import { extractSections, generateAIContext } from '../utils';
+import { ArticleMeta, ArticleMetadata } from '../utils/article-meta';
 
 export default function CreateArticlePage() {
   const router = useRouter();
@@ -63,7 +62,7 @@ export default function CreateArticlePage() {
       const sections = extractSections(articleData.content);
       
       // Create enhanced metadata with all planning data for AI context
-      const metadata = {
+      const rawMetadata: ArticleMetadata = {
         // Basic metadata
         title: articleData.title,
         author: user?.email || 'Unknown',
@@ -86,7 +85,6 @@ export default function CreateArticlePage() {
           
           // If we have generated article data, include it
           generatedOutline: generatedArticle?.outline || [],
-          alternativeTitles: generatedArticle?.titles || [],
           suggestedTags: generatedArticle?.tags || []
         },
         
@@ -94,6 +92,15 @@ export default function CreateArticlePage() {
         createdAt: new Date().toISOString(),
         lastModified: new Date().toISOString()
       };
+      
+      // Add suggested_titles at the root level and ensure it's properly set
+      rawMetadata.suggested_titles = generatedArticle?.titles || [];
+      
+      // Use ArticleMeta to normalize metadata and ensure consistent structure
+      const metadata = ArticleMeta.normalizeMetadata(rawMetadata);
+      
+      // Debug log to verify suggested titles are in the metadata
+      console.log('Create page - Normalized metadata with suggested titles:', metadata.suggested_titles);
       
       console.log('Sending to API:', { metadata, state: articleData.status });
       
@@ -136,13 +143,30 @@ export default function CreateArticlePage() {
   // Handle when the wizard is completed with a generated article
   const handleWizardComplete = (article: AIGeneratedArticle, formData: ArticlePlanningData) => {
     console.log('Wizard completed with article and form data:', { article, formData });
+    console.log('Generated article titles:', article.titles);
+    
+    // Create a copy of the article to avoid reference issues
+    const articleCopy = { ...article };
     
     // Ensure the article has a selectedTitle set
-    if (article && article.titles && article.titles.length > 0 && !article.selectedTitle) {
-      article.selectedTitle = article.titles[0];
+    if (articleCopy && articleCopy.titles && articleCopy.titles.length > 0) {
+      // If no selectedTitle is set or it's empty, use the first title
+      if (!articleCopy.selectedTitle || articleCopy.selectedTitle.trim() === '') {
+        articleCopy.selectedTitle = articleCopy.titles[0];
+        console.log('Setting selected title to first title:', articleCopy.selectedTitle);
+      }
     }
     
-    setGeneratedArticle(article);
+    // Make sure titles is an array
+    if (!articleCopy.titles) {
+      articleCopy.titles = [];
+    }
+    
+    // Log the article object before setting state
+    console.log('Article object before setting state:', JSON.stringify(articleCopy));
+    console.log('Selected title before setting state:', articleCopy.selectedTitle);
+    
+    setGeneratedArticle(articleCopy);
     setWizardFormData(formData); // Save the form data when wizard completes
     setIsWizardOpen(false);
   };
@@ -154,7 +178,13 @@ export default function CreateArticlePage() {
     setWizardFormData(formData);
   };
 
-  console.log('Render with initial titles:', generatedArticle?.titles);
+  // Ensure we have a valid array of titles to pass to ArticleEditor
+  const suggestedTitlesToPass = generatedArticle?.titles && Array.isArray(generatedArticle.titles) 
+    ? [...generatedArticle.titles] 
+    : [];
+    
+  console.log('Create page - Render with initial titles:', generatedArticle?.titles);
+  console.log('Create page - Passing suggested titles to ArticleEditor:', suggestedTitlesToPass);
 
   return (
     <ProtectedRoute>
@@ -170,7 +200,7 @@ export default function CreateArticlePage() {
             initialStatus="draft"
             initialCategory=""
             initialTags={[]}
-            initialSuggestedTitles={generatedArticle?.titles || []}
+            initialSuggestedTitles={suggestedTitlesToPass}
             onWizardOpen={() => setIsWizardOpen(true)}
           />
           

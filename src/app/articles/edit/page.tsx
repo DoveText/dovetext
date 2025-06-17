@@ -6,6 +6,7 @@ import { documentsApi } from '@/app/api/documents';
 import { useAuth } from '@/context/AuthContext';
 import ArticleEditor from '../components/ArticleEditor';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { ArticleMeta, ArticleMetadata } from '../utils/article-meta';
 // Use a simple loading indicator instead of importing a component that might not exist
 // We'll create a simple inline loading component
 
@@ -50,8 +51,8 @@ export default function EditArticlePage() {
         // Fetch document tags
         const tags = await documentsApi.getDocumentTags(documentId);
         
-        // Extract suggested titles from metadata if available
-        const suggestedTitles = document.meta?.suggested_titles || [];
+        // Extract suggested titles from metadata using ArticleMeta
+        const suggestedTitles = ArticleMeta.getSuggestedTitles(document.meta);
         
         // Set document data
         setDocumentData({
@@ -109,17 +110,22 @@ export default function EditArticlePage() {
         { type: 'text/markdown' }
       );
       
-      // Create metadata - preserve suggested titles and other meta from the original document
-      const meta = {
+      // Get the document again to ensure we have the latest metadata
+      const document = await documentsApi.getDocument(documentId);
+      // Create metadata using MetadataManager to ensure consistency
+      const originalMeta = document.meta || {};
+      const updatedMeta: ArticleMetadata = {
         title: articleData.title,
         author: user?.email || 'Unknown',
         category: articleData.category,
         filename: file.name,
-        // Preserve suggested titles if they exist in the articleData meta or in the original document
-        suggested_titles: articleData.meta?.suggested_titles || documentData?.suggestedTitles || [],
-        // Preserve any other metadata that might be present
         ...(articleData.meta || {})
       };
+      
+      // Merge and normalize metadata to preserve important fields
+      const meta = ArticleMeta.normalizeMetadata(
+        ArticleMeta.mergeMetadata(originalMeta, updatedMeta)
+      );
       
       // Update the document
       await documentsApi.updateDocument(documentId, {

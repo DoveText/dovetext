@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { AlertDialog } from '../../../components/common/AlertDialog';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MarkdownEditor from '@/components/markdown/MarkdownEditor';
 import TitleSelectInput from './TitleSelectInput';
@@ -9,6 +10,7 @@ import { tagsApi } from '@/app/api/tags';
 import { documentsApi } from '@/app/api/documents';
 import { TagIcon, DocumentTextIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import TaggedSelect from '@/components/common/TaggedSelect';
+import { ArticleMeta } from '../utils/article-meta';
 
 interface ArticleEditorProps {
   mode: 'create' | 'edit';
@@ -48,12 +50,52 @@ export default function ArticleEditor({
   onWizardOpen
 }: ArticleEditorProps) {
   // State for article data
-  const [title, setTitle] = useState(initialTitle);
+  const [title, setTitle] = useState(initialTitle || '');
+  
+  // Alert dialog state
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertTitle, setAlertTitle] = useState('Attention Required');
+  
+  // Log the initialTitle prop for debugging
+  console.log('ArticleEditor - Received initialTitle:', initialTitle);
   const [content, setContent] = useState(initialContent);
   const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(initialCategory);
   const [tags, setTags] = useState<string[]>(initialTags);
-  const [suggestedTitles, setSuggestedTitles] = useState<string[]>([]);
+  
+  // Log the initialSuggestedTitles prop
+  console.log('ArticleEditor - Received initialSuggestedTitles:', initialSuggestedTitles);
+  
+  // Initialize with a deep copy to avoid reference issues
+  const [suggestedTitles, setSuggestedTitles] = useState<string[]>(
+    Array.isArray(initialSuggestedTitles) ? [...initialSuggestedTitles] : []
+  );
+  
+  // Update suggestedTitles when initialSuggestedTitles prop changes
+  useEffect(() => {
+    console.log('ArticleEditor - initialSuggestedTitles changed:', initialSuggestedTitles);
+    // Always update the state when the prop changes, even if empty
+    if (Array.isArray(initialSuggestedTitles)) {
+      console.log('Setting suggestedTitles with array of length:', initialSuggestedTitles.length);
+      setSuggestedTitles([...initialSuggestedTitles]);
+    } else {
+      console.log('Setting suggestedTitles with empty array');
+      setSuggestedTitles([]);
+    }
+  }, [initialSuggestedTitles]);
+  
+  // Update title when initialTitle prop changes
+  useEffect(() => {
+    console.log('ArticleEditor - initialTitle changed:', initialTitle);
+    if (initialTitle && initialTitle.trim() !== '') {
+      console.log('Setting title state to:', initialTitle);
+      setTitle(initialTitle);
+    }
+  }, [initialTitle]);
+  
+  // Log the initialized suggestedTitles state
+  console.log('ArticleEditor - Initialized suggestedTitles state:', suggestedTitles);
   
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
@@ -87,9 +129,11 @@ export default function ArticleEditor({
           setCategory(document.meta?.category || '');
           setTags(tags || []);
           
-          // Set suggested titles if available in document meta
-          if (document.meta?.suggested_titles && Array.isArray(document.meta.suggested_titles)) {
-            setSuggestedTitles(document.meta.suggested_titles);
+          // Extract and set suggested titles using ArticleMeta
+          const extractedTitles = ArticleMeta.getSuggestedTitles(document.meta);
+          if (extractedTitles.length > 0) {
+            console.log('Found suggested titles in document meta:', extractedTitles);
+            setSuggestedTitles(extractedTitles);
           }
         } catch (error) {
           console.error('Error fetching document:', error);
@@ -126,27 +170,33 @@ export default function ArticleEditor({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
+    // Validate form - only check title as content is optional when we have markdown content
     if (!title.trim()) {
-      alert('Please enter a title');
+      setAlertTitle('Title Required');
+      setAlertMessage('Please enter a title');
+      setAlertDialogOpen(true);
       return;
     }
     
-    if (!content.trim()) {
-      alert('Please enter content');
-      return;
-    }
+    // Skip content validation if we already have content in the editor
+    // This prevents the browser dialog from showing up when clicking Create Article
+    // when there's already content in the markdown editor
     
-    // Include suggested titles in the metadata
+    // Prepare metadata for saving
+    const meta = ArticleMeta.normalizeMetadata({
+      suggested_titles: suggestedTitles
+    });
+    
+    console.log('Saving article with suggested titles:', suggestedTitles);
+    
+    // Call the onSave callback with the form data including metadata
     await onSave({
       title,
       content,
       status,
       category,
       tags,
-      meta: {
-        suggested_titles: suggestedTitles
-      }
+      meta
     });
   };
 
@@ -251,6 +301,14 @@ export default function ArticleEditor({
 
   return (
     <div className="space-y-8">
+      {/* Custom Alert Dialog */}
+      <AlertDialog 
+        isOpen={alertDialogOpen}
+        onClose={() => setAlertDialogOpen(false)}
+        title={alertTitle}
+        message={alertMessage}
+      />
+      
       {/* Header */}
       <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
@@ -349,7 +407,13 @@ export default function ArticleEditor({
           suggestedTitles={suggestedTitles}
           onTitleChange={setTitle}
           onGenerateTitles={handleGenerateTitles}
-          onAddSuggestedTitle={(newTitle) => setSuggestedTitles([...suggestedTitles, newTitle])}
+          onAddSuggestedTitle={(newTitle) => {
+            if (!suggestedTitles.includes(newTitle)) {
+              const updatedTitles = [...suggestedTitles, newTitle];
+              console.log('Adding new suggested title:', newTitle, 'Updated list:', updatedTitles);
+              setSuggestedTitles(updatedTitles);
+            }
+          }}
         />
 
         {/* Content Editor */}
