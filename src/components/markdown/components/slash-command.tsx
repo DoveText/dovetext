@@ -263,23 +263,5 @@ export const slashCommand = Command.configure({
     // Use the default renderItems function directly
     // This is the approach used in the working Novel test app
     render: renderItems,
-    
-    // The command handler is the key part that executes when Enter is pressed
-    command: ({ editor, range, props }: { editor: Editor; range: any; props: any }) => {
-      console.log('Command execution triggered for:', props?.title);
-      
-      // Execute the command if it exists
-      if (props?.command) {
-        try {
-          // This is where the actual command function from the item is called
-          props.command({ editor, range });
-          console.log('Command executed successfully:', props.title);
-        } catch (error) {
-          console.error('Error executing command:', error);
-        }
-      }
-      
-      return true; // We handled the command
-    },
   },
 });

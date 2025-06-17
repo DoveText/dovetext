@@ -10,7 +10,8 @@ import {
   EditorCommandList,
   EditorBubble,
   ImageResizer,
-  EditorInstance
+  EditorInstance,
+  handleCommandNavigation
 } from 'novel';
 import { defaultExtensions } from './extensions';
 import { slashCommand, suggestionItems, isAICommandEnabled } from './components/slash-command';
@@ -231,6 +232,9 @@ export function MarkdownEditor({
           extensions={[...defaultExtensions, slashCommand]}
           className="relative w-full border border-gray-200 bg-white rounded-lg shadow-sm overflow-hidden"
           editorProps={{
+            handleDOMEvents: {
+              keydown: (_view, event) => handleCommandNavigation(event),
+            },
             attributes: {
               class: "prose prose-lg prose-stone dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full",
             },
@@ -283,7 +287,6 @@ export function MarkdownEditor({
                   key={item.title}
                   value={item.title}
                   onCommand={(val) => {
-                    console.log('processing command', val)
                     if (item.command) {
                       item.command(val);
                     }

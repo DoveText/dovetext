@@ -27,7 +27,6 @@ export function useSelectionManager(editor: Editor | null, isDialogOpen: boolean
       
       if (hasCurrentSelection) {
         const text = editor.state.doc.textBetween(from, to);
-        console.log('🔍 Storing selection state:', { from, to, text });
         setSelectionState({ from, to });
         setHasSelection(true);
         setSelectedText(text);
@@ -62,8 +61,6 @@ export function useSelectionManager(editor: Editor | null, isDialogOpen: boolean
       if (selectionState && hasSelection) {
         // Check if the click is outside the editor
         if (!editor.view.dom.contains(event.target as Node)) {
-          console.log('🔍 Click outside editor, restoring selection');
-          
           // Focus the editor
           editor.view.focus();
           
@@ -106,8 +103,6 @@ export function useSelectionManager(editor: Editor | null, isDialogOpen: boolean
   const restoreSelection = () => {
     if (!editor || !selectionState) return;
     
-    console.log('🔍 Restoring selection state:', selectionState);
-    
     // Use setTimeout to ensure any dialogs are fully closed
     setTimeout(() => {
       if (!editor) return;
@@ -132,8 +127,6 @@ export function useSelectionManager(editor: Editor | null, isDialogOpen: boolean
           // Don't throw - just log the error and continue
         }
       }
-      
-      console.log('🔍 Selection restored');
     }, 10);
   };
 
