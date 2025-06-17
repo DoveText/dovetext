@@ -3,7 +3,8 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { github } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { vs } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+// Note: 'github' style is only available in hljs, not in prism
 import remarkGfm from 'remark-gfm';
 
 interface MarkdownRendererProps {
@@ -30,7 +31,7 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
               const match = /language-(\w+)/.exec(className || '');
               return !inline && match ? (
                 <SyntaxHighlighter
-                  style={github}
+                  style={vs}
                   language={match[1]}
                   PreTag="div"
                   {...props}
