@@ -8,6 +8,7 @@ import {
 } from 'novel';
 import { aiApi } from '@/app/admin-tools/api/ai';
 import { marked } from 'marked';
+import { isHeading, isParagraph, isParagraphEmpty, selectionContainsHeading } from '../utils/editor-state';
 
 // Define proper types for suggestion items
 interface CommandItemProps {
@@ -210,10 +211,35 @@ export const suggestionItems = createSuggestionItems([
   },
 ]);
 
-// Create the slash command extension
+// Using shared editor state utility functions from utils/editor-state.ts
+
+// Create the slash command extension with context-aware filtering
 export const slashCommand = Command.configure({
   suggestion: {
-    items: () => suggestionItems,
+    items: ({ editor }: { editor: any }) => {
+      // Filter AI commands based on context
+      const generateDisabled = isHeading(editor);
+      const refineDisabled = (
+        (isParagraph(editor) && isParagraphEmpty(editor)) || // Disabled on empty paragraphs
+        (!isParagraph(editor) && !editor.state.selection.content().size) || // Disabled on non-paragraphs with no selection
+        selectionContainsHeading(editor) // Disabled if selection contains headings
+      );
+      const summarizeDisabled = !isHeading(editor);
+      
+      console.log('------- Slash Command Menu Status -------');
+      console.log(`Generate command available: ${!generateDisabled}`);
+      console.log(`Refine command available: ${!refineDisabled}`);
+      console.log(`Summarize command available: ${!summarizeDisabled}`);
+      console.log('---------------------------------------');
+      
+      // Filter out disabled AI commands
+      return suggestionItems.filter(item => {
+        if (item.title === "Generate Content" && generateDisabled) return false;
+        if (item.title === "Refine Content" && refineDisabled) return false;
+        if (item.title === "Summarize Content" && summarizeDisabled) return false;
+        return true;
+      });
+    },
     render: renderItems,
   },
 });

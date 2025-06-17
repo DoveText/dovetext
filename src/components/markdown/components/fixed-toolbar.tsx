@@ -1,6 +1,7 @@
 import React from 'react';
 import { EditorInstance } from 'novel';
 import { ToolbarButton } from './toolbar-button';
+import { isHeading, isParagraph, isParagraphEmpty, selectionContainsHeading } from '../utils/editor-state';
 
 interface FixedToolbarProps {
   editor: EditorInstance | null;
@@ -19,6 +20,36 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
   showBubbleMenu,
   onToggleBubbleMenu
 }) => {
+  // Using shared editor state utility functions from utils/editor-state.ts
+  
+  // Determine button states based on editor context
+  const generateDisabled = !editor || isHeading(editor);
+  
+  const refineDisabled = !editor || (
+    (isParagraph(editor) && isParagraphEmpty(editor)) || // Disabled on empty paragraphs
+    (!isParagraph(editor) && !editor.state.selection.content().size) || // Disabled on non-paragraphs with no selection
+    selectionContainsHeading(editor) // Disabled if selection contains headings
+  );
+  
+  const summarizeDisabled = !editor || !isHeading(editor);
+  
+  // Log current state for debugging
+  if (editor) {
+    const currentNodeType = editor.isActive('heading') 
+      ? `heading-${editor.isActive('heading', { level: 1 }) ? '1' : 
+          editor.isActive('heading', { level: 2 }) ? '2' : 
+          editor.isActive('heading', { level: 3 }) ? '3' : 'other'}`
+      : editor.isActive('paragraph') 
+        ? 'paragraph' 
+        : 'other';
+    
+    console.log('------- Fixed Toolbar Status -------');
+    console.log(`Current node type: ${currentNodeType}`);
+    console.log(`Generate button: ${generateDisabled ? 'Disabled' : 'Enabled'}`);
+    console.log(`Refine button: ${refineDisabled ? 'Disabled' : 'Enabled'}`);
+    console.log(`Summarize button: ${summarizeDisabled ? 'Disabled' : 'Enabled'}`);
+    console.log('----------------------------------');
+  }
   return (
     <div className="sticky top-0 z-20 w-full bg-white border-b border-gray-200 shadow-sm">
       <div className="flex items-center justify-between px-4 py-2">
@@ -27,23 +58,32 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
           <ToolbarButton 
             icon={<span>⚡</span>} 
             isActive={false} 
-            onClick={() => onAICommand('generate')}
-            disabled={!editor}
-            tooltip="Generate Content"
+            onClick={() => {
+              console.log(`Clicked Generate button, disabled: ${generateDisabled}`);
+              if (!generateDisabled) onAICommand('generate');
+            }}
+            disabled={generateDisabled}
+            tooltip={`Generate Content ${generateDisabled ? '(Not available here)' : ''}`}
           />
           <ToolbarButton 
             icon={<span>✨</span>} 
             isActive={false} 
-            onClick={() => onAICommand('refine')}
-            disabled={!editor}
-            tooltip="Refine Selected Content"
+            onClick={() => {
+              console.log(`Clicked Refine button, disabled: ${refineDisabled}`);
+              if (!refineDisabled) onAICommand('refine');
+            }}
+            disabled={refineDisabled}
+            tooltip={`Refine Content ${refineDisabled ? '(Not available here)' : ''}`}
           />
           <ToolbarButton 
             icon={<span>⭐</span>} 
             isActive={false} 
-            onClick={() => onAICommand('summarize')}
-            disabled={!editor}
-            tooltip="Summarize Selected Content"
+            onClick={() => {
+              console.log(`Clicked Summarize button, disabled: ${summarizeDisabled}`);
+              if (!summarizeDisabled) onAICommand('summarize');
+            }}
+            disabled={summarizeDisabled}
+            tooltip={`Summarize Content ${summarizeDisabled ? '(Not available here)' : ''}`}
           />
 
           <div className="h-4 w-px bg-gray-200 mx-2" />

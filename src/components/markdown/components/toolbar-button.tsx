@@ -31,15 +31,16 @@ export const ToolbarButton: React.FC<ToolbarButtonProps> = ({
       onClick={onClick}
       disabled={disabled}
       className={`
-        p-2 rounded-md transition-colors
+        p-2 rounded-md transition-colors relative
         ${isActive 
           ? 'bg-indigo-100 text-indigo-800' 
           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
         ${disabled 
-          ? 'opacity-50 cursor-not-allowed' 
+          ? 'opacity-50 cursor-not-allowed bg-gray-50 border border-gray-200' 
           : 'cursor-pointer'}
       `}
       aria-label={tooltip}
+      data-status={disabled ? 'disabled' : 'enabled'}
     >
       {icon}
     </button>
