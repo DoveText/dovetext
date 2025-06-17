@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AlertDialog } from '../../../components/common/AlertDialog';
+import { AlertDialog } from '@/components/common/AlertDialog';
 import { useRouter } from 'next/navigation';
 import { documentsApi } from '@/app/api/documents';
 import { useAuth } from '@/context/AuthContext';
@@ -15,7 +15,7 @@ export default function CreateArticlePage() {
   const router = useRouter();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(true);
   
   // Alert dialog state
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
@@ -189,27 +189,6 @@ export default function CreateArticlePage() {
     // Save form data as it changes, so it persists even if the user cancels
     setWizardFormData(formData);
   };
-
-  // Prevent the browser's beforeunload event from showing a confirmation dialog
-  useEffect(() => {
-    // This function prevents the browser from showing the default confirmation dialog
-    const preventBeforeUnloadDialog = (e: BeforeUnloadEvent) => {
-      // This prevents the dialog from showing up
-      e.preventDefault();
-      // Chrome requires returnValue to be set
-      e.returnValue = '';
-      // Return undefined to prevent the dialog
-      return undefined;
-    };
-    
-    // Add the event listener
-    window.addEventListener('beforeunload', preventBeforeUnloadDialog);
-    
-    // Clean up the event listener when the component unmounts
-    return () => {
-      window.removeEventListener('beforeunload', preventBeforeUnloadDialog);
-    };
-  }, []);
 
   // Prepare suggested titles to pass to ArticleEditor
   const suggestedTitlesToPass = generatedArticle?.titles && Array.isArray(generatedArticle.titles) 

@@ -8,7 +8,7 @@ import { documentsApi } from '@/app/api/documents';
 import { PlusIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import ArticlesList from './ArticlesList';
 import ArticlesToolbar from './ArticlesToolbar';
-import ConfirmationDialog from '@/components/common/ConfirmationDialog';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 // Article interface that maps to DocumentDto from the backend
 export interface Article {
@@ -236,15 +236,15 @@ export default function ArticlesManagement() {
         </div>
       </div>
       {/* Confirmation Dialog for Delete */}
-      <ConfirmationDialog
+      <ConfirmDialog
         isOpen={isDeleteDialogOpen}
         title="Delete Article"
         message="Are you sure you want to delete this article? This action cannot be undone."
-        confirmButtonText="Delete"
-        cancelButtonText="Cancel"
-        confirmButtonColor="red"
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonClassName="bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500"
         onConfirm={confirmDeleteArticle}
-        onCancel={cancelDeleteArticle}
+        onClose={cancelDeleteArticle}
       />
     </div>
   );

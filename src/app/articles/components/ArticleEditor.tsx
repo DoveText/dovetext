@@ -71,7 +71,11 @@ export default function ArticleEditor({
   const [suggestedTitles, setSuggestedTitles] = useState<string[]>(
     Array.isArray(initialSuggestedTitles) ? [...initialSuggestedTitles] : []
   );
-  
+
+  useEffect(() => {
+    setContent(initialContent)
+  }, [initialContent])
+
   // Update suggestedTitles when initialSuggestedTitles prop changes
   useEffect(() => {
     console.log('ArticleEditor - initialSuggestedTitles changed:', initialSuggestedTitles);
@@ -296,7 +300,7 @@ export default function ArticleEditor({
     );
   }
   
-  console.log('Render with initial titles:', suggestedTitles);
+  console.log('Render with initial titles and initial content - ' + initialContent?.length, suggestedTitles, content ? content : '<no content>');
 
   return (
     <div className="space-y-8">
