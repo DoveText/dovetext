@@ -116,17 +116,14 @@ export default function EditArticlePage() {
       const originalMeta = document.meta || {};
       const updatedMeta: ArticleMetadata = {
         title: articleData.title,
-        author: user?.email || 'Unknown',
         category: articleData.category,
         filename: file.name,
         ...(articleData.meta || {})
       };
       
       // Merge and normalize metadata to preserve important fields
-      const meta = ArticleMeta.normalizeMetadata(
-        ArticleMeta.mergeMetadata(originalMeta, updatedMeta)
-      );
-      
+      const meta = ArticleMeta.mergeMetadata(originalMeta, updatedMeta)
+
       // Update the document
       await documentsApi.updateDocument(documentId, {
         meta,

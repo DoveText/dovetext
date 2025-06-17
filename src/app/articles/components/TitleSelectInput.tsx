@@ -22,8 +22,6 @@ export default function TitleSelectInput({
   // Initialize title state from initialTitle prop
   const [title, setTitle] = useState<string>(initialTitle || '');
   
-  // Log initial title for debugging
-  console.log('TitleSelectInput initialized with title:', initialTitle);
   const [suggestedTitlesState, setSuggestedTitlesState] = useState<string[]>(initialSuggestedTitles || []);
   const [isTitleDropdownOpen, setIsTitleDropdownOpen] = useState(false);
   const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
@@ -32,32 +30,16 @@ export default function TitleSelectInput({
   const titleButtonRef = useRef<HTMLButtonElement>(null);
   const titleDropdownRef = useRef<HTMLDivElement>(null);
   
-  // Debug logging - no filtering, show all titles
-  console.log('TitleSelectInput rendering with:', { 
-    title, 
-    suggestedTitles: suggestedTitlesState, 
-    dropdownOpen: isTitleDropdownOpen, 
-    suggestedCount: suggestedTitlesState.length,
-    suggestedTitlesSource: initialSuggestedTitles 
-  });
-
   // Log when suggestedTitles prop changes
   useEffect(() => {
-    console.log('TitleSelectInput received new suggestedTitles prop:', initialSuggestedTitles);
     // Always update the state when the prop changes, even if empty
     setSuggestedTitlesState(Array.isArray(initialSuggestedTitles) ? [...initialSuggestedTitles] : []);
-    
-    // Don't automatically open the dropdown - let the user click to see options
-    // This prevents the dropdown from stealing focus when the page loads
   }, [initialSuggestedTitles]);
   
   // Update title when initialTitle prop changes
   useEffect(() => {
-    console.log('TitleSelectInput initialTitle changed:', initialTitle);
     if (initialTitle) {
       setTitle(initialTitle);
-      // Log that we've updated the title
-      console.log('TitleSelectInput updated title state to:', initialTitle);
     }
   }, [initialTitle]);
 
@@ -89,7 +71,6 @@ export default function TitleSelectInput({
   
   // Handle title selection from dropdown
   const handleTitleSelect = (selectedTitle: string) => {
-    console.log('Title selected from dropdown:', selectedTitle);
     // First update local state
     setTitle(selectedTitle);
     // Then notify parent component

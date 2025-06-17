@@ -8,7 +8,6 @@ import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import ArticleEditor from '../components/ArticleEditor';
 import { ArticleWizardModal, ArticlePlanningData, AIGeneratedArticle } from './components';
-import { extractSections, generateAIContext } from '../utils';
 import { ArticleMeta, ArticleMetadata } from '../utils/article-meta';
 
 export default function CreateArticlePage() {
@@ -41,13 +40,15 @@ export default function CreateArticlePage() {
     status: string;
     category: string;
     tags: string[];
+    meta?: {
+      suggested_titles?: string[];
+      [key: string]: any;
+    };
   }) => {
     if (isSubmitting) return;
     
     setIsSubmitting(true);
     try {
-      console.log('Creating article with data:', { ...articleData, content: articleData.content.substring(0, 50) + '...' });
-      
       // Validate required fields
       if (!articleData.title) {
         throw new Error('Title is required');
@@ -66,18 +67,14 @@ export default function CreateArticlePage() {
       // Create file from blob
       const file = new File([contentBlob], filename, { type: 'text/markdown' });
       
-      // Extract sections/headings from the content for AI context using our utility function
-      const sections = extractSections(articleData.content);
-      
       // Create enhanced metadata with all planning data for AI context
-      const rawMetadata: ArticleMetadata = {
+      const metadata: ArticleMetadata = {
         // Basic metadata
         title: articleData.title,
-        author: user?.email || 'Unknown',
         category: articleData.category || 'Uncategorized',
         filename: filename,
         contentType: 'text/markdown',
-        
+        suggested_titles: articleData.meta?.suggested_titles || generatedArticle?.titles || [],
         // AI planning data (standard tier context)
         aiContext: {
           // Planning data from wizard
@@ -87,39 +84,16 @@ export default function CreateArticlePage() {
           desiredLength: wizardFormData.desiredLength || 'medium',
           tone: wizardFormData.tone || 'professional',
           keywords: wizardFormData.keywords || [],
-          
-          // Structure data extracted from content
-          sections: sections,
-          
-          // If we have generated article data, include it
-          generatedOutline: generatedArticle?.outline || [],
           suggestedTags: generatedArticle?.tags || []
-        },
-        
-        // Creation timestamp
-        createdAt: new Date().toISOString(),
-        lastModified: new Date().toISOString()
+        }
       };
-      
-      // Add suggested_titles at the root level and ensure it's properly set
-      rawMetadata.suggested_titles = generatedArticle?.titles || [];
-      
-      // Use ArticleMeta to normalize metadata and ensure consistent structure
-      const metadata = ArticleMeta.normalizeMetadata(rawMetadata);
-      
-      // Debug log to verify suggested titles are in the metadata
-      console.log('Create page - Normalized metadata with suggested titles:', metadata.suggested_titles);
-      
-      console.log('Sending to API:', { metadata, state: articleData.status });
       
       // Create the document
       const newDocument = await documentsApi.createDocument(file, metadata, articleData.status);
-      console.log('Document created:', newDocument);
-      
+
       // Add tags if any - combine user tags with AI suggested tags for better context
       const allTags = [...new Set([...articleData.tags, ...(generatedArticle?.tags || [])])];
       if (allTags.length > 0) {
-        console.log('Adding tags:', allTags);
         await Promise.all(
           allTags.map(tag => documentsApi.addTagToDocument(newDocument.uuid, tag))
         );
@@ -127,7 +101,6 @@ export default function CreateArticlePage() {
       
       // Navigate back to articles list
       router.push('/articles');
-      
     } catch (error: any) {
       console.error('Error creating article:', error);
       setAlertTitle('Error Creating Article');
@@ -148,15 +121,11 @@ export default function CreateArticlePage() {
 
   // Save form data and close wizard when user explicitly closes it
   const handleWizardClose = () => {
-    // Form data is already saved via handleWizardFormDataChange
     setIsWizardOpen(false);
   };
   
   // Handle when the wizard is completed with a generated article
   const handleWizardComplete = (article: AIGeneratedArticle, formData: ArticlePlanningData) => {
-    console.log('Wizard completed with article and form data:', { article, formData });
-    console.log('Generated article titles:', article.titles);
-    
     // Create a copy of the article to avoid reference issues
     const articleCopy = { ...article };
     
@@ -165,7 +134,6 @@ export default function CreateArticlePage() {
       // If no selectedTitle is set or it's empty, use the first title
       if (!articleCopy.selectedTitle || articleCopy.selectedTitle.trim() === '') {
         articleCopy.selectedTitle = articleCopy.titles[0];
-        console.log('Setting selected title to first title:', articleCopy.selectedTitle);
       }
     }
     
@@ -174,30 +142,16 @@ export default function CreateArticlePage() {
       articleCopy.titles = [];
     }
     
-    // Log the article object before setting state
-    console.log('Article object before setting state:', JSON.stringify(articleCopy));
-    console.log('Selected title before setting state:', articleCopy.selectedTitle);
-    
     setGeneratedArticle(articleCopy);
     setWizardFormData(formData); // Save the form data when wizard completes
     setIsWizardOpen(false);
   };
   
-  // Handle form data changes from the wizard - this saves data as user types
-  const handleWizardFormDataChange = (formData: ArticlePlanningData) => {
-    console.log('Form data changed:', formData);
-    // Save form data as it changes, so it persists even if the user cancels
-    setWizardFormData(formData);
-  };
-
   // Prepare suggested titles to pass to ArticleEditor
   const suggestedTitlesToPass = generatedArticle?.titles && Array.isArray(generatedArticle.titles) 
     ? [...generatedArticle.titles] 
     : [];
     
-  console.log('Create page - Render with initial titles:', generatedArticle?.titles);
-  console.log('Create page - Passing suggested titles to ArticleEditor:', suggestedTitlesToPass);
-
   return (
     <ProtectedRoute>
       {/* Custom Alert Dialog */}
@@ -234,7 +188,7 @@ export default function CreateArticlePage() {
               onClose={handleWizardClose}
               onComplete={handleWizardComplete}
               initialFormData={wizardFormData}
-              onFormDataChange={handleWizardFormDataChange}
+              onFormDataChange={setWizardFormData}
             />
           )}
         </div>

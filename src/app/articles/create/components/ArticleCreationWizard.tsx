@@ -127,8 +127,6 @@ export default function ArticleCreationWizard({ onCancel }: ArticleCreationWizar
     
     setIsSubmitting(true);
     try {
-      console.log('Creating article with data:', { ...articleData, content: articleData.content.substring(0, 50) + '...' });
-      
       // Validate required fields
       if (!articleData.title) {
         throw new Error('Title is required');
@@ -155,15 +153,11 @@ export default function ArticleCreationWizard({ onCancel }: ArticleCreationWizar
         filename: filename
       };
       
-      console.log('Sending to API:', { metadata, state: articleData.status });
-      
       // Create the document
       const newDocument = await documentsApi.createDocument(file, metadata, articleData.status);
-      console.log('Document created:', newDocument);
-      
+
       // Add tags if any
       if (articleData.tags && articleData.tags.length > 0) {
-        console.log('Adding tags:', articleData.tags);
         await Promise.all(
           articleData.tags.map(tag => documentsApi.addTagToDocument(newDocument.uuid, tag))
         );
@@ -173,7 +167,6 @@ export default function ArticleCreationWizard({ onCancel }: ArticleCreationWizar
       
       // Navigate back to articles list
       router.push('/articles');
-      
     } catch (error: any) {
       console.error('Error creating article:', error);
       toast.error(`Failed to create article: ${error.message || 'Unknown error'}. Please try again.`);

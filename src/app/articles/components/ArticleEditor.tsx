@@ -171,17 +171,17 @@ export default function ArticleEditor({
     // Skip content validation if we already have content in the editor
     // This prevents the browser dialog from showing up when clicking Create Article
     // when there's already content in the markdown editor
-    
+
     // We need to preserve all metadata, especially the AI context
     // The metadata is handled by the parent component (create/page.tsx)
     // which will add the AI context, sections, etc.
     // Here we just need to make sure we pass the suggested titles
-    
+
     // Create metadata object with suggested titles
-    const meta = ArticleMeta.normalizeMetadata({
+    const meta = {
       suggested_titles: suggestedTitles
-    });
-    
+    };
+
     // Call the onSave callback with the form data including metadata
     await onSave({
       title,

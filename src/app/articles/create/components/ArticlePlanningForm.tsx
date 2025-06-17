@@ -58,7 +58,6 @@ const ArticlePlanningForm = forwardRef<ArticlePlanningFormRef, ArticlePlanningFo
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     resetGeneratingState: () => {
-      console.log('Resetting generating state from parent');
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
@@ -303,8 +302,6 @@ const ArticlePlanningForm = forwardRef<ArticlePlanningFormRef, ArticlePlanningFo
       intent: selectedIntents.map(intent => getFullLabel(intentOptions, intent)).join(', '),
       targetAudience: selectedAudiences.map(audience => getFullLabel(audienceOptions, audience)).join(', ')
     };
-    
-    console.log('Sending article generation data with full labels:', finalData);
     
     // Only complete when on the final step and Generate Article button is clicked
     // This prevents automatic transition to the summary page
