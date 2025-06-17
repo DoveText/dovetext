@@ -16,6 +16,9 @@ interface AlertDialogProps {
   title: string;
   message: string;
   confirmLabel?: string;
+  isConfirmation?: boolean;
+  onConfirm?: () => void;
+  cancelLabel?: string;
 }
 
 export function AlertDialog({
@@ -23,7 +26,10 @@ export function AlertDialog({
   onClose,
   title,
   message,
-  confirmLabel = 'OK'
+  confirmLabel = 'OK',
+  isConfirmation = false,
+  onConfirm,
+  cancelLabel = 'Cancel'
 }: AlertDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
@@ -34,10 +40,27 @@ export function AlertDialog({
         <div className="py-4">
           <p className="text-gray-700">{message}</p>
         </div>
-        <DialogFooter>
-          <Button onClick={onClose} className="w-full sm:w-auto">
-            {confirmLabel}
-          </Button>
+        <DialogFooter className="flex justify-end space-x-2">
+          {isConfirmation ? (
+            <>
+              <Button onClick={onClose} variant="outline" className="w-full sm:w-auto">
+                {cancelLabel}
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (onConfirm) onConfirm();
+                  onClose();
+                }} 
+                className="w-full sm:w-auto"
+              >
+                {confirmLabel}
+              </Button>
+            </>
+          ) : (
+            <Button onClick={onClose} className="w-full sm:w-auto">
+              {confirmLabel}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

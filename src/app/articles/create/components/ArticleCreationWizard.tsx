@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { AlertDialog } from '../../../../components/common/AlertDialog';
 import { useRouter } from 'next/navigation';
 import ArticlePlanningForm, { ArticlePlanningData } from './ArticlePlanningForm';
 import AIArticleSuggestions, { AIGeneratedArticle } from './AIArticleSuggestions';
@@ -181,11 +182,20 @@ export default function ArticleCreationWizard({ onCancel }: ArticleCreationWizar
     }
   };
 
+  // Alert dialog state
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertTitle, setAlertTitle] = useState('Error');
+  const [isConfirmDialog, setIsConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+
   // Handle cancellation
   const handleCancelArticle = () => {
-    if (confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) {
-      onCancel();
-    }
+    setAlertTitle('Confirm Cancellation');
+    setAlertMessage('Are you sure you want to cancel? Any unsaved changes will be lost.');
+    setIsConfirmDialog(true);
+    setConfirmAction(() => () => onCancel());
+    setAlertDialogOpen(true);
   };
 
   // Render the current step
@@ -232,6 +242,18 @@ export default function ArticleCreationWizard({ onCancel }: ArticleCreationWizar
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      {/* Custom Alert Dialog */}
+      <AlertDialog 
+        isOpen={alertDialogOpen}
+        onClose={() => setAlertDialogOpen(false)}
+        title={alertTitle}
+        message={alertMessage}
+        isConfirmation={isConfirmDialog}
+        onConfirm={confirmAction}
+        confirmLabel={isConfirmDialog ? 'Yes' : 'OK'}
+        cancelLabel="No"
+      />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {renderCurrentStep()}
       </div>

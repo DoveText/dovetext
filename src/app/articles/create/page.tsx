@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { AlertDialog } from '../../../components/common/AlertDialog';
 import { useRouter } from 'next/navigation';
 import { documentsApi } from '@/app/api/documents';
 import { useAuth } from '@/context/AuthContext';
@@ -14,7 +15,14 @@ export default function CreateArticlePage() {
   const router = useRouter();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isWizardOpen, setIsWizardOpen] = useState(true);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  
+  // Alert dialog state
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertTitle, setAlertTitle] = useState('Error');
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+  const [isConfirmDialog, setIsConfirmDialog] = useState(false);
   const [generatedArticle, setGeneratedArticle] = useState<AIGeneratedArticle | null>(null);
   
   // State to store wizard form data
@@ -122,16 +130,20 @@ export default function CreateArticlePage() {
       
     } catch (error: any) {
       console.error('Error creating article:', error);
-      alert(`Failed to create article: ${error.message || 'Unknown error'}. Please try again.`);
+      setAlertTitle('Error Creating Article');
+      setAlertMessage(`Failed to create article: ${error.message || 'Unknown error'}. Please try again.`);
+      setAlertDialogOpen(true);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleCancel = () => {
-    if (confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) {
-      router.push('/articles');
-    }
+    setAlertTitle('Confirm Cancellation');
+    setAlertMessage('Are you sure you want to cancel? Any unsaved changes will be lost.');
+    setIsConfirmDialog(true);
+    setConfirmAction(() => () => router.push('/articles'));
+    setAlertDialogOpen(true);
   };
 
   // Save form data and close wizard when user explicitly closes it
@@ -178,7 +190,28 @@ export default function CreateArticlePage() {
     setWizardFormData(formData);
   };
 
-  // Ensure we have a valid array of titles to pass to ArticleEditor
+  // Prevent the browser's beforeunload event from showing a confirmation dialog
+  useEffect(() => {
+    // This function prevents the browser from showing the default confirmation dialog
+    const preventBeforeUnloadDialog = (e: BeforeUnloadEvent) => {
+      // This prevents the dialog from showing up
+      e.preventDefault();
+      // Chrome requires returnValue to be set
+      e.returnValue = '';
+      // Return undefined to prevent the dialog
+      return undefined;
+    };
+    
+    // Add the event listener
+    window.addEventListener('beforeunload', preventBeforeUnloadDialog);
+    
+    // Clean up the event listener when the component unmounts
+    return () => {
+      window.removeEventListener('beforeunload', preventBeforeUnloadDialog);
+    };
+  }, []);
+
+  // Prepare suggested titles to pass to ArticleEditor
   const suggestedTitlesToPass = generatedArticle?.titles && Array.isArray(generatedArticle.titles) 
     ? [...generatedArticle.titles] 
     : [];
@@ -188,6 +221,18 @@ export default function CreateArticlePage() {
 
   return (
     <ProtectedRoute>
+      {/* Custom Alert Dialog */}
+      <AlertDialog 
+        isOpen={alertDialogOpen}
+        onClose={() => setAlertDialogOpen(false)}
+        title={alertTitle}
+        message={alertMessage}
+        isConfirmation={isConfirmDialog}
+        onConfirm={confirmAction}
+        confirmLabel={isConfirmDialog ? 'Yes' : 'OK'}
+        cancelLabel="No"
+      />
+      
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <ArticleEditor 

@@ -182,7 +182,12 @@ export default function ArticleEditor({
     // This prevents the browser dialog from showing up when clicking Create Article
     // when there's already content in the markdown editor
     
-    // Prepare metadata for saving
+    // We need to preserve all metadata, especially the AI context
+    // The metadata is handled by the parent component (create/page.tsx)
+    // which will add the AI context, sections, etc.
+    // Here we just need to make sure we pass the suggested titles
+    
+    // Create metadata object with suggested titles
     const meta = ArticleMeta.normalizeMetadata({
       suggested_titles: suggestedTitles
     });
@@ -199,12 +204,6 @@ export default function ArticleEditor({
       meta
     });
   };
-
-  const handleContentChange = useCallback(async (content : string) => {
-    setContent(content);
-
-    // TODO: how to save to backend ...
-  }, [setContent])
 
   // Handle title generation request
   const handleGenerateTitles = useCallback(async (prompt: string): Promise<string[]> => {
@@ -425,7 +424,7 @@ export default function ArticleEditor({
             <MarkdownEditor
                 key={initialContent} /* Force re-render when initialContent changes */
                 initialContent={initialContent || content}
-                onChange={handleContentChange}
+                onChange={setContent}
                 placeholder="Write your article content here..."
                 format="markdown"
             />
