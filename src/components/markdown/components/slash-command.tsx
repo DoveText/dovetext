@@ -179,7 +179,7 @@ const baseItems: SuggestionItem[] = [
     title: "Quote",
     description: "Add a quote or citation",
     searchTerms: ["quote", "blockquote"],
-    icon: <span className="flex h-6 w-6 items-center justify-center">"</span>,
+    icon: <span className="flex h-6 w-6 items-center justify-center">&#34;</span>,
     command: ({ editor, range }: CommandItemProps) => {
       editor.chain().focus().deleteRange(range).toggleBlockquote().run();
     },
@@ -226,15 +226,6 @@ const getFilteredSuggestionItems = (editor: Editor | null) => {
     return createSuggestionItems(nonAiCommands);
   }
   
-  // Log which commands are available for debugging
-  console.log('------- Slash Command Menu Status -------');
-  baseItems.forEach(item => {
-    if (isAICommand(item.title)) {
-      console.log(`${item.title}: ${isAICommandEnabled(item.title, editor) ? 'Enabled' : 'Disabled'}`);
-    }
-  });
-  console.log('---------------------------------------');
-  
   // Filter out disabled AI commands
   const filteredItems = baseItems.filter(item => {
     // Only filter AI commands, always show formatting commands
@@ -250,83 +241,45 @@ const getFilteredSuggestionItems = (editor: Editor | null) => {
 // Export the isAICommandEnabled function from command-registry for use in other components
 export { isAICommandEnabled } from '../utils/command-registry';
 
-// Create a custom render function with logging
-const customRenderItems = (props: any) => {
-  console.log('Rendering slash command menu with props:', props);
-  
-  // Extract the selectItem function from props
-  const { selectItem } = props;
-  
-  // Create a wrapped version of selectItem that logs
-  const wrappedSelectItem = (item: any) => {
-    console.log('Item selected:', item);
-    // Call the original selectItem
-    selectItem(item);
-  };
-  
-  // Create modified props with our wrapped selectItem
-  const modifiedProps = {
-    ...props,
-    selectItem: wrappedSelectItem,
-    // Add a keydown handler to the list
-    onKeyDown: (event: KeyboardEvent) => {
-      console.log('Key pressed in menu:', event.key);
-      if (event.key === 'Enter' && props.items && props.items.length > 0) {
-        console.log('Enter pressed with items available');
-        // If there's a selected item, execute its command
-        if (props.selectedIndex !== undefined && props.selectedIndex >= 0) {
-          const selectedItem = props.items[props.selectedIndex];
-          console.log('Selected item:', selectedItem);
-          if (selectedItem && selectedItem.command) {
-            console.log('Executing command for:', selectedItem.title);
-            event.preventDefault();
-            event.stopPropagation();
-            selectedItem.command({
-              editor: props.editor,
-              range: props.range
-            });
-            props.command(selectedItem);
-            return true;
-          }
-        }
-      }
-      // Let the original handler deal with it
-      if (props.onKeyDown) {
-        return props.onKeyDown(event);
-      }
-      return false;
-    }
-  };
-  
-  // Call the original renderItems with our modified props
-  return renderItems(modifiedProps);
-};
+// Define types for the suggestion props
+interface SuggestionProps {
+  editor: Editor;
+  range: any;
+  command: (props: any) => void;
+  items: any[];
+  event?: KeyboardEvent;
+  selectedIndex?: number;
+}
+
+// We'll use the default renderItems function directly
+// This is the approach used in the working Novel test app
 
 // Create the slash command extension with context-aware filtering
 export const slashCommand = Command.configure({
   suggestion: {
-    items: ({ editor }: { editor: Editor }) => {
-      console.log('Slash command items requested');
-      return getFilteredSuggestionItems(editor);
-    },
-    render: customRenderItems,
-    // This is the handler that's called when a command is selected
-    command: ({ editor, range, props }: { editor: Editor, range: any, props: any }) => {
-      console.log('Command handler called with props:', props);
-      // The command function is called when an item is selected
-      if (props && props.command) {
+    // Get filtered items based on editor state
+    items: ({ editor }: { editor: Editor }) => getFilteredSuggestionItems(editor),
+    
+    // Use the default renderItems function directly
+    // This is the approach used in the working Novel test app
+    render: renderItems,
+    
+    // The command handler is the key part that executes when Enter is pressed
+    command: ({ editor, range, props }: { editor: Editor; range: any; props: any }) => {
+      console.log('Command execution triggered for:', props?.title);
+      
+      // Execute the command if it exists
+      if (props?.command) {
         try {
-          console.log('Executing command for:', props.title);
+          // This is where the actual command function from the item is called
           props.command({ editor, range });
-          console.log('Command executed successfully');
-          return true;
+          console.log('Command executed successfully:', props.title);
         } catch (error) {
           console.error('Error executing command:', error);
-          return false;
         }
       }
-      console.log('No command found in props');
-      return false;
-    }
+      
+      return true; // We handled the command
+    },
   },
 });

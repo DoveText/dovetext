@@ -42,13 +42,6 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
       : editor.isActive('paragraph') 
         ? 'paragraph' 
         : 'other';
-    
-    console.log('------- Fixed Toolbar Status -------');
-    console.log(`Current node type: ${currentNodeType}`);
-    console.log(`Generate button: ${generateDisabled ? 'Disabled' : 'Enabled'}`);
-    console.log(`Refine button: ${refineDisabled ? 'Disabled' : 'Enabled'}`);
-    console.log(`Summarize button: ${summarizeDisabled ? 'Disabled' : 'Enabled'}`);
-    console.log('----------------------------------');
   }
   return (
     <div className="sticky top-0 z-20 w-full bg-white border-b border-gray-200 shadow-sm">
@@ -59,7 +52,6 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
             icon={<span>⚡</span>} 
             isActive={false} 
             onClick={() => {
-              console.log(`Clicked Generate button, disabled: ${generateDisabled}`);
               if (!generateDisabled) onAICommand('generate');
             }}
             disabled={generateDisabled}
@@ -69,7 +61,6 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
             icon={<span>✨</span>} 
             isActive={false} 
             onClick={() => {
-              console.log(`Clicked Refine button, disabled: ${refineDisabled}`);
               if (!refineDisabled) onAICommand('refine');
             }}
             disabled={refineDisabled}
@@ -79,7 +70,6 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
             icon={<span>⭐</span>} 
             isActive={false} 
             onClick={() => {
-              console.log(`Clicked Summarize button, disabled: ${summarizeDisabled}`);
               if (!summarizeDisabled) onAICommand('summarize');
             }}
             disabled={summarizeDisabled}

@@ -29,8 +29,6 @@ interface MenuItemProps {
 const AIMenu = ({ editor, onGenerateContent, onRefineContent, onSummarizeContent }: AIMenuProps) => {
   // Helper function to create menu items with tooltips
   const createMenuItem = ({ icon, tooltip, onClick, disabled = false }: MenuItemProps) => {
-    console.log(`AI Menu Button: ${tooltip} - ${disabled ? 'Disabled' : 'Enabled'}`);
-    
     return (
       <Tooltip
         title={disabled ? `${tooltip} (Not available here)` : tooltip}
@@ -110,14 +108,6 @@ const AIMenu = ({ editor, onGenerateContent, onRefineContent, onSummarizeContent
   const hasSelection = from !== to;
   const selectionSize = editor.state.selection.content().size;
   
-  // Log current editor state
-  console.log('------- AI Menu Status -------');
-  console.log(`Current node type: ${currentNodeType}`);
-  console.log(`Has selection: ${hasSelection}, Selection size: ${selectionSize}`);
-  console.log(`Is paragraph: ${isParagraph(editor)}, Is empty: ${isParagraphEmpty(editor)}`);
-  console.log(`Is heading: ${isHeading(editor)}`);
-  console.log(`Selection contains heading: ${selectionContainsHeading(editor)}`);
-  
   // Generate: Enabled only on paragraph lines, disabled on title lines
   const generateDisabled = isHeading(editor);
   
@@ -130,11 +120,6 @@ const AIMenu = ({ editor, onGenerateContent, onRefineContent, onSummarizeContent
   
   // Summarize: Enabled only on title lines
   const summarizeDisabled = !isHeading(editor);
-  
-  console.log(`Generate button: ${generateDisabled ? 'Disabled' : 'Enabled'}`);
-  console.log(`Refine button: ${refineDisabled ? 'Disabled' : 'Enabled'}`);
-  console.log(`Summarize button: ${summarizeDisabled ? 'Disabled' : 'Enabled'}`);
-  console.log('-----------------------------');
   
   // Define all possible menu items
   const menuItems = [

@@ -283,6 +283,7 @@ export function MarkdownEditor({
                   key={item.title}
                   value={item.title}
                   onCommand={(val) => {
+                    console.log('processing command', val)
                     if (item.command) {
                       item.command(val);
                     }
