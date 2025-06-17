@@ -136,28 +136,48 @@ const AIMenu = ({ editor, onGenerateContent, onRefineContent, onSummarizeContent
   console.log(`Summarize button: ${summarizeDisabled ? 'Disabled' : 'Enabled'}`);
   console.log('-----------------------------');
   
+  // Define all possible menu items
+  const menuItems = [
+    {
+      icon: '⚡',
+      tooltip: 'Generate Content',
+      onClick: onGenerateContent,
+      disabled: generateDisabled
+    },
+    {
+      icon: '✨',
+      tooltip: 'Refine Content',
+      onClick: onRefineContent,
+      disabled: refineDisabled
+    },
+    {
+      icon: '⭐',
+      tooltip: 'Summarize Content',
+      onClick: onSummarizeContent,
+      disabled: summarizeDisabled
+    }
+  ];
+  
+  // Filter out disabled items
+  const enabledMenuItems = menuItems.filter(item => !item.disabled);
+  
+  // If no items are enabled, return an empty div to maintain layout
+  if (enabledMenuItems.length === 0) {
+    return <div className="flex flex-nowrap min-w-fit whitespace-nowrap pt-1 pl-1"></div>;
+  }
+  
   return (
     <div className="flex flex-nowrap min-w-fit whitespace-nowrap pt-1 pl-1">
-      {createMenuItem({
-        icon: '⚡',
-        tooltip: 'Generate Content',
-        onClick: onGenerateContent,
-        disabled: generateDisabled
-      })}
-      
-      {createMenuItem({
-        icon: '✨',
-        tooltip: 'Refine Content',
-        onClick: onRefineContent,
-        disabled: refineDisabled
-      })}
-      
-      {createMenuItem({
-        icon: '⭐',
-        tooltip: 'Summarize Content',
-        onClick: onSummarizeContent,
-        disabled: summarizeDisabled
-      })}
+      {enabledMenuItems.map((item, index) => (
+        <React.Fragment key={item.tooltip}>
+          {createMenuItem({
+            icon: item.icon,
+            tooltip: item.tooltip,
+            onClick: item.onClick,
+            disabled: false // All items are enabled at this point
+          })}
+        </React.Fragment>
+      ))}
     </div>
   );
 };

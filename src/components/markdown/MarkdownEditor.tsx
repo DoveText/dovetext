@@ -13,7 +13,7 @@ import {
   EditorInstance
 } from 'novel';
 import { defaultExtensions } from './extensions';
-import { slashCommand, suggestionItems } from './components/slash-command';
+import { slashCommand, suggestionItems, isAICommandEnabled } from './components/slash-command';
 import { JSONContent } from '@tiptap/react';
 import { useDebouncedCallback } from 'use-debounce';
 
@@ -270,7 +270,15 @@ export function MarkdownEditor({
               No results
             </EditorCommandEmpty>
             <EditorCommandList>
-              {suggestionItems.map((item) => (
+              {suggestionItems
+                .filter(item => {
+                  // Filter out disabled AI commands
+                  if (["Generate Content", "Refine Content", "Summarize Content", "Create Outline"].includes(item.title)) {
+                    return isAICommandEnabled(item.title, editorInstance);
+                  }
+                  return true;
+                })
+                .map((item) => (
                 <EditorCommandItem
                   key={item.title}
                   value={item.title}

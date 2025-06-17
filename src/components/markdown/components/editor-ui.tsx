@@ -1,5 +1,5 @@
 import React from 'react';
-import { Editor } from 'novel';
+import { EditorInstance as Editor } from 'novel';
 import {
   EditorBubble,
   EditorCommand,
@@ -13,7 +13,7 @@ import { TextButtons } from './text-buttons';
 import { LinkSelector } from './link-selector';
 import { Separator } from './separator';
 import AIMenu from './ai-menu';
-import { suggestionItems } from './slash-command';
+import { suggestionItems, isAICommandEnabled } from './slash-command';
 
 interface EditorUIProps {
   editor: Editor | null;
@@ -49,7 +49,15 @@ export function EditorUI({
           No results
         </EditorCommandEmpty>
         <EditorCommandList>
-          {suggestionItems.map((item) => (
+          {suggestionItems
+            .filter(item => {
+              // Filter out disabled AI commands
+              if (["Generate Content", "Refine Content", "Summarize Content", "Create Outline"].includes(item.title)) {
+                return isAICommandEnabled(item.title, editor);
+              }
+              return true;
+            })
+            .map((item) => (
             <EditorCommandItem
               key={item.title}
               value={item.title}
