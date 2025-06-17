@@ -57,15 +57,10 @@ export default function ArticleEditor({
   const [alertMessage, setAlertMessage] = useState('');
   const [alertTitle, setAlertTitle] = useState('Attention Required');
   
-  // Log the initialTitle prop for debugging
-  console.log('ArticleEditor - Received initialTitle:', initialTitle);
   const [content, setContent] = useState(initialContent);
   const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(initialCategory);
   const [tags, setTags] = useState<string[]>(initialTags);
-  
-  // Log the initialSuggestedTitles prop
-  console.log('ArticleEditor - Received initialSuggestedTitles:', initialSuggestedTitles);
   
   // Initialize with a deep copy to avoid reference issues
   const [suggestedTitles, setSuggestedTitles] = useState<string[]>(
@@ -78,28 +73,20 @@ export default function ArticleEditor({
 
   // Update suggestedTitles when initialSuggestedTitles prop changes
   useEffect(() => {
-    console.log('ArticleEditor - initialSuggestedTitles changed:', initialSuggestedTitles);
     // Always update the state when the prop changes, even if empty
     if (Array.isArray(initialSuggestedTitles)) {
-      console.log('Setting suggestedTitles with array of length:', initialSuggestedTitles.length);
       setSuggestedTitles([...initialSuggestedTitles]);
     } else {
-      console.log('Setting suggestedTitles with empty array');
       setSuggestedTitles([]);
     }
   }, [initialSuggestedTitles]);
   
   // Update title when initialTitle prop changes
   useEffect(() => {
-    console.log('ArticleEditor - initialTitle changed:', initialTitle);
     if (initialTitle && initialTitle.trim() !== '') {
-      console.log('Setting title state to:', initialTitle);
       setTitle(initialTitle);
     }
   }, [initialTitle]);
-  
-  // Log the initialized suggestedTitles state
-  console.log('ArticleEditor - Initialized suggestedTitles state:', suggestedTitles);
   
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
@@ -136,7 +123,6 @@ export default function ArticleEditor({
           // Extract and set suggested titles using ArticleMeta
           const extractedTitles = ArticleMeta.getSuggestedTitles(document.meta);
           if (extractedTitles.length > 0) {
-            console.log('Found suggested titles in document meta:', extractedTitles);
             setSuggestedTitles(extractedTitles);
           }
         } catch (error) {
@@ -195,8 +181,6 @@ export default function ArticleEditor({
     const meta = ArticleMeta.normalizeMetadata({
       suggested_titles: suggestedTitles
     });
-    
-    console.log('Saving article with suggested titles:', suggestedTitles);
     
     // Call the onSave callback with the form data including metadata
     await onSave({
@@ -300,8 +284,6 @@ export default function ArticleEditor({
     );
   }
   
-  console.log('Render with initial titles and initial content - ' + initialContent?.length, suggestedTitles, content ? content : '<no content>');
-
   return (
     <div className="space-y-8">
       {/* Custom Alert Dialog */}
@@ -413,7 +395,6 @@ export default function ArticleEditor({
           onAddSuggestedTitle={(newTitle) => {
             if (!suggestedTitles.includes(newTitle)) {
               const updatedTitles = [...suggestedTitles, newTitle];
-              console.log('Adding new suggested title:', newTitle, 'Updated list:', updatedTitles);
               setSuggestedTitles(updatedTitles);
             }
           }}
