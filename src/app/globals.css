@@ -64,6 +64,10 @@
   margin-bottom: 1em;
 }
 
+.novel-editor-wrapper .ProseMirror p {
+  margin-bottom: 1em;
+}
+
 .novel-editor-wrapper .ProseMirror ul,
 .novel-editor-wrapper .ProseMirror ol {
   padding-left: 2rem;

@@ -62,19 +62,21 @@ export const hasMultiNodeSelection = (editor: Editor | null): boolean => {
 export const selectionContainsHeading = (editor: Editor | null): boolean => {
   if (!editor) return false;
   
-  const { from, to } = editor.state.selection;
-  if (from === to) return false;
-  
-  let containsHeading = false;
-  editor.state.doc.nodesBetween(from, to, (node: any) => {
+  const { selection } = editor.state;
+  if (selection.empty) {
+    return false;
+  }
+
+  let headingFound = false;
+  editor.state.doc.nodesBetween(selection.from, selection.to, (node) => {
     if (node.type.name === 'heading') {
-      containsHeading = true;
-      return false; // Stop traversal
+      headingFound = true;
+      // We can stop iterating once we've found a heading
+      return false;
     }
-    return true; // Continue traversal
   });
-  
-  return containsHeading;
+
+  return headingFound;
 };
 
 /**

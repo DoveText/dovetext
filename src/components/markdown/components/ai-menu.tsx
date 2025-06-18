@@ -46,7 +46,6 @@ const AIMenu = ({ editor, onGenerateContent, onRefineContent, onSummarizeContent
             : 'text-stone-600 hover:bg-stone-100 hover:text-stone-500'} flex-shrink-0`}
           onClick={(e) => {
             if (disabled) {
-              console.log(`Clicked disabled button: ${tooltip}`);
               return;
             }
             e.preventDefault();
@@ -63,106 +62,36 @@ const AIMenu = ({ editor, onGenerateContent, onRefineContent, onSummarizeContent
       </Tooltip>
     );
   };
-  
-  // Using shared editor state utility functions from utils/editor-state.ts
 
-  // If editor is null, disable all buttons
   if (!editor) {
-    return (
-      <div className="flex flex-nowrap min-w-fit whitespace-nowrap pt-1 pl-1">
-        {createMenuItem({
-          icon: '⚡',
-          tooltip: 'Generate Content',
-          onClick: onGenerateContent,
-          disabled: true
-        })}
-        
-        {createMenuItem({
-          icon: '✨',
-          tooltip: 'Refine Content',
-          onClick: onRefineContent,
-          disabled: true
-        })}
-        
-        {createMenuItem({
-          icon: '⭐',
-          tooltip: 'Summarize Content',
-          onClick: onSummarizeContent,
-          disabled: true
-        })}
-      </div>
-    );
+    return null;
   }
-  
-  // Get current node type for logging
-  const currentNodeType = editor.isActive('heading') 
-    ? `heading-${editor.isActive('heading', { level: 1 }) ? '1' : 
-        editor.isActive('heading', { level: 2 }) ? '2' : 
-        editor.isActive('heading', { level: 3 }) ? '3' : 'other'}`
-    : editor.isActive('paragraph') 
-      ? 'paragraph' 
-      : 'other';
-  
-  // Get selection info for logging
-  const { from, to } = editor.state.selection;
-  const hasSelection = from !== to;
-  const selectionSize = editor.state.selection.content().size;
-  
-  // Generate: Enabled only on paragraph lines, disabled on title lines
-  const generateDisabled = isHeading(editor);
-  
-  // Refine: Enabled on paragraphs (not empty) or when text is selected across paragraphs (not titles)
-  const refineDisabled = (
-    (isParagraph(editor) && isParagraphEmpty(editor)) || // Disabled on empty paragraphs
-    (!isParagraph(editor) && !editor.state.selection.content().size) || // Disabled on non-paragraphs with no selection
-    selectionContainsHeading(editor) // Disabled if selection contains headings
-  );
-  
-  // Summarize: Enabled only on title lines
-  const summarizeDisabled = !isHeading(editor);
-  
-  // Define all possible menu items
-  const menuItems = [
-    {
-      icon: '⚡',
-      tooltip: 'Generate Content',
-      onClick: onGenerateContent,
-      disabled: generateDisabled
-    },
-    {
-      icon: '✨',
-      tooltip: 'Refine Content',
-      onClick: onRefineContent,
-      disabled: refineDisabled
-    },
-    {
-      icon: '⭐',
-      tooltip: 'Summarize Content',
-      onClick: onSummarizeContent,
-      disabled: summarizeDisabled
-    }
-  ];
-  
-  // Filter out disabled items
-  const enabledMenuItems = menuItems.filter(item => !item.disabled);
-  
-  // If no items are enabled, return an empty div to maintain layout
-  if (enabledMenuItems.length === 0) {
-    return <div className="flex flex-nowrap min-w-fit whitespace-nowrap pt-1 pl-1"></div>;
-  }
-  
+
+  const hasValidSelection = hasSelection(editor);
+  const inHeading = selectionContainsHeading(editor);
+
   return (
     <div className="flex flex-nowrap min-w-fit whitespace-nowrap pt-1 pl-1">
-      {enabledMenuItems.map((item, index) => (
-        <React.Fragment key={item.tooltip}>
-          {createMenuItem({
-            icon: item.icon,
-            tooltip: item.tooltip,
-            onClick: item.onClick,
-            disabled: false // All items are enabled at this point
-          })}
-        </React.Fragment>
-      ))}
+      {!inHeading && createMenuItem({
+        icon: '⚡',
+        tooltip: 'Generate Content',
+        onClick: onGenerateContent,
+        disabled: !isParagraph(editor) || isParagraphEmpty(editor),
+      })}
+
+      {!inHeading && createMenuItem({
+        icon: '✨',
+        tooltip: 'Refine Content',
+        onClick: onRefineContent,
+        disabled: !hasValidSelection,
+      })}
+
+      {inHeading && createMenuItem({
+        icon: '⭐',
+        tooltip: 'Summarize Content',
+        onClick: onSummarizeContent,
+        disabled: !hasValidSelection,
+      })}
     </div>
   );
 };

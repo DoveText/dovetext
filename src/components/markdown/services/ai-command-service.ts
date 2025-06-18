@@ -2,7 +2,7 @@ import { aiApi } from '@/app/admin-tools/api/ai';
 import { marked } from 'marked';
 import { Editor } from '@tiptap/react';
 
-export type AICommandType = 'generate' | 'refine' | 'schema' | null;
+export type AICommandType = 'generate' | 'refine' | 'schema' | 'summarize' | null;
 
 interface AICommandParams {
   prompt?: string;
@@ -29,6 +29,8 @@ export class AICommandService {
         return this.refineContent(params);
       case 'schema':
         return this.createSchema(params);
+      case 'summarize':
+        return this.summarizeContent(params);
       default:
         throw new Error(`Unknown command type: ${commandType}`);
     }
