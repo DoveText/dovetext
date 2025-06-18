@@ -59,7 +59,7 @@ export default function AICommandDialog({
     content: ''
   });
 
-  // Reset form when dialog opens with new command type
+  // Reset form when dialog opens
   React.useEffect(() => {
     if (isOpen) {
       // Reset state
@@ -67,6 +67,7 @@ export default function AICommandDialog({
       setProgress(0);
       setResult(null);
       setError(null);
+      setSelectedTitleIndex(0); // Reset selected title index
       
       // Set default parameters based on command type
       const initialParams = {

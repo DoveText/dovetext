@@ -8,8 +8,9 @@ import { AICommandService } from '../services/ai-command-service';
  */
 export function useAICommandManager(editor: Editor | null) {
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
-  const [aiCommandType, setAiCommandType] = useState<AICommandType>(null);
+  const [aiCommandType, setAiCommandType] = useState<AICommandType | null>(null);
   const [aiCommandLoading, setAiCommandLoading] = useState(false);
+  const [selectionRange, setSelectionRange] = useState<{from: number, to: number} | null>(null);
   const [aiService, setAiService] = useState<AICommandService | null>(null);
 
   // Initialize AI service when editor is ready
@@ -24,8 +25,15 @@ export function useAICommandManager(editor: Editor | null) {
     console.log('🤖 Opening AI command dialog:', type);
     setAiCommandType(type);
     
+    // For all command types, store the current selection for later use
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      console.log(`Storing user's selection from ${from} to ${to}`);
+      setSelectionRange({ from, to });
+    }
+    
     // For summarize, extract content below the heading
-    if (type === 'summarize' && aiService) {
+    if (type === 'summarize' && aiService && editor) {
       try {
         // Get the current heading (position, node, and level)
         const currentHeading = aiService.getCurrentHeading();
@@ -43,7 +51,7 @@ export function useAICommandManager(editor: Editor | null) {
           aiService.setSummarizeContent(contentBelowHeading);
           
           // If we have a heading but no content, we can still use the paragraph text in the editor
-          if (!contentBelowHeading.trim() && editor) {
+          if (!contentBelowHeading.trim()) {
             // Try to get the current paragraph text as a fallback
             const { state } = editor;
             const { selection } = state;
@@ -67,7 +75,7 @@ export function useAICommandManager(editor: Editor | null) {
   /**
    * Handle AI command dialog submission
    */
-  const handleAiCommandSubmit = async (commandType: AICommandType, params: Record<string, any>): Promise<string> => {
+  const handleAiCommandSubmit = async (commandType: AICommandType, params: Record<string, any>): Promise<string | { titles: string[]; reasoning?: string }> => {
     if (!aiService || !editor) {
       return 'Error: Editor not initialized';
     }
@@ -96,8 +104,17 @@ export function useAICommandManager(editor: Editor | null) {
     }
     
     try {
+      // For all command types, restore the user's original selection if available
+      if (selectionRange) {
+        console.log(`Restoring selection from ${selectionRange.from} to ${selectionRange.to}`);
+        editor.commands.setTextSelection({ from: selectionRange.from, to: selectionRange.to });
+      }
+      
       // Apply the result to the editor
       aiService.applyCommandResult(commandType, result);
+      
+      // Reset the selection range
+      setSelectionRange(null);
       
       // Close the dialog
       setAiDialogOpen(false);

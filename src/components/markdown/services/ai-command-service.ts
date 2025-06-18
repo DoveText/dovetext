@@ -238,10 +238,18 @@ export class AICommandService {
   }
 
   replaceSelection(content: string): void {
+    // Log the current selection before replacement
+    const { from, to } = this.editor.state.selection;
+    console.log(`Replacing selection from ${from} to ${to} with content: ${content}`);
+  
+    // Delete the current selection and insert the new content
     this.editor.chain().focus()
       .deleteSelection()
       .insertContent(content)
       .run();
+  
+    // Log after replacement
+    console.log('Selection replaced successfully');
   }
 
   replaceAll(content: string): void {
@@ -567,33 +575,9 @@ export class AICommandService {
    */
   applyCommandResult(commandType: AICommandType, result: string): void {
     if (commandType === 'summarize') {
-      // For summarize, we expect the result to be the selected title text directly
-      // No need to extract from HTML anymore as we're passing the raw title
-      const title = result;
-      
-      // Find the current heading position
-      const currentHeadingInfo = this.getCurrentHeading();
-      if (currentHeadingInfo !== null) {
-        // Get the heading node and its position directly from currentHeadingInfo
-        const { doc } = this.editor.state; // doc might still be needed for other operations or if we revert
-        const headingNode = currentHeadingInfo.node;
-        const headingStart = currentHeadingInfo.pos;
-        const headingEnd = currentHeadingInfo.pos + currentHeadingInfo.node.nodeSize;
-        
-        if (headingNode) {
-          // Replace the heading content with the selected title
-          this.editor.chain().focus()
-            .deleteRange({ from: headingStart + 1, to: headingEnd - 1 }) // +1 and -1 to preserve the heading node itself
-            .insertContentAt(headingStart + 1, title)
-            .run();
-          return;
-        }
-      }
-      
-      // Fallback: If not in a heading or heading not found, just insert at cursor position
-      this.editor.chain().focus()
-        .insertContent(title)
-        .run();
+      // For summarize, simply replace the current selection (which should be the heading text)
+      // with the selected title
+      this.replaceSelection(result);
     } else if (commandType === 'generate' || commandType === 'refine') {
       // For generate and refine, insert the content at cursor position or replace selection
       this.replaceSelection(result);
