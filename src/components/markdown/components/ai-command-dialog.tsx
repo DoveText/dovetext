@@ -20,20 +20,18 @@ const Progress = ({ value, className = '' }: { value: number, className?: string
   );
 };
 
-export type AICommandType = 'generate' | 'refine' | 'summarize' | null;
+export type AICommandType = 'generate' | 'refine' | 'schema' | 'summarize' | null;
 
 interface AICommandDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (commandType: AICommandType, params: Record<string, any>) => Promise<string>;
+  onSubmit: (commandType: AICommandType, params: Record<string, any>) => Promise<string | { titles: string[]; reasoning?: string }>;
   commandType: AICommandType;
   initialContent?: string;
-  // Whether the user has selected text in the editor
   hasSelection?: boolean;
-  // The selected text or text at cursor position
   selectedText?: string;
-  // Optional callback for when the user accepts the result
-  onAccept?: (commandType: AICommandType, result: string) => void;
+  onAccept?: (commandType: AICommandType, content: string) => void;
+  aiService?: any; // Reference to AICommandService
 }
 
 export default function AICommandDialog({ 
@@ -44,22 +42,25 @@ export default function AICommandDialog({
   initialContent = '',
   hasSelection = false,
   selectedText = '',
-  onAccept
+  onAccept,
+  aiService
 }: AICommandDialogProps) {
   // Dialog state
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<string | { titles: string[]; reasoning?: string } | null>(null);
+  const [selectedTitleIndex, setSelectedTitleIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [params, setParams] = useState<Record<string, any>>({
     prompt: '',
     instructions: '',
     topic: '',
     description: '',
+    content: ''
   });
 
   // Reset form when dialog opens with new command type
-  useEffect(() => {
+  React.useEffect(() => {
     if (isOpen) {
       // Reset state
       setLoading(false);
@@ -68,16 +69,31 @@ export default function AICommandDialog({
       setError(null);
       
       // Set default parameters based on command type
-      setParams({
+      const initialParams = {
         prompt: initialContent ? `Generate content about: ${initialContent.substring(0, 100)}` : '',
         instructions: 'Improve clarity and readability',
         topic: initialContent ? initialContent.substring(0, 100) : '',
-        description: 'Create a document outline',
+        description: '',
         // Only store the selected text, not the entire initialContent
-        content: selectedText,
-      });
+        content: selectedText || ''
+      };
+      
+      // For summarize, get the content from AICommandService
+      if (commandType === 'summarize' && aiService) {
+        try {
+          // Get the content from the AICommandService
+          const summarizeContent = aiService.getSummarizeContent();
+          if (summarizeContent) {
+            initialParams.content = summarizeContent;
+          }
+        } catch (error) {
+          console.error('Error getting summarize content:', error);
+        }
+      }
+      
+      setParams(initialParams);
     }
-  }, [isOpen, commandType, initialContent, selectedText]);
+  }, [isOpen, commandType, initialContent, selectedText, aiService]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +137,14 @@ export default function AICommandDialog({
     if (result) {
       // Call the onAccept callback if provided
       if (onAccept && commandType) {
-        onAccept(commandType, result);
+        // For summarize command, extract the selected title
+        if (commandType === 'summarize' && typeof result !== 'string' && result.titles) {
+          const selectedTitle = result.titles[selectedTitleIndex];
+          onAccept(commandType, selectedTitle);
+        } else {
+          // For other command types, pass the result as is
+          onAccept(commandType, typeof result === 'string' ? result : JSON.stringify(result));
+        }
       } else {
         // Just close the dialog if no callback is provided
         onClose();
@@ -226,12 +249,56 @@ export default function AICommandDialog({
         {result ? (
           <div className="p-6 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="result" className="text-base font-medium">Generated Content</Label>
-              <div 
-                id="result"
-                className="p-4 bg-white border border-gray-200 rounded-md text-sm max-h-[400px] overflow-y-auto whitespace-pre-wrap"
-                dangerouslySetInnerHTML={{ __html: result }}
-              />
+              {/* For summarize command, show titles as a selectable list */}
+              {commandType === 'summarize' && typeof result !== 'string' && result.titles ? (
+                <>
+                  <Label htmlFor="result" className="text-base font-medium">Suggested Titles</Label>
+                  <div className="p-4 bg-white border border-gray-200 rounded-md text-sm max-h-[400px] overflow-y-auto">
+                    <div className="space-y-2">
+                      {result.titles.map((title, index) => (
+                        <div 
+                          key={index}
+                          className={`p-3 rounded-md cursor-pointer ${selectedTitleIndex === index ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent'}`}
+                          onClick={() => setSelectedTitleIndex(index)}
+                        >
+                          <div className="flex items-center">
+                            <input
+                              type="radio"
+                              id={`title-${index}`}
+                              name="title-selection"
+                              checked={selectedTitleIndex === index}
+                              onChange={() => setSelectedTitleIndex(index)}
+                              className="mr-2"
+                            />
+                            <label htmlFor={`title-${index}`} className="cursor-pointer flex-1">{title}</label>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {result.reasoning && (
+                      <div className="mt-4 p-3 bg-gray-50 rounded-md text-sm text-gray-600 italic">
+                        <p className="font-medium mb-1">AI Reasoning:</p>
+                        <p>{result.reasoning}</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* For other command types, show the result as before */
+                <>
+                  <Label htmlFor="result" className="text-base font-medium">Generated Content</Label>
+                  <div 
+                    id="result"
+                    className="p-4 bg-white border border-gray-200 rounded-md text-sm max-h-[400px] overflow-y-auto whitespace-pre-wrap"
+                  >
+                    {typeof result === 'string' ? (
+                      <div dangerouslySetInnerHTML={{ __html: result }} />
+                    ) : (
+                      <pre>{JSON.stringify(result, null, 2)}</pre>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
             
             <DialogFooter className="pt-4 border-t border-gray-100 mt-4">
@@ -280,23 +347,28 @@ export default function AICommandDialog({
             {commandType === 'summarize' && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="topic">Document Topic</Label>
-                  <Input
-                    id="topic"
-                    value={params.topic}
-                    onChange={(e) => handleInputChange('topic', e.target.value)}
-                    placeholder="What is your document about?"
-                    required
-                    disabled={loading}
-                  />
+                  <Label htmlFor="content-to-summarize">Content to Summarize</Label>
+                  <div 
+                    id="content-to-summarize"
+                    className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700 max-h-[200px] overflow-y-auto whitespace-pre-wrap"
+                  >
+                    {params.content ? (
+                      <div>{params.content}</div>
+                    ) : (
+                      <div className="text-red-500">
+                        No content available to summarize. Please make sure there is content below your heading.
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">This is the content below your heading that will be used to generate title suggestions.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="description">Additional Details</Label>
+                  <Label htmlFor="description">Your Instructions <span className="text-gray-400">(optional)</span></Label>
                   <Textarea
                     id="description"
                     value={params.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
-                    placeholder="Any specific requirements for the summary?"
+                    placeholder="Any additional requirements you want for the generated titles?"
                     className="min-h-[80px]"
                     disabled={loading}
                   />

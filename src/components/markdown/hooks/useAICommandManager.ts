@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Editor } from 'novel';
+import { EditorInstance as Editor } from 'novel';
 import { AICommandType } from '../components/ai-command-dialog';
 import { AICommandService } from '../services/ai-command-service';
 
@@ -23,6 +23,44 @@ export function useAICommandManager(editor: Editor | null) {
   const openAiCommandDialog = (type: AICommandType) => {
     console.log('🤖 Opening AI command dialog:', type);
     setAiCommandType(type);
+    
+    // For summarize, extract content below the heading
+    if (type === 'summarize' && aiService) {
+      try {
+        // Get the current heading (position, node, and level)
+        const currentHeading = aiService.getCurrentHeading();
+        console.log('Current heading:', currentHeading);
+        
+        if (currentHeading !== null) {
+          // We now have the heading level directly from getCurrentHeading
+          console.log('Heading level:', currentHeading.level);
+          
+          // Extract content below the heading using the node, position, and level
+          const contentBelowHeading = aiService.getContentBelowHeading(currentHeading.node, currentHeading.pos, currentHeading.level);
+          console.log('Content below heading:', contentBelowHeading);
+          
+          // Store it for the dialog
+          aiService.setSummarizeContent(contentBelowHeading);
+          
+          // If we have a heading but no content, we can still use the paragraph text in the editor
+          if (!contentBelowHeading.trim() && editor) {
+            // Try to get the current paragraph text as a fallback
+            const { state } = editor;
+            const { selection } = state;
+            const { $from } = selection;
+            const node = $from.parent;
+            
+            if (node && node.textContent) {
+              console.log('Using paragraph text as fallback:', node.textContent);
+              aiService.setSummarizeContent(node.textContent);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error extracting content for summarize:', error);
+      }
+    }
+    
     setAiDialogOpen(true);
   };
 
@@ -79,6 +117,7 @@ export function useAICommandManager(editor: Editor | null) {
     aiDialogOpen,
     aiCommandType,
     aiCommandLoading,
+    aiService, // Expose the AICommandService instance
     openAiCommandDialog,
     closeAiCommandDialog,
     handleAiCommandSubmit,

@@ -136,12 +136,31 @@ const baseItems: SuggestionItem[] = [
     icon: <span className="flex h-6 w-6 items-center justify-center font-bold">H2</span>,
     command: ({ editor, range }: CommandItemProps) => {
       editor
-        .chain()
-        .focus()
-        .deleteRange(range)
-        .setNode("heading", { level: 2 })
-        .run();
-      
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .setNode("heading", { level: 2 })
+          .run();
+
+      // Set cursor to the empty heading to show the placeholder
+      const { state } = editor;
+      const pos = state.selection.$head.pos;
+      editor.commands.setTextSelection(pos);
+    },
+  },
+  {
+    title: "Heading 3",
+    description: "Small section heading",
+    searchTerms: ["h3", "header", "heading", "medium"],
+    icon: <span className="flex h-6 w-6 items-center justify-center font-bold">H3</span>,
+    command: ({ editor, range }: CommandItemProps) => {
+      editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .setNode("heading", { level: 3 })
+          .run();
+
       // Set cursor to the empty heading to show the placeholder
       const { state } = editor;
       const pos = state.selection.$head.pos;

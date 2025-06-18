@@ -108,6 +108,7 @@ export function MarkdownEditor({
     aiDialogOpen,
     aiCommandType,
     aiCommandLoading,
+    aiService,
     openAiCommandDialog,
     closeAiCommandDialog,
     handleAiCommandSubmit,
@@ -344,6 +345,7 @@ export function MarkdownEditor({
         initialContent={typeof initialContent === 'string' ? initialContent : ''}
         hasSelection={hasSelection}
         selectedText={selectedText}
+        aiService={aiService} // Pass the AICommandService instance
       />
     </div>
   );
