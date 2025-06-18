@@ -25,14 +25,7 @@ export function useAICommandManager(editor: Editor | null) {
     console.log('🤖 Opening AI command dialog:', type);
     setAiCommandType(type);
     
-    // For all command types, store the current selection for later use
-    if (editor) {
-      const { from, to } = editor.state.selection;
-      console.log(`Storing user's selection from ${from} to ${to}`);
-      setSelectionRange({ from, to });
-    }
-    
-    // For summarize, extract content below the heading
+    // For summarize, extract content below the heading and select the heading line if no selection
     if (type === 'summarize' && aiService && editor) {
       try {
         // Get the current heading (position, node, and level)
@@ -42,6 +35,26 @@ export function useAICommandManager(editor: Editor | null) {
         if (currentHeading !== null) {
           // We now have the heading level directly from getCurrentHeading
           console.log('Heading level:', currentHeading.level);
+          
+          // Check if there's an active selection
+          const { from, to } = editor.state.selection;
+          const hasSelection = from !== to;
+          console.log(`Current selection: from ${from} to ${to}, hasSelection: ${hasSelection}`);
+          
+          // always selecting the whole heading line
+          const headingStart = currentHeading.pos;
+            
+          const contentStart = headingStart;
+          const contentEnd = contentStart + currentHeading.node.content.size;
+            
+          // Select the entire heading content
+          editor.commands.setTextSelection({ from: contentStart, to: contentEnd });
+          console.log(`Selected heading content from ${contentStart} to ${contentEnd}`);
+            
+          // Get the updated selection
+          const updatedSelection = editor.state.selection;
+          setSelectionRange({ from: updatedSelection.from, to: updatedSelection.to });
+          console.log(`Stored selection range: ${updatedSelection.from} to ${updatedSelection.to}`);
           
           // Extract content below the heading using the node, position, and level
           const contentBelowHeading = aiService.getContentBelowHeading(currentHeading.node, currentHeading.pos, currentHeading.level);
@@ -127,7 +140,13 @@ export function useAICommandManager(editor: Editor | null) {
    * Close the AI command dialog
    */
   const closeAiCommandDialog = () => {
+    // Just close the dialog without clearing the selection
+    // This allows the user to see what was selected after closing the dialog
     setAiDialogOpen(false);
+    
+    // We intentionally don't reset the selection range here
+    // so that the selection remains visible after closing the dialog
+    console.log('Dialog closed, selection preserved');
   };
 
   return {
