@@ -88,7 +88,7 @@ const AIMenu = ({ editor, onGenerateContent, onRefineContent, onSummarizeContent
 
       {inHeading && createMenuItem({
         icon: '⭐',
-        tooltip: 'Summarize Content',
+        tooltip: 'Summarize Title',
         onClick: onSummarizeContent,
         disabled: !hasValidSelection,
       })}

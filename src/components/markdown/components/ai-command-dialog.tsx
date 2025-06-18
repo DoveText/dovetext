@@ -20,7 +20,7 @@ const Progress = ({ value, className = '' }: { value: number, className?: string
   );
 };
 
-export type AICommandType = 'generate' | 'refine' | 'schema' | 'summarize' | null;
+export type AICommandType = 'generate' | 'refine' | 'schema' | 'summarize-title' | null;
 
 interface AICommandDialogProps {
   isOpen: boolean;
@@ -80,7 +80,7 @@ export default function AICommandDialog({
       };
       
       // For summarize, get the content from AICommandService
-      if (commandType === 'summarize' && aiService) {
+      if (commandType === 'summarize-title' && aiService) {
         try {
           // Get the content from the AICommandService
           const summarizeContent = aiService.getSummarizeContent();
@@ -88,7 +88,7 @@ export default function AICommandDialog({
             initialParams.content = summarizeContent;
           }
         } catch (error) {
-          console.error('Error getting summarize content:', error);
+          console.error('Error getting summarize title:', error);
         }
       }
       
@@ -139,7 +139,7 @@ export default function AICommandDialog({
       // Call the onAccept callback if provided
       if (onAccept && commandType) {
         // For summarize command, extract the selected title
-        if (commandType === 'summarize' && typeof result !== 'string' && result.titles) {
+        if (commandType === 'summarize-title' && typeof result !== 'string' && result.titles) {
           const selectedTitle = result.titles[selectedTitleIndex];
           onAccept(commandType, selectedTitle);
         } else {
@@ -164,7 +164,7 @@ export default function AICommandDialog({
     switch (commandType) {
       case 'generate': return 'Generate Content';
       case 'refine': return 'Refine Content';
-      case 'summarize': return 'Summarize Content';
+      case 'summarize-title': return 'Summarize Title';
       default: return 'AI Command';
     }
   };
@@ -181,8 +181,8 @@ export default function AICommandDialog({
         }
       case 'refine': 
         return 'Refine the selected text to improve clarity and readability.';
-      case 'summarize': 
-        return 'Create a concise summary of the selected content.';
+      case 'summarize-title':
+        return 'Create a title from selected content or paragraphs';
       default: 
         return 'Use AI to enhance your content.';
     }
@@ -206,7 +206,7 @@ export default function AICommandDialog({
     switch (commandType) {
       case 'generate': return 'Generate';
       case 'refine': return 'Refine';
-      case 'summarize': return 'Summarize';
+      case 'summarize-title': return 'Summarize Title';
       default: return 'Submit';
     }
   };
@@ -251,7 +251,7 @@ export default function AICommandDialog({
           <div className="p-6 space-y-4">
             <div className="space-y-2">
               {/* For summarize command, show titles as a selectable list */}
-              {commandType === 'summarize' && typeof result !== 'string' && result.titles ? (
+              {commandType === 'summarize-title' && typeof result !== 'string' && result.titles ? (
                 <>
                   <Label htmlFor="result" className="text-base font-medium">Suggested Titles</Label>
                   <div className="p-4 bg-white border border-gray-200 rounded-md text-sm max-h-[400px] overflow-y-auto">
@@ -345,7 +345,7 @@ export default function AICommandDialog({
               </div>
             )}
 
-            {commandType === 'summarize' && (
+            {commandType === 'summarize-title' && (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="content-to-summarize">Content to Summarize</Label>

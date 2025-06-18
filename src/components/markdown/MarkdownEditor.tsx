@@ -122,36 +122,6 @@ export function MarkdownEditor({
     selectionState,
     restoreSelection
   } = useSelectionManager(editorInstance, aiDialogOpen);
-  
-  // We'll initialize the editor through the EditorContent component
-  
-  // Create a state to track the current cursor position and selection
-  const [cursorPosition, setCursorPosition] = useState<{from: number, to: number} | null>(null);
-  
-  // Update toolbar state when cursor moves
-  useEffect(() => {
-    if (!editorInstance) return;
-    
-    // Function to update cursor position state
-    const updateCursorPosition = () => {
-      const { from, to } = editorInstance.state.selection;
-      setCursorPosition({ from, to });
-    };
-    
-    // Initial update
-    updateCursorPosition();
-    
-    // Add event listener for selection changes
-    const dom = editorInstance.view.dom;
-    dom.addEventListener('click', updateCursorPosition);
-    dom.addEventListener('keyup', updateCursorPosition);
-    
-    return () => {
-      dom.removeEventListener('click', updateCursorPosition);
-      dom.removeEventListener('keyup', updateCursorPosition);
-    };
-  }, [editorInstance]);
-  
   // Listen for custom events from slash commands
   useEffect(() => {
     const handleAiCommandDialogEvent = (event: CustomEvent) => {
@@ -169,49 +139,7 @@ export function MarkdownEditor({
       document.removeEventListener('ai-command-dialog', handleAiCommandDialogEvent as EventListener);
     };
   }, [openAiCommandDialog]);
-  
-  // Debounced save handler
-  const debouncedSave = useDebouncedCallback(
-    ({ editor }) => {
-      // Calculate word count
-      const text = editor.getText();
-      setWordCount(text.split(/\s+/).filter(Boolean).length);
-      
-      // Update save status
-      setSaveStatus('Saving...');
-      setTimeout(() => {
-        setSaveStatus('Saved');
-      }, 500);
-      
-      if (onChange) {
-        const formattedContent = getFormattedContent(editor, format);
-        onChange(formattedContent as string);
-      }
-    },
-    500
-  );
-  
-  // Filter function for image resizing
-  const filter = (node: HTMLElement) => {
-    if (node.nodeName === 'IMG') {
-      return true;
-    }
-    return false;
-  };
-  
-  // Replacement function for image resizing
-  const replacement = (content: string, node: HTMLElement) => {
-    if (node.nodeName === 'IMG') {
-      const width = node.getAttribute('width');
-      const height = node.getAttribute('height');
-      
-      if (width && height) {
-        return `<img src="${node.getAttribute('src')}" width="${width}" height="${height}" />`;
-      }
-    }
-    return content;
-  };
-  
+
   return (
     <div className={`novel-editor-wrapper ${className}`}>
       {/* Editor styles are now in globals.css */}
@@ -260,13 +188,6 @@ export function MarkdownEditor({
               onChange(getFormattedContent(editor, format) as string);
             }
           }}
-          onSelectionUpdate={({ editor }) => {
-            // Update cursor position when selection changes
-            if (editor && editor.state) {
-              const { from, to } = editor.state.selection;
-              setCursorPosition({ from, to });
-            }
-          }}
           slotAfter={<ImageResizer />}
         >
           {/* Slash Command Menu */}
@@ -278,7 +199,7 @@ export function MarkdownEditor({
               {suggestionItems
                 .filter(item => {
                   // Filter out disabled AI commands
-                  if (["Generate Content", "Refine Content", "Summarize Content", "Create Outline"].includes(item.title)) {
+                  if (["Generate Content", "Refine Content", "Summarize Title", "Create Outline"].includes(item.title)) {
                     return isAICommandEnabled(item.title, editorInstance);
                   }
                   return true;
@@ -316,7 +237,7 @@ export function MarkdownEditor({
                 editor={editorInstance!} 
                 onGenerateContent={() => openAiCommandDialog('generate')} 
                 onRefineContent={() => openAiCommandDialog('refine')} 
-                onSummarizeContent={() => openAiCommandDialog('summarize')} 
+                onSummarizeContent={() => openAiCommandDialog('summarize-title')}
               />
               <Separator orientation="vertical" />
               <NodeSelector open={openNode} onOpenChange={setOpenNode} />

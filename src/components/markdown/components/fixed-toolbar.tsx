@@ -5,7 +5,7 @@ import { isHeading, isParagraph, isParagraphEmpty, selectionContainsHeading } fr
 
 interface FixedToolbarProps {
   editor: EditorInstance | null;
-  onAICommand: (type: 'generate' | 'refine' | 'summarize') => void;
+  onAICommand: (type: 'generate' | 'refine' | 'summarize-title') => void;
   saveStatus: string;
   wordCount: number | null;
   showBubbleMenu: boolean;
@@ -70,10 +70,10 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
             icon={<span>⭐</span>} 
             isActive={false} 
             onClick={() => {
-              if (!summarizeDisabled) onAICommand('summarize');
+              if (!summarizeDisabled) onAICommand('summarize-title');
             }}
             disabled={summarizeDisabled}
-            tooltip={`Summarize Content ${summarizeDisabled ? '(Not available here)' : ''}`}
+            tooltip={`Summarize Title ${summarizeDisabled ? '(Not available here)' : ''}`}
           />
 
           <div className="h-4 w-px bg-gray-200 mx-2" />

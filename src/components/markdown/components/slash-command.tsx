@@ -84,9 +84,9 @@ const baseItems: SuggestionItem[] = [
     },
   },
   {
-    title: "Summarize Content",
-    description: "Create a summary of your content",
-    searchTerms: ["summarize", "summary", "tldr"],
+    title: "Summarize Title",
+    description: "Create a title for current paragraph",
+    searchTerms: ["summarize", "summary", "title", "tldr"],
     icon: <span className="flex h-6 w-6 items-center justify-center text-lg">⭐</span>,
     command: ({ editor, range }: CommandItemProps) => {
       // Delete the slash command text
@@ -103,7 +103,7 @@ const baseItems: SuggestionItem[] = [
       // Dispatch a custom event to open the AI command dialog
       const event = new CustomEvent('ai-command-dialog', {
         detail: {
-          commandType: 'summarize',
+          commandType: 'summarize-title',
           initialContent: currentContent
         }
       });

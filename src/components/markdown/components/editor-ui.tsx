@@ -52,7 +52,7 @@ export function EditorUI({
           {suggestionItems
             .filter(item => {
               // Filter out disabled AI commands
-              if (["Generate Content", "Refine Content", "Summarize Content", "Create Outline"].includes(item.title)) {
+              if (["Generate Content", "Refine Content", "Summarize Title", "Create Outline"].includes(item.title)) {
                 return isAICommandEnabled(item.title, editor);
               }
               return true;
@@ -90,7 +90,7 @@ export function EditorUI({
             editor={editor} 
             onGenerateContent={() => onAICommand('generate')} 
             onRefineContent={() => onAICommand('refine')} 
-            onSummarizeContent={() => onAICommand('summarize')} 
+            onSummarizeContent={() => onAICommand('summarize-title')}
           />
           <Separator orientation="vertical" />
           <NodeSelector open={openNode} onOpenChange={setOpenNode} />

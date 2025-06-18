@@ -31,14 +31,10 @@ export const markdownAiApi = {
    * @param params The summarization request parameters
    * @returns AI-generated title suggestions
    */
-  summarizeContent: async (params: SummarizeRequest): Promise<SummarizeResponse> => {
+  summarizeTitle: async (params: SummarizeRequest): Promise<SummarizeResponse> => {
     try {
-      console.log('Making API call to /api/v1/gen/summarize with data:', params);
-      
       // Make API call to the summarize endpoint using apiClient for authentication
-      const response = await apiClient.post('/api/v1/gen/summarize', params);
-      
-      console.log('Summarize API response received:', response.data);
+      const response = await apiClient.post('/api/v1/gen/summarize/title', params);
       
       return response.data;
     } catch (error) {

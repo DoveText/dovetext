@@ -1,10 +1,8 @@
-import React from 'react';
 import { EditorInstance } from 'novel';
 import { defaultExtensions } from '../extensions';
 import { JSONContent } from '@tiptap/react';
 import { parseInitialContent } from '../utils/content-formatter';
 import { slashCommand } from './slash-command';
-import { AnyExtension } from '@tiptap/react';
 
 export interface EditorConfigProps {
   initialContent: string | JSONContent;

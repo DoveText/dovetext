@@ -35,8 +35,8 @@ export class AICommandService {
         return this.refineContent(params);
       case 'schema':
         return this.createSchema(params);
-      case 'summarize':
-        return this.summarizeContent(params);
+      case 'summarize-title':
+        return this.summarizeTitle(params);
       default:
         throw new Error(`Unknown command type: ${commandType}`);
     }
@@ -117,7 +117,7 @@ export class AICommandService {
    * This uses the /api/v1/gen/summarize endpoint to generate title suggestions
    * Uses the stored content from setSummarizeContent or extracts content from the current selection
    */
-  private async summarizeContent(params: AICommandParams = {}): Promise<{ titles: string[]; reasoning?: string }> {
+  private async summarizeTitle(params: AICommandParams = {}): Promise<{ titles: string[]; reasoning?: string }> {
     try {
       // Determine the heading level
       const headingLevel = this.getHeadingLevel();
@@ -140,7 +140,6 @@ export class AICommandService {
         const node = $from.parent;
         
         if (node && node.textContent && node.textContent.trim()) {
-          console.log('Using paragraph text as content:', node.textContent);
           contentToSummarize = node.textContent;
         }
       }
@@ -167,11 +166,9 @@ export class AICommandService {
         if (parentHeadingPos !== null) {
           const parentHeadingNode = doc.nodeAt(parentHeadingPos);
           if (parentHeadingNode && parentHeadingNode.type.name === 'heading') {
-            console.log('Trying to use parent heading content at level', parentHeadingNode.attrs.level);
             const parentContent = this.getContentBelowHeading(parentHeadingNode, parentHeadingPos, parentHeadingNode.attrs.level);
             if (parentContent && parentContent.trim()) {
               contentToSummarize = parentContent;
-              console.log('Using parent heading content:', contentToSummarize.substring(0,100) + '...');
             }
           }
         }
@@ -194,7 +191,7 @@ export class AICommandService {
       const userInstructions = params.description?.trim() || '';
       
       // Call the summarize API using our API client
-      const data = await markdownAiApi.summarizeContent({
+      const data = await markdownAiApi.summarizeTitle({
         text_to_summarize: contentToSummarize,
         parent_heading: parentHeading,
         desired_heading_level: headingLevel,
@@ -240,16 +237,12 @@ export class AICommandService {
   replaceSelection(content: string): void {
     // Log the current selection before replacement
     const { from, to } = this.editor.state.selection;
-    console.log(`Replacing selection from ${from} to ${to} with content: ${content}`);
-  
+
     // Delete the current selection and insert the new content
     this.editor.chain().focus()
       .deleteSelection()
       .insertContent(content)
       .run();
-  
-    // Log after replacement
-    console.log('Selection replaced successfully');
   }
 
   replaceAll(content: string): void {
@@ -292,12 +285,9 @@ export class AICommandService {
       const { $from } = selection;
       const { doc } = this.editor.state;
       
-      console.log('Getting heading level at position:', $from.pos);
-      
       // Check if selection is within a heading
       const node = $from.node();
       if (node.type.name === 'heading') {
-        console.log('Found heading level directly:', node.attrs.level);
         return node.attrs.level || 3;
       }
       
@@ -305,7 +295,6 @@ export class AICommandService {
       for (let depth = $from.depth; depth > 0; depth--) {
         const node = $from.node(depth);
         if (node.type.name === 'heading') {
-          console.log('Found heading level at depth', depth, ':', node.attrs.level);
           return node.attrs.level || 3;
         }
       }
@@ -318,7 +307,6 @@ export class AICommandService {
       while (pos > 0) {
         const resolvedPos = doc.resolve(pos);
         if (resolvedPos.nodeBefore && resolvedPos.nodeBefore.type.name === 'heading') {
-          console.log('Found heading level by looking backward:', resolvedPos.nodeBefore.attrs.level);
           return resolvedPos.nodeBefore.attrs.level || 3;
         }
         
@@ -335,7 +323,6 @@ export class AICommandService {
       while (pos < doc.content.size) {
         const resolvedPos = doc.resolve(pos);
         if (resolvedPos.nodeAfter && resolvedPos.nodeAfter.type.name === 'heading') {
-          console.log('Found heading level by looking forward:', resolvedPos.nodeAfter.attrs.level);
           return resolvedPos.nodeAfter.attrs.level || 3;
         }
         
@@ -349,7 +336,6 @@ export class AICommandService {
       
       // If we're in a section with a red box around it (like in the screenshot),
       // it's likely an H3, so default to that
-      console.log('No heading found, defaulting to level 3');
       return 3;
     } catch (error) {
       console.error('Error getting heading level:', error);
@@ -453,20 +439,16 @@ export class AICommandService {
       const { $from } = selection; // $from is a ResolvedPos
       const { doc } = this.editor.state;
 
-      console.log('Attempting to find heading. Cursor at pos:', $from.pos, 'depth:', $from.depth);
-
       // Iterate from the current resolved position's depth upwards to find an ancestor heading.
       for (let d = $from.depth; d > 0; d--) { // d > 0 because depth 0 is the doc itself
         const ancestorNode: ProseMirrorNode | null = $from.node(d);
         if (ancestorNode && ancestorNode.type.name === 'heading') {
           const headingStartPosition = $from.start(d);
           const headingLevel = ancestorNode.attrs.level || 3;
-          console.log(`Found ancestor heading node '${ancestorNode.textContent.substring(0,30)}...' (type: ${ancestorNode.type.name}, level: ${headingLevel}) at depth ${d}. Starts at: ${headingStartPosition}. Size: ${ancestorNode.nodeSize}`);
           return { pos: headingStartPosition, node: ancestorNode, level: headingLevel };
         }
       }
 
-      console.log('No heading found for position:', $from.pos);
       return null; // Default if no heading is found by any means
     } catch (error) {
       console.error('Error getting current heading position:', error);
@@ -486,13 +468,11 @@ export class AICommandService {
       const doc = this.editor.state.doc;
 
       if (!currentHeadingNode || !currentHeadingNode.type || currentHeadingNode.type.name !== 'heading') {
-        console.log('getContentBelowHeading: Invalid or null heading node provided.');
         return '';
       }
 
       // Ensure currentHeadingPos is non-negative.
       const normalizedHeadingPos = currentHeadingPos < 0 ? 0 : currentHeadingPos;
-      console.log(`getContentBelowHeading: Processing heading '${currentHeadingNode.textContent.substring(0, 30)}...' (level ${currentHeadingNode.attrs.level}) at pos ${normalizedHeadingPos}. Ref level for next: ${referenceHeadingLevel}`);
 
       let contentStart = normalizedHeadingPos + currentHeadingNode.nodeSize;
       let contentEnd = doc.content.size; // Default to end of document
@@ -505,16 +485,13 @@ export class AICommandService {
         if (node.type.name === 'heading' && node.attrs.level <= referenceHeadingLevel) {
           contentEnd = pos; // The new heading starts at 'pos', so content is up to this point
           foundEnd = true;
-          console.log(`Found next heading '${node.textContent.substring(0, 20)}...' (level ${node.attrs.level}) at pos ${pos}, ending current section.`);
+
           return false; // Stop iterating
         }
         return true; // Continue iterating
       });
 
-      console.log('Calculated content range for summarization:', contentStart, 'to', contentEnd);
-
       if (contentStart >= contentEnd) {
-        console.log('Content start is at or after content end. No content to extract.');
         return '';
       }
 
@@ -560,9 +537,7 @@ export class AICommandService {
         // Add other node type conversions as needed (e.g., images, tables)
       });
       
-      console.log('Extracted Markdown:', extractedMarkdown.substring(0, 200) + (extractedMarkdown.length > 200 ? '...' : ''));
       return extractedMarkdown.trim();
-
     } catch (error) {
       console.error('Error in getContentBelowHeading:', error);
       return '';
@@ -574,7 +549,7 @@ export class AICommandService {
    * This is called when the user selects a title from the suggestions
    */
   applyCommandResult(commandType: AICommandType, result: string): void {
-    if (commandType === 'summarize') {
+    if (commandType === 'summarize-title') {
       // For summarize, simply replace the current selection (which should be the heading text)
       // with the selected title
       this.replaceSelection(result);

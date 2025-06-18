@@ -21,7 +21,7 @@ export const COMMAND_METADATA: Record<string, {
   // AI Commands
   "Generate Content": { type: CommandType.AI, description: "Generate content using AI" },
   "Refine Content": { type: CommandType.AI, description: "Refine selected content using AI" },
-  "Summarize Content": { type: CommandType.AI, description: "Summarize content using AI" },
+  "Summarize Title": { type: CommandType.AI, description: "Summarize title using AI" },
   "Create Outline": { type: CommandType.AI, description: "Create an outline from document" }
 };
 
@@ -56,7 +56,7 @@ export const isAICommandEnabled = (commandTitle: string, editor: Editor | null):
         (!isParagraph(editor) && !editor.state.selection.content().size) || 
         selectionContainsHeading(editor)
       );
-    case "Summarize Content":
+    case "Summarize Title":
       return isHeading(editor);
     case "Create Outline":
       return !!editor.getText().trim();
