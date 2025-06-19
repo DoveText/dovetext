@@ -188,20 +188,6 @@ export default function AICommandDialog({
     }
   };
 
-  const getContentLabel = () => {
-    if (commandType === 'generate') {
-      if (hasSelection) {
-        return 'Selected text:';
-      } else if (selectedText.trim() === '') {
-        return 'Paragraph right before:';
-      } else {
-        return 'The paragraph to be expanded:';
-      }
-    } else {
-      return 'Content to process:';
-    }
-  };
-
   const getActionButtonText = () => {
     switch (commandType) {
       case 'generate': return 'Generate';
@@ -210,6 +196,8 @@ export default function AICommandDialog({
       default: return 'Submit';
     }
   };
+
+  console.log("Show dialog with selected text: " + selectedText + ", or content param: " + params.content + ", or initial content: " + initialContent + "."}
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -223,21 +211,6 @@ export default function AICommandDialog({
             {getCommandDescription()}
           </p>
         </div>
-        
-        {/* Common description removed as it's now in the header */}
-        
-        {/* Show selected content or content at cursor position */}
-        {(selectedText || params.content) && (
-          <div className="mb-4">
-            <Label htmlFor="selected-content">{getContentLabel()}</Label>
-            <div 
-              id="selected-content"
-              className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700 max-h-[150px] overflow-y-auto"
-            >
-              {selectedText || params.content || initialContent}
-            </div>
-          </div>
-        )}
         
         {/* Show error message if there was an error */}
         {error && (
@@ -348,7 +321,22 @@ export default function AICommandDialog({
             {commandType === 'summarize-title' && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="content-to-summarize">Content to Summarize</Label>
+                  <Label htmlFor="content-to-process">Selected Heading Line</Label>
+                  <div 
+                    id="content-to-process"
+                    className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700 max-h-[80px] overflow-y-auto whitespace-pre-wrap"
+                  >
+                    {params.content ? (
+                      <div>Introduction</div>
+                    ) : (
+                      <div className="text-red-500">
+                        No heading selected. Please position your cursor on a heading.
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="content-to-summarize">Heading Content Preview</Label>
                   <div 
                     id="content-to-summarize"
                     className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700 max-h-[200px] overflow-y-auto whitespace-pre-wrap"
@@ -364,7 +352,7 @@ export default function AICommandDialog({
                   <p className="text-xs text-gray-500 mt-1">This is the content below your heading that will be used to generate title suggestions.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="description">Your Instructions <span className="text-gray-400">(optional)</span></Label>
+                  <Label htmlFor="description">Additional Requirements for Summarizing <span className="text-gray-400">(optional)</span></Label>
                   <Textarea
                     id="description"
                     value={params.description}
