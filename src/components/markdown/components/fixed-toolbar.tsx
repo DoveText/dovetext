@@ -22,6 +22,28 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
 }) => {
   // Using shared editor state utility functions from utils/editor-state.ts
   
+  // Force component to update on editor state changes
+  const [updateCounter, setUpdateCounter] = React.useState(0);
+  
+  // Add effect to listen for editor state changes
+  React.useEffect(() => {
+    if (!editor) return;
+    
+    const handleUpdate = () => {
+      // Increment counter to force re-render
+      setUpdateCounter(prev => prev + 1);
+    };
+    
+    // Listen for both selection and transaction updates
+    editor.on('selectionUpdate', handleUpdate);
+    editor.on('transaction', handleUpdate);
+    
+    return () => {
+      editor.off('selectionUpdate', handleUpdate);
+      editor.off('transaction', handleUpdate);
+    };
+  }, [editor]);
+  
   // Determine button states based on editor context
   const generateDisabled = !editor || isHeading(editor);
   
@@ -42,6 +64,7 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
       : editor.isActive('paragraph') 
         ? 'paragraph' 
         : 'other';
+    // console.log('Current node type:', currentNodeType, 'Update counter:', updateCounter);
   }
   return (
     <div className="sticky top-0 z-20 w-full bg-white border-b border-gray-200 shadow-sm">

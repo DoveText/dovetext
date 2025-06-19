@@ -20,7 +20,7 @@ export function useSelectionManager(editor: Editor | null, isDialogOpen: boolean
   useEffect(() => {
     if (!editor) return;
 
-    // Store selection state when selection changes
+    // Store selection state when selection changes or cursor position changes
     const handleSelectionUpdate = ({ editor }: { editor: Editor }) => {
       const { from, to } = editor.state.selection;
       const hasCurrentSelection = from !== to;
@@ -31,11 +31,18 @@ export function useSelectionManager(editor: Editor | null, isDialogOpen: boolean
         setHasSelection(true);
         setSelectedText(text);
       } else {
-        // Clear selection state when text is deselected
-        setSelectionState(null);
+        // Even when there's no selection, store the cursor position
+        // This ensures we track cursor movement between different node types
+        setSelectionState({ from, to });
         setHasSelection(false);
         setSelectedText('');
       }
+    };
+    
+    // Also track transaction updates which include cursor movements
+    const handleTransaction = ({ editor }: { editor: Editor }) => {
+      // This will trigger for all editor state changes including cursor movements
+      handleSelectionUpdate({ editor });
     };
 
     // Add document-level click handler to maintain selection when clicking outside editor
@@ -88,11 +95,13 @@ export function useSelectionManager(editor: Editor | null, isDialogOpen: boolean
     
     // Register event listeners
     editor.on('selectionUpdate', handleSelectionUpdate);
+    editor.on('transaction', handleTransaction); // Add transaction listener
     document.addEventListener('click', handleDocumentClick);
     
     // Clean up event listeners
     return () => {
       editor.off('selectionUpdate', handleSelectionUpdate);
+      editor.off('transaction', handleTransaction); // Remove transaction listener
       document.removeEventListener('click', handleDocumentClick);
     };
   }, [editor, selectionState, isDialogOpen]);
