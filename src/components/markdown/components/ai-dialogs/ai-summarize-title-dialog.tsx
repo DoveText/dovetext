@@ -137,7 +137,10 @@ export default function AISummarizeTitleDialog({
                 className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700 max-h-[80px] overflow-y-auto whitespace-pre-wrap"
               >
                 {params.content ? (
-                  <div>Introduction</div>
+                  <div>
+                    {/* Extract the heading from the AIService if available */}
+                    {aiService?.getCurrentHeadingText() || 'Heading'}
+                  </div>
                 ) : (
                   <div className="text-red-500">
                     No heading selected. Please position your cursor on a heading.

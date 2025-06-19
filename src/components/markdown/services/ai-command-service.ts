@@ -457,6 +457,17 @@ export class AICommandService {
   }
 
   /**
+   * Get the text content of the current heading
+   * Returns the text of the heading at the current selection, or null if not in a heading
+   */
+  getCurrentHeadingText(): string {
+    const currentHeading = this.getCurrentHeading();
+    if (!currentHeading) return '';
+    
+    return currentHeading.node.textContent || '';
+  }
+
+  /**
    * Get content below the given heading node until the next heading of the same or lower level.
    * @param currentHeadingNode The ProseMirror node of the heading to get content below.
    * @param currentHeadingPos The start position of the currentHeadingNode.
