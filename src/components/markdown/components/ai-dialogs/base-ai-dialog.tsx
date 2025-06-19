@@ -45,7 +45,10 @@ export default function BaseAIDialog({
 }: BaseAIDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden">
+      <DialogContent 
+        className="sm:max-w-[800px] p-0 overflow-hidden" 
+        hideCloseButton={true} // Hide the default close button since we have our own
+      >
         <DialogHeader className="p-6 pb-2">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-semibold">{title}</DialogTitle>
