@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { EditorInstance } from 'novel';
 import { ToolbarButton } from './toolbar-button';
 import { isHeading, isParagraph, isParagraphEmpty, selectionContainsHeading } from '../utils/editor-state';
@@ -20,6 +20,55 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
   showBubbleMenu,
   onToggleBubbleMenu
 }) => {
+  // Refs and state for sticky toolbar behavior
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<HTMLDivElement>(null);
+  const [isSticky, setIsSticky] = useState(false);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+  
+  // Set up intersection observer to detect when toolbar should become sticky
+  useEffect(() => {
+    if (!toolbarRef.current || !observerRef.current) return;
+    
+    // Get initial measurements
+    const toolbar = toolbarRef.current;
+    setToolbarHeight(toolbar.offsetHeight);
+    
+    // Create intersection observer with rootMargin to trigger slightly before the element is out of view
+    // This helps prevent the flashing effect
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Add a small delay to prevent rapid toggling
+        if (entry.isIntersecting && isSticky) {
+          setTimeout(() => setIsSticky(false), 50);
+        } else if (!entry.isIntersecting && !isSticky) {
+          setTimeout(() => setIsSticky(true), 50);
+        }
+      },
+      { 
+        threshold: 0,
+        rootMargin: '-1px 0px 0px 0px' // Trigger 1px before the element leaves the viewport
+      }
+    );
+    
+    // Observe the sentinel element instead of the toolbar itself
+    observer.observe(observerRef.current);
+    
+    // Handle window resize to recalculate heights
+    const handleResize = () => {
+      if (toolbarRef.current) {
+        setToolbarHeight(toolbarRef.current.offsetHeight);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isSticky]);
+  
   // Using shared editor state utility functions from utils/editor-state.ts
   
   // Force component to update on editor state changes
@@ -67,7 +116,23 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
     // console.log('Current node type:', currentNodeType, 'Update counter:', updateCounter);
   }
   return (
-    <div className="sticky top-0 z-20 w-full bg-white border-b border-gray-200 shadow-sm">
+    <>
+      {/* Observer element to detect when toolbar should become sticky */}
+      <div ref={observerRef} className="absolute top-0 left-0 h-1 w-full opacity-0 pointer-events-none" />
+      
+      {/* Placeholder div to prevent content jump when toolbar becomes fixed */}
+      {isSticky && <div style={{ height: toolbarHeight }} />}
+      
+      {/* Actual toolbar that can be fixed or sticky */}
+      <div 
+        ref={toolbarRef}
+        className={`${isSticky ? 'fixed' : 'relative'} top-0 z-50 bg-white border-b border-gray-200 shadow-sm will-change-transform editor-toolbar`}
+        style={{ 
+          transition: 'transform 150ms ease-in-out',
+          width: isSticky ? 'var(--editor-width, 100%)' : '100%',
+          left: isSticky ? 'var(--editor-left, 0)' : '0',
+          maxWidth: isSticky ? 'var(--editor-width, 100%)' : '100%'
+        }}>
       <div className="flex items-center justify-between px-4 py-2">
         <div className="flex items-center space-x-1 flex-wrap flex-grow mr-4">
           {/* AI Tools */}
@@ -237,5 +302,6 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };

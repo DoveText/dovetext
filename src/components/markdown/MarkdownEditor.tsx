@@ -140,13 +140,49 @@ export function MarkdownEditor({
     };
   }, [openAiCommandDialog]);
 
+  // Set up a ref to measure the editor container
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Update CSS variables when the editor size or position changes
+  useEffect(() => {
+    const updateEditorDimensions = () => {
+      if (editorContainerRef.current) {
+        const rect = editorContainerRef.current.getBoundingClientRect();
+        document.documentElement.style.setProperty('--editor-width', `${rect.width}px`);
+        document.documentElement.style.setProperty('--editor-left', `${rect.left}px`);
+      }
+    };
+    
+    // Update dimensions initially, on resize, and on scroll
+    updateEditorDimensions();
+    window.addEventListener('resize', updateEditorDimensions);
+    window.addEventListener('scroll', updateEditorDimensions, { passive: true });
+    
+    // Create a ResizeObserver to detect size changes of the editor container
+    const resizeObserver = new ResizeObserver(() => {
+      updateEditorDimensions();
+    });
+    
+    if (editorContainerRef.current) {
+      resizeObserver.observe(editorContainerRef.current);
+    }
+    
+    return () => {
+      window.removeEventListener('resize', updateEditorDimensions);
+      window.removeEventListener('scroll', updateEditorDimensions);
+      resizeObserver.disconnect();
+    };
+  }, []);
+  
   return (
-    <div className={`novel-editor-wrapper ${className}`}>
-      {/* Editor styles are now in globals.css */}
-      
+    <div 
+      className={`novel-editor-wrapper ${className}`} 
+      id="markdown-editor-container"
+      ref={editorContainerRef}
+    >
       {/* Fixed Toolbar with Status */}
-      <FixedToolbar 
-        editor={editorInstance} 
+      <FixedToolbar
+        editor={editorInstance}
         onAICommand={openAiCommandDialog}
         saveStatus={saveStatus}
         wordCount={wordCount}
@@ -154,7 +190,8 @@ export function MarkdownEditor({
         onToggleBubbleMenu={() => setShowBubbleMenu(!showBubbleMenu)}
       />
       
-      <EditorRoot>
+      <div className="novel-editor-root">
+        <EditorRoot>
         <EditorContent
           ref={editorRef}
           initialContent={getInitialContent()}
@@ -249,6 +286,7 @@ export function MarkdownEditor({
           )}
         </EditorContent>
       </EditorRoot>
+      </div>
       
       {/* AI Command Dialog */}
       <AICommandDialog
