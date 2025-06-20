@@ -98,8 +98,10 @@ export default function AICommandDialog({
           onClose={onClose}
           onSubmit={handleContentSubmit}
           initialContent={initialContent}
+          hasSelection={hasSelection}
           selectedText={selectedText}
           onAccept={handleAccept}
+          aiService={aiService}
         />
       );
 

@@ -6,14 +6,25 @@ import { EditorState } from '@tiptap/pm/state';
 import { TextSelection } from '@tiptap/pm/state';
 import { EditorView } from '@tiptap/pm/view';
 import { AICommandType } from '../components/ai-command-dialog';
-import { markdownAiApi, GenerateContentRequest } from '@/app/api/markdown-ai';
+import { markdownAiApi, GenerateContentRequest, RefineContentRequest, RefineContentResponse } from '@/app/api/markdown-ai';
 
 interface AICommandParams {
+  // Common parameters
   prompt?: string;
   instructions?: string;
   topic?: string;
   description?: string;
   content?: string;
+  
+  // Refine content specific parameters
+  text_to_refine?: string;
+  context_before?: string;
+  context_after?: string;
+  document_title?: string;
+  document_tone?: string;
+  current_heading_level?: number;
+  selectedText?: string;
+  showContext?: boolean;
 }
 
 // Content to be summarized, stored temporarily when opening the summarize dialog
@@ -263,25 +274,47 @@ export class AICommandService {
 
   private async refineContent(params: AICommandParams): Promise<string> {
     try {
-      // Get the current selection or all content
-      const selection = this.editor.state.selection;
-      const hasSelection = !selection.empty;
-      
-      const contentToRefine = params.content || (hasSelection 
-        ? this.editor.state.doc.textBetween(selection.from, selection.to)
-        : this.editor.getText());
-      
-      if (!contentToRefine.trim()) {
-        throw new Error('No content to refine');
+      // Since useAICommandManager now ensures we always have selectedText,
+      // we can simplify this method to just use the selected text
+      if (!params.selectedText) {
+        throw new Error('No text selected for refinement');
       }
       
-      const result = await aiApi.refineContent({ 
-        content: contentToRefine,
-        instructions: params.instructions || 'Improve clarity and readability'
+      // Use the selected text for refinement
+      const textToRefine = params.selectedText;
+      
+      // Get context if requested
+      let contextBefore: string = '';
+      let contextAfter: string = '';
+      if (params.showContext) {
+        contextBefore = this.getContextBeforeSelection();
+        contextAfter = this.getContextAfterSelection();
+      }
+      
+      // Get document metadata and heading level
+      const { title, tone } = this.getDocumentContext();
+      const currentHeadingLevel = this.getCurrentHeadingLevel() || 1;
+      const prompt = params.prompt || 'Improve clarity and readability';
+      
+      console.log('Refining content:', {
+        textLength: textToRefine.length,
+        contextBeforeLength: contextBefore.length,
+        contextAfterLength: contextAfter.length,
+        showContext: params.showContext
       });
       
-      // Convert markdown to HTML
-      return marked.parse(result.refined_content) as string;
+      // Call the API
+      const response = await markdownAiApi.refineContent({
+        text_to_refine: textToRefine,
+        prompt: prompt,
+        context_before: contextBefore,
+        context_after: contextAfter,
+        document_title: title,
+        document_tone: tone,
+        current_heading_level: currentHeadingLevel
+      });
+
+      return response.refined_text;
     } catch (error) {
       console.error('Error refining content:', error);
       throw error;
@@ -667,6 +700,102 @@ export class AICommandService {
       text: info.node.textContent
     };
   }
+  
+  /**
+   * Get context before the current selection
+   * Returns text before the current selection
+   */
+  getContextBeforeSelection(): string {
+    if (!this.editor) return '';
+    
+    const selection = this.editor.state.selection;
+    if (selection.empty) return this.getContextBeforeParagraph();
+    
+    const startPos = Math.max(0, selection.from - 1500);
+    
+    // Get text from document between startPos and selection start
+    let contextBefore = '';
+    const { doc } = this.editor.state;
+    
+    doc.nodesBetween(startPos, selection.from, (node, pos) => {
+      if (node.type.name === 'paragraph') {
+        contextBefore += node.textContent + '\n\n';
+      } else if (node.type.name === 'heading') {
+        // Add heading markers based on level
+        const level = node.attrs.level;
+        const prefix = '#'.repeat(level) + ' ';
+        contextBefore += prefix + node.textContent + '\n\n';
+      } else if (node.type.name === 'bulletList' || node.type.name === 'orderedList') {
+        // Lists are handled by their children
+        return true;
+      } else if (node.type.name === 'listItem') {
+        contextBefore += '- ' + node.textContent + '\n';
+      }
+      return true;
+    });
+    
+    return contextBefore;
+  }
+  
+  /**
+   * Get context after the current selection
+   * Returns text after the current selection
+   */
+  getContextAfterSelection(): string {
+    if (!this.editor) return '';
+    
+    const selection = this.editor.state.selection;
+    if (selection.empty) return this.getContextAfterParagraph();
+    
+    const { doc } = this.editor.state;
+    const endPos = doc.content.size;
+    const endLimit = Math.min(endPos, selection.to + 1500);
+    
+    // Get text from document between selection end and endLimit
+    let contextAfter = '';
+    
+    doc.nodesBetween(selection.to, endLimit, (node, pos) => {
+      if (node.type.name === 'paragraph') {
+        contextAfter += node.textContent + '\n\n';
+      } else if (node.type.name === 'heading') {
+        // Add heading markers based on level
+        const level = node.attrs.level;
+        const prefix = '#'.repeat(level) + ' ';
+        contextAfter += prefix + node.textContent + '\n\n';
+      } else if (node.type.name === 'bulletList' || node.type.name === 'orderedList') {
+        // Lists are handled by their children
+        return true;
+      } else if (node.type.name === 'listItem') {
+        contextAfter += '- ' + node.textContent + '\n';
+      }
+      return true;
+    });
+    
+    return contextAfter;
+  }
+  
+  /**
+   * Get the current heading level at the cursor position or selection
+   * Returns the level of the most recent heading above the cursor/selection
+   */
+  getCurrentHeadingLevel(): number | undefined {
+    const { state } = this.editor;
+    const { selection } = state;
+    const { $from } = selection;
+    
+    // Walk up the document to find the closest heading
+    for (let depth = $from.depth; depth > 0; depth--) {
+      const node = $from.node(depth);
+      if (node.type.name === 'heading') {
+        return node.attrs.level;
+      }
+    }
+    
+    // If no heading found, return undefined
+    return undefined;
+  }
+  
+  // getDocumentContext is already defined above
 
 
   getCurrentNode(typeName: string): { pos: number; node: ProseMirrorNode } | null {

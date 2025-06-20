@@ -38,6 +38,23 @@ export interface SummarizeResponse {
   error?: string;
 }
 
+// Interface for refine content request
+export interface RefineContentRequest {
+  text_to_refine: string;
+  prompt: string;
+  context_before?: string;
+  context_after?: string;
+  document_title?: string;
+  document_tone?: string;
+  current_heading_level?: number;
+}
+
+// Interface for refine content response
+export interface RefineContentResponse {
+  refined_text: string;
+  error?: string;
+}
+
 /**
  * API client for AI markdown operations
  */
@@ -72,6 +89,23 @@ export const markdownAiApi = {
       return response.data;
     } catch (error) {
       console.error('Error in generateContent API call:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Refine content based on instructions and context
+   * @param params The refine content request parameters
+   * @returns Refined content
+   */
+  refineContent: async (params: RefineContentRequest): Promise<RefineContentResponse> => {
+    try {
+      // Make API call to the refine content endpoint
+      const response = await apiClient.post('/api/v1/gen/refine', params);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error in refineContent API call:', error);
       throw error;
     }
   }

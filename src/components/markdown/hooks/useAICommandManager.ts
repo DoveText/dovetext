@@ -54,6 +54,46 @@ export function useAICommandManager(editor: Editor | null) {
       }
     }
     
+    // For refine content, use selection if available or select current paragraph
+    if (type === 'refine' && aiService && editor) {
+      try {
+        // Check if there's an active selection
+        const { from, to } = editor.state.selection;
+        const hasSelection = from !== to;
+        
+        if (hasSelection) {
+          // Get the selected text
+          const selectedContent = editor.state.doc.textBetween(from, to);
+          setSelectionRange({ from, to });
+          setSelectedText(selectedContent);
+          console.log('Using existing selection for refine:', selectedContent);
+        } else {
+          // No selection, get the current paragraph
+          const currentParagraph = aiService.getCurrentParagraph();
+          console.log('No selection, trying to use paragraph for refine:', currentParagraph);
+
+          if (currentParagraph !== null) {
+            // Select the entire paragraph
+            const paragraphStart = currentParagraph.pos;
+            const paragraphEnd = paragraphStart + currentParagraph.node.content.size;
+            
+            // Select the entire paragraph content
+            editor.commands.setTextSelection({ from: paragraphStart, to: paragraphEnd });
+            
+            // Get the updated selection
+            const updatedSelection = editor.state.selection;
+            setSelectionRange({ from: updatedSelection.from, to: updatedSelection.to });
+            
+            // Get the paragraph text and set it as selected text
+            const paragraphText = currentParagraph.text;
+            setSelectedText(paragraphText);
+          }
+        }
+      } catch (error) {
+        console.error('Error selecting text for refinement:', error);
+      }
+    }
+    
     // For summarize, extract content below the heading and select the heading line if no selection
     if (type === 'summarize-title' && aiService && editor) {
       try {
