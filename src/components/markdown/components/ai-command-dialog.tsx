@@ -87,6 +87,7 @@ export default function AICommandDialog({
           hasSelection={hasSelection}
           selectedText={selectedText}
           onAccept={handleAccept}
+          aiService={aiService}
         />
       );
 

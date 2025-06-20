@@ -11,6 +11,7 @@ export function useAICommandManager(editor: Editor | null) {
   const [aiCommandType, setAiCommandType] = useState<AICommandType | null>(null);
   const [aiCommandLoading, setAiCommandLoading] = useState(false);
   const [selectionRange, setSelectionRange] = useState<{from: number, to: number} | null>(null);
+  const [selectedText, setSelectedText] = useState<string>('');
   const [aiService, setAiService] = useState<AICommandService | null>(null);
 
   // Initialize AI service when editor is ready
@@ -23,6 +24,33 @@ export function useAICommandManager(editor: Editor | null) {
    */
   const openAiCommandDialog = (type: AICommandType) => {
     setAiCommandType(type);
+    
+    // For generate content, select the current paragraph
+    if (type === 'generate' && aiService && editor) {
+      try {
+        // Get the current paragraph
+        const currentParagraph = aiService.getCurrentParagraph();
+        
+        if (currentParagraph !== null) {
+          // Select the entire paragraph
+          const paragraphStart = currentParagraph.pos;
+          const paragraphEnd = paragraphStart + currentParagraph.node.nodeSize;
+          
+          // Select the entire paragraph content
+          editor.commands.setTextSelection({ from: paragraphStart, to: paragraphEnd });
+          
+          // Get the updated selection
+          const updatedSelection = editor.state.selection;
+          setSelectionRange({ from: updatedSelection.from, to: updatedSelection.to });
+          
+          // Get the paragraph text and set it as selected text
+          const paragraphText = currentParagraph.text;
+          setSelectedText(paragraphText);
+        }
+      } catch (error) {
+        console.error('Error selecting paragraph for content generation:', error);
+      }
+    }
     
     // For summarize, extract content below the heading and select the heading line if no selection
     if (type === 'summarize-title' && aiService && editor) {
@@ -138,6 +166,7 @@ export function useAICommandManager(editor: Editor | null) {
     aiDialogOpen,
     aiCommandType,
     aiCommandLoading,
+    selectedText, // Include the selected text
     aiService, // Expose the AICommandService instance
     openAiCommandDialog,
     closeAiCommandDialog,

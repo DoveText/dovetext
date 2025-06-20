@@ -4,6 +4,22 @@
  */
 import { apiClient } from './client';
 
+// Interface for content generation request
+export interface GenerateContentRequest {
+  prompt: string;
+  context_before?: string;
+  context_after?: string;
+  document_title?: string;
+  document_tone?: string;
+  current_heading_level?: number;
+}
+
+// Interface for content generation response
+export interface GenerateContentResponse {
+  generated_text: string;
+  error?: string;
+}
+
 // Interface for summarize request
 export interface SummarizeRequest {
   text_to_summarize: string;
@@ -39,6 +55,23 @@ export const markdownAiApi = {
       return response.data;
     } catch (error) {
       console.error('Error in summarizeContent API call:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Generate content based on prompt and context
+   * @param params The content generation request parameters
+   * @returns AI-generated content
+   */
+  generateContent: async (params: GenerateContentRequest): Promise<GenerateContentResponse> => {
+    try {
+      // Make API call to the generate content endpoint
+      const response = await apiClient.post('/api/v1/gen/generate', params);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error in generateContent API call:', error);
       throw error;
     }
   }

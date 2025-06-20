@@ -3,9 +3,10 @@ import { marked } from 'marked';
 import { Editor } from '@tiptap/core';
 import { Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorState } from '@tiptap/pm/state';
+import { TextSelection } from '@tiptap/pm/state';
 import { EditorView } from '@tiptap/pm/view';
 import { AICommandType } from '../components/ai-command-dialog';
-import { markdownAiApi } from '@/app/api/markdown-ai';
+import { markdownAiApi, GenerateContentRequest } from '@/app/api/markdown-ai';
 
 interface AICommandParams {
   prompt?: string;
@@ -42,14 +43,245 @@ export class AICommandService {
     }
   }
 
+  /**
+   * Get the current paragraph node and position
+   * Returns the position, node, and text of the paragraph at the current selection, or null if not in a paragraph
+   */
+  getCurrentParagraph(): { pos: number; node: ProseMirrorNode; text: string } | null {
+    if (!this.editor) return null;
+    
+    const { doc, selection } = this.editor.state;
+    const { from } = selection;
+    
+    let result = null;
+    
+    doc.nodesBetween(from, from, (node, pos) => {
+      if (node.type.name === 'paragraph') {
+        result = {
+          pos,
+          node,
+          text: node.textContent
+        };
+        return false; // Stop iteration
+      }
+      return true; // Continue iteration
+    });
+    
+    return result;
+  }
+
+  /**
+   * Get context before the current paragraph as Markdown
+   * Returns a string of Markdown content from before the current paragraph
+   */
+  getContextBeforeParagraph(limit: number = 1500): string {
+    if (!this.editor) return '';
+    
+    const currentParagraph = this.getCurrentParagraph();
+    if (!currentParagraph) return '';
+    
+    // Get the content before the current paragraph
+    const { doc } = this.editor.state;
+    const startPos = 0;
+    const endPos = currentParagraph.pos;
+    
+    // Extract text with formatting preserved as much as possible
+    let contextBefore = '';
+    doc.nodesBetween(startPos, endPos, (node, pos) => {
+      if (node.type.name === 'paragraph') {
+        contextBefore += node.textContent + '\n\n';
+      } else if (node.type.name === 'heading') {
+        // Add heading markers based on level
+        const level = node.attrs.level;
+        const prefix = '#'.repeat(level) + ' ';
+        contextBefore += prefix + node.textContent + '\n\n';
+      } else if (node.type.name === 'bulletList' || node.type.name === 'orderedList') {
+        // Lists are handled by their children
+        return true;
+      } else if (node.type.name === 'listItem') {
+        contextBefore += '- ' + node.textContent + '\n';
+      }
+      return true;
+    });
+    
+    // Limit the context length
+    if (contextBefore.length > limit) {
+      // Try to preserve complete markdown blocks when truncating
+      const lines = contextBefore.split('\n');
+      let truncatedContent = '';
+      let currentLength = 0;
+      
+      // Start from the end to get the most recent context
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i];
+        if (currentLength + line.length + 1 > limit) break;
+        
+        truncatedContent = line + '\n' + truncatedContent;
+        currentLength += line.length + 1;
+      }
+      
+      contextBefore = truncatedContent;
+    }
+    
+    return contextBefore;
+  }
+  
+  /**
+   * Get context after the current paragraph as Markdown
+   * Returns a string of Markdown content from after the current paragraph
+   */
+  getContextAfterParagraph(limit: number = 1500): string {
+    if (!this.editor) return '';
+    
+    const currentParagraph = this.getCurrentParagraph();
+    if (!currentParagraph) return '';
+    
+    // Calculate the position after the current paragraph
+    const afterPos = currentParagraph.pos + currentParagraph.node.nodeSize;
+    const { doc } = this.editor.state;
+    const endPos = doc.content.size;
+    
+    // Extract text with formatting preserved as much as possible
+    let contextAfter = '';
+    doc.nodesBetween(afterPos, endPos, (node, pos) => {
+      if (node.type.name === 'paragraph') {
+        contextAfter += node.textContent + '\n\n';
+      } else if (node.type.name === 'heading') {
+        // Add heading markers based on level
+        const level = node.attrs.level;
+        const prefix = '#'.repeat(level) + ' ';
+        contextAfter += prefix + node.textContent + '\n\n';
+      } else if (node.type.name === 'bulletList' || node.type.name === 'orderedList') {
+        // Lists are handled by their children
+        return true;
+      } else if (node.type.name === 'listItem') {
+        contextAfter += '- ' + node.textContent + '\n';
+      }
+      return true;
+    });
+    
+    // Limit the context length
+    if (contextAfter.length > limit) {
+      // Try to preserve complete markdown blocks when truncating
+      const lines = contextAfter.split('\n');
+      let truncatedContent = '';
+      let currentLength = 0;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (currentLength + line.length + 1 > limit) break;
+        
+        truncatedContent += line + '\n';
+        currentLength += line.length + 1;
+      }
+      
+      contextAfter = truncatedContent;
+    }
+    
+    return contextAfter;
+  }
+  
+  /**
+   * Get the current paragraph as markdown-like text
+   * Returns the text representation of the current paragraph
+   */
+  getCurrentParagraphMarkdown(): string {
+    const currentParagraph = this.getCurrentParagraph();
+    if (!currentParagraph || !this.editor) return '';
+    
+    // For paragraphs, just return the text content
+    return currentParagraph.text;
+  }
+  
+  /**
+   * Get the document title for context
+   */
+  getDocumentContext(): { title: string; tone: string } {
+    return {
+      title: this.getDocumentTitle(),
+      tone: 'professional' // Default tone, could be made configurable
+    };
+  }
+
+  /**
+   * Generate content based on a prompt
+   * Returns raw markdown text that can be used to replace the current paragraph
+   */
   private async generateContent(params: AICommandParams): Promise<string> {
+    if (!this.editor) return '';
+    
     try {
-      const result = await aiApi.generateContent({ 
-        prompt: params.prompt || 'Generate content'
+      let currentParagraph = '';
+      let contextBefore = '';
+      let contextAfter = '';
+      
+      // Check if we have the paragraph content passed in params
+      if (params.content) {
+        // Use the paragraph content passed from the dialog
+        currentParagraph = params.content;
+        
+        // Get context before and after
+        try {
+          contextBefore = this.getContextBeforeParagraph();
+          contextAfter = this.getContextAfterParagraph();
+        } catch (error) {
+          console.warn('Error getting context, continuing with empty context:', error);
+        }
+      } else {
+        // Fallback to getting the current paragraph if not provided in params
+        const currentParagraphInfo = this.getCurrentParagraph();
+        if (!currentParagraphInfo) {
+          throw new Error('No paragraph selected. Please place your cursor in a paragraph.');
+        }
+        
+        // Select the current paragraph
+        const { node, pos } = currentParagraphInfo;
+        const endPos = pos + node.nodeSize;
+        const tr = this.editor.state.tr.setSelection(
+          TextSelection.create(this.editor.state.doc, pos, endPos)
+        );
+        this.editor.view.dispatch(tr);
+        
+        // Get the current paragraph and surrounding context
+        contextBefore = this.getContextBeforeParagraph();
+        contextAfter = this.getContextAfterParagraph();
+        currentParagraph = this.getCurrentParagraphMarkdown();
+      }
+      
+      // Get document metadata
+      const { title, tone } = this.getDocumentContext();
+      
+      // Determine the current heading level
+      const headingLevel = this.getHeadingLevel();
+      
+      // Log the context data for debugging
+      console.log('Content generation context:', { 
+        contextBefore: contextBefore?.substring(0, 100) + '...', 
+        contextAfter: contextAfter?.substring(0, 100) + '...', 
+        currentParagraph,
+        headingLevel
       });
       
-      // Convert markdown to HTML
-      return marked.parse(result.content) as string;
+      // Prepare the request parameters
+      const requestParams: GenerateContentRequest = {
+        prompt: params.prompt || 'Generate content',
+        context_before: contextBefore,
+        context_after: contextAfter,
+        document_title: title,
+        document_tone: tone,
+        current_heading_level: headingLevel
+      };
+      
+      // Call the API to generate content
+      const result = await markdownAiApi.generateContent(requestParams);
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      // The API might return a JSON object with the content inside
+      // Try to extract just the content field if it's a JSON object
+      return result.generated_text;
     } catch (error) {
       console.error('Error generating content:', error);
       throw error;
