@@ -44,33 +44,6 @@ export class AICommandService {
   }
 
   /**
-   * Get the current paragraph node and position
-   * Returns the position, node, and text of the paragraph at the current selection, or null if not in a paragraph
-   */
-  getCurrentParagraph(): { pos: number; node: ProseMirrorNode; text: string } | null {
-    if (!this.editor) return null;
-    
-    const { doc, selection } = this.editor.state;
-    const { from } = selection;
-    
-    let result = null;
-    
-    doc.nodesBetween(from, from, (node, pos) => {
-      if (node.type.name === 'paragraph') {
-        result = {
-          pos,
-          node,
-          text: node.textContent
-        };
-        return false; // Stop iteration
-      }
-      return true; // Continue iteration
-    });
-    
-    return result;
-  }
-
-  /**
    * Get context before the current paragraph as Markdown
    * Returns a string of Markdown content from before the current paragraph
    */
@@ -666,18 +639,48 @@ export class AICommandService {
    * Returns the position, node, and level of the heading, or null if not in a heading
    */
   getCurrentHeading(): { pos: number; node: ProseMirrorNode; level: number } | null {
+    const info = this.getCurrentNode('heading')
+    if(info == null) {
+      return null;
+    }
+
+    return {
+      pos: info.pos,
+      node: info.node,
+      level: info.node.attrs.level || 3
+    }
+  }
+
+  /**
+   * Get the current paragraph node and position
+   * Returns the position, node, and text of the paragraph at the current selection, or null if not in a paragraph
+   */
+  getCurrentParagraph(): { pos: number; node: ProseMirrorNode; text: string } | null {
+    const info = this.getCurrentNode('paragraph')
+    if (info == null) {
+      return null;
+    }
+
+    return {
+      pos : info.pos,
+      node: info.node,
+      text: info.node.textContent
+    };
+  }
+
+
+  getCurrentNode(typeName: string): { pos: number; node: ProseMirrorNode } | null {
     try {
       const { selection } = this.editor.state;
       const { $from } = selection; // $from is a ResolvedPos
-      const { doc } = this.editor.state;
 
       // Iterate from the current resolved position's depth upwards to find an ancestor heading.
       for (let d = $from.depth; d > 0; d--) { // d > 0 because depth 0 is the doc itself
         const ancestorNode: ProseMirrorNode | null = $from.node(d);
-        if (ancestorNode && ancestorNode.type.name === 'heading') {
+        if (ancestorNode && ancestorNode.type.name === typeName) {
+          console.log('Find node from ' + $from.start(d) + ' to ' + $from.end(d))
           const headingStartPosition = $from.start(d);
-          const headingLevel = ancestorNode.attrs.level || 3;
-          return { pos: headingStartPosition, node: ancestorNode, level: headingLevel };
+          return { pos: headingStartPosition, node: ancestorNode };
         }
       }
 

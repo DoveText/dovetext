@@ -109,6 +109,13 @@ export default function AIGenerateContentDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If there was an error and user clicks "Try Again", just reset the error state
+    if (error) {
+      setError(null);
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     
@@ -161,7 +168,7 @@ export default function AIGenerateContentDialog({
 
   return (
     <>
-      {!result ? (
+      {!result || error ? (
         <BaseAIDialog
           isOpen={isOpen}
           onClose={onClose}
@@ -170,7 +177,7 @@ export default function AIGenerateContentDialog({
           loading={loading}
           progress={progress}
           error={error}
-          actionButtonText="Generate"
+          actionButtonText={error ? "Try Again" : "Generate"}
           onSubmit={handleSubmit}
         >
           <div className="space-y-4">
@@ -216,7 +223,6 @@ export default function AIGenerateContentDialog({
           onClose={onClose}
           title="Generated Content"
           description="Review the generated content and use it if you're satisfied."
-          error={error}
           actionButtonText="Use Content"
           onSubmit={(e) => {
             e.preventDefault();

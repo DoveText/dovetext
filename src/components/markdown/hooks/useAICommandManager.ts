@@ -30,11 +30,13 @@ export function useAICommandManager(editor: Editor | null) {
       try {
         // Get the current paragraph
         const currentParagraph = aiService.getCurrentParagraph();
-        
+
+        console.log('Try generate', currentParagraph)
+
         if (currentParagraph !== null) {
           // Select the entire paragraph
           const paragraphStart = currentParagraph.pos;
-          const paragraphEnd = paragraphStart + currentParagraph.node.nodeSize;
+          const paragraphEnd = paragraphStart + currentParagraph.node.content.size;
           
           // Select the entire paragraph content
           editor.commands.setTextSelection({ from: paragraphStart, to: paragraphEnd });
