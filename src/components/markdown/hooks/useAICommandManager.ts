@@ -176,16 +176,28 @@ export function useAICommandManager(editor: Editor | null) {
       return;
     }
     
+    console.log('Accept result for command type:', commandType);
     try {
       // For all command types, restore the user's original selection if available
       if (selectionRange) {
         editor.commands.setTextSelection({ from: selectionRange.from, to: selectionRange.to });
       }
       
-      // Apply the result to the editor
-      aiService.applyCommandResult(commandType, result);
+      // Apply the result to the editor and get the new selection range
+      const newSelectionRange = aiService.applyCommandResult(commandType, result);
       
-      // Reset the selection range
+      // For generate and refine commands, update the selection to cover the new content
+      if (newSelectionRange) {
+        // Select the newly inserted content
+        editor.commands.setTextSelection({
+          from: newSelectionRange.from,
+          to: newSelectionRange.to
+        });
+        
+        console.log(`Updated selection after ${commandType} to:`, newSelectionRange);
+      }
+      
+      // Reset the stored selection range
       setSelectionRange(null);
       
       // Close the dialog

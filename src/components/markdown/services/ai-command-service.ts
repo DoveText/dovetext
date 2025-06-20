@@ -472,15 +472,28 @@ export class AICommandService {
     }
   }
 
-  replaceSelection(content: string): void {
-    // Log the current selection before replacement
-    const { from, to } = this.editor.state.selection;
+  /**
+   * Replace the current selection with new content and return the new selection range
+   * @param content The content to insert
+   * @returns The new selection range after replacement (from and to positions)
+   */
+  replaceSelection(content: string): { from: number, to: number } {
+    // Get the current selection before replacement
+    const { from } = this.editor.state.selection;
 
     // Delete the current selection and insert the new content
     this.editor.chain().focus()
       .deleteSelection()
       .insertContent(content)
       .run();
+    
+    // Calculate the end position after insertion
+    // The new selection should start at the original 'from' position
+    // and end at from + content length (accounting for markdown parsing)
+    const newTo = from + content.length;
+  
+    // Return the new selection range
+    return { from, to: newTo };
   }
 
   replaceAll(content: string): void {
@@ -922,18 +935,22 @@ export class AICommandService {
   /**
    * Apply the summarize command result by replacing the heading title
    * This is called when the user selects a title from the suggestions
+   * @returns The new selection range after replacement (for generate and refine commands)
    */
-  applyCommandResult(commandType: AICommandType, result: string): void {
+  applyCommandResult(commandType: AICommandType, result: string): { from: number, to: number } | null {
     if (commandType === 'summarize-title') {
       // For summarize, simply replace the current selection (which should be the heading text)
       // with the selected title
-      this.replaceSelection(result);
+      return this.replaceSelection(result);
     } else if (commandType === 'generate' || commandType === 'refine') {
       // For generate and refine, insert the content at cursor position or replace selection
-      this.replaceSelection(result);
+      return this.replaceSelection(result);
     } else if (commandType === 'schema') {
       // For schema, replace the entire document
       this.replaceAll(result);
+      return null; // No specific selection range for schema replacement
     }
+    
+    return null; // Default return
   }
 }
