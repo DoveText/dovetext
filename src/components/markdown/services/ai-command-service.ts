@@ -195,43 +195,17 @@ export class AICommandService {
     if (!this.editor) return '';
     
     try {
-      let currentParagraph = '';
       let contextBefore = '';
       let contextAfter = '';
       
-      // Check if we have the paragraph content passed in params
-      if (params.content) {
-        // Use the paragraph content passed from the dialog
-        currentParagraph = params.content;
-        
-        // Get context before and after
-        try {
-          contextBefore = this.getContextBeforeParagraph();
-          contextAfter = this.getContextAfterParagraph();
-        } catch (error) {
-          console.warn('Error getting context, continuing with empty context:', error);
-        }
-      } else {
-        // Fallback to getting the current paragraph if not provided in params
-        const currentParagraphInfo = this.getCurrentParagraph();
-        if (!currentParagraphInfo) {
-          throw new Error('No paragraph selected. Please place your cursor in a paragraph.');
-        }
-        
-        // Select the current paragraph
-        const { node, pos } = currentParagraphInfo;
-        const endPos = pos + node.nodeSize;
-        const tr = this.editor.state.tr.setSelection(
-          TextSelection.create(this.editor.state.doc, pos, endPos)
-        );
-        this.editor.view.dispatch(tr);
-        
-        // Get the current paragraph and surrounding context
+      // Get context before and after
+      try {
         contextBefore = this.getContextBeforeParagraph();
         contextAfter = this.getContextAfterParagraph();
-        currentParagraph = this.getCurrentParagraphMarkdown();
+      } catch (error) {
+        console.warn('Error getting context, continuing with empty context:', error);
       }
-      
+
       // Get document metadata
       const { title, tone } = this.getDocumentContext();
       
@@ -242,13 +216,12 @@ export class AICommandService {
       console.log('Content generation context:', { 
         contextBefore: contextBefore?.substring(0, 100) + '...', 
         contextAfter: contextAfter?.substring(0, 100) + '...', 
-        currentParagraph,
         headingLevel
       });
       
       // Prepare the request parameters
       const requestParams: GenerateContentRequest = {
-        prompt: params.prompt || 'Generate content',
+        prompt: params.prompt || 'Generate content according to the context before and after',
         context_before: contextBefore,
         context_after: contextAfter,
         document_title: title,

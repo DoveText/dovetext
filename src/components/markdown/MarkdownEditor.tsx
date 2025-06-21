@@ -55,7 +55,8 @@ export function MarkdownEditor({
   // State for UI elements
   const [saveStatus, setSaveStatus] = useState('Saved');
   const [wordCount, setWordCount] = useState<number | null>(null);
-  const [showBubbleMenu, setShowBubbleMenu] = useState(true);
+  // our fixed toolbar is sticky now, so we usu. don't need the bubble commands
+  const [showBubbleMenu, setShowBubbleMenu] = useState(false);
   
   // Editor reference and instance
   const editorRef = useRef<HTMLDivElement>(null);
