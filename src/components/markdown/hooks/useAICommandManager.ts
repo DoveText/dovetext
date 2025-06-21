@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { EditorInstance as Editor } from 'novel';
 import { AICommandType } from '../components/ai-command-dialog';
 import { AICommandService } from '../services/ai-command-service';
+import { toast } from 'react-hot-toast';
 
 /**
  * Hook to manage AI command dialog state and interactions
@@ -25,8 +26,73 @@ export function useAICommandManager(editor: Editor | null) {
   const openAiCommandDialog = (type: AICommandType) => {
     setAiCommandType(type);
     
-    // For generate content, select the current paragraph
-    if (type === 'generate' && aiService && editor) {
+    // Special handling for slash-generate command
+    if (type === 'slash-generate' && aiService && editor) {
+      try {
+        // Get the current paragraph
+        const currentParagraph = aiService.getCurrentParagraph();
+        
+        if (currentParagraph !== null) {
+          // Select the entire paragraph
+          const paragraphStart = currentParagraph.pos;
+          const paragraphEnd = paragraphStart + currentParagraph.node.content.size;
+          
+          // Select the entire paragraph content
+          editor.commands.setTextSelection({ from: paragraphStart, to: paragraphEnd });
+          
+          // Get the updated selection
+          const updatedSelection = editor.state.selection;
+          setSelectionRange({ from: updatedSelection.from, to: updatedSelection.to });
+          
+          // Get the paragraph text
+          const paragraphText = currentParagraph.text;
+          setSelectedText(paragraphText);
+          
+          // Count words in the current paragraph
+          const wordCount = paragraphText.trim().split(/\s+/).filter(Boolean).length;
+          
+          // If paragraph is empty or too short, show the dialog
+          if (wordCount < 5) {
+            console.log('Paragraph too short, showing dialog', { wordCount, text: paragraphText });
+            // Use regular generate command type for the dialog
+            setAiCommandType('generate');
+            setAiDialogOpen(true);
+          } else {
+            // For longer paragraphs, auto-generate without showing dialog
+            console.log('Auto-generating content for paragraph', { wordCount, text: paragraphText });
+            
+            // Create loading toast
+            const loadingToastId = toast.loading('AI is generating content...');
+            
+            // Execute the generate command
+            handleAiCommandSubmit('generate', { prompt: paragraphText })
+              .then((result) => {
+                if (typeof result === 'string') {
+                  // Apply the result
+                  handleAcceptResult('generate', result);
+                  
+                  // Show success toast
+                  toast.success('Content generated successfully', { id: loadingToastId });
+                }
+              })
+              .catch((error) => {
+                console.error('Error generating content:', error);
+                
+                // Show error toast
+                toast.error(`Error: ${error.message || 'Failed to generate content'}`, { id: loadingToastId });
+              });
+            
+            // Don't open the dialog
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error handling slash-generate command:', error);
+        toast.error('Error processing command');
+      }
+    }
+    // For regular generate content, select the current paragraph
+    else if (type === 'generate' && aiService && editor) {
       try {
         // Get the current paragraph
         const currentParagraph = aiService.getCurrentParagraph();

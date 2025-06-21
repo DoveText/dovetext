@@ -8,7 +8,7 @@ import {
   AISchemaDialog
 } from './ai-dialogs';
 
-export type AICommandType = 'generate' | 'refine' | 'schema' | 'summarize-title' | null;
+export type AICommandType = 'generate' | 'slash-generate' | 'refine' | 'schema' | 'summarize-title' | null;
 
 interface AICommandDialogProps {
   isOpen: boolean;

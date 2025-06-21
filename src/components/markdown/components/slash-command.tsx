@@ -11,6 +11,7 @@ import { marked } from 'marked';
 import { isHeading, isParagraph, isParagraphEmpty, selectionContainsHeading } from '../utils/editor-state';
 import { isAICommand, isAICommandEnabled, getAICommandTitles } from '../utils/command-registry';
 import { Editor } from '@tiptap/react';
+import { toast } from 'react-hot-toast';
 
 // Define proper types for suggestion items
 interface CommandItemProps {
@@ -37,14 +38,10 @@ const baseItems: SuggestionItem[] = [
       // Delete the slash command text
       editor.chain().focus().deleteRange(range).run();
       
-      // Get the current content for context
-      const currentContent = editor.getText();
-      
-      // Dispatch a custom event to open the AI command dialog
+      // Dispatch a custom event to open the AI command dialog with the special slash-generate type
       const event = new CustomEvent('ai-command-dialog', {
         detail: {
-          commandType: 'generate',
-          initialContent: currentContent
+          commandType: 'slash-generate'
         }
       });
       document.dispatchEvent(event);
