@@ -119,8 +119,6 @@ export function MarkdownEditor({
   const {
     hasSelection,
     selectedText,
-    selectionState,
-    restoreSelection
   } = useSelectionManager(editorInstance, aiDialogOpen);
   // Listen for custom events from slash commands
   useEffect(() => {
@@ -294,9 +292,6 @@ export function MarkdownEditor({
         onClose={() => {
           console.log('🔍 Dialog closing');
           closeAiCommandDialog();
-          
-          // Restore selection when dialog closes
-          restoreSelection();
         }}
         onSubmit={handleAiCommandSubmit}
         onAccept={handleAcceptResult}
