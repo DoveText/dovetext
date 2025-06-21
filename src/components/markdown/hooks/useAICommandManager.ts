@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { EditorInstance as Editor } from 'novel';
 import { AICommandType } from '../components/ai-command-dialog';
 import { AICommandService } from '../services/ai-command-service';
@@ -14,11 +14,88 @@ export function useAICommandManager(editor: Editor | null) {
   const [selectionRange, setSelectionRange] = useState<{from: number, to: number} | null>(null);
   const [selectedText, setSelectedText] = useState<string>('');
   const [aiService, setAiService] = useState<AICommandService | null>(null);
+  const [isEditorReadOnly, setIsEditorReadOnly] = useState(false);
+  const loadingDotsIntervalRef = useRef<number | null>(null);
+  const loadingDotsPositionRef = useRef<{from: number, to: number} | null>(null);
 
   // Initialize AI service when editor is ready
   if (editor && !aiService) {
     setAiService(new AICommandService(editor));
   }
+  
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (loadingDotsIntervalRef.current) {
+        clearInterval(loadingDotsIntervalRef.current);
+      }
+    };
+  }, []);
+  
+  /**
+   * Start animated loading dots at the current paragraph position
+   */
+  const startLoadingAnimation = (paragraphStart: number, paragraphEnd: number) => {
+    if (!editor) return;
+    
+    // Make editor readonly
+    editor.setEditable(false);
+    setIsEditorReadOnly(true);
+    
+    // Store the position for later replacement
+    loadingDotsPositionRef.current = { from: paragraphStart, to: paragraphEnd };
+    
+    // Initial dots
+    let dotsCount = 1;
+    updateLoadingDots(dotsCount);
+    
+    // Start animation interval
+    loadingDotsIntervalRef.current = window.setInterval(() => {
+      dotsCount = (dotsCount % 3) + 1;
+      updateLoadingDots(dotsCount);
+    }, 500) as unknown as number;
+  };
+  
+  /**
+   * Update the loading dots in the editor
+   */
+  const updateLoadingDots = (count: number) => {
+    if (!editor || !loadingDotsPositionRef.current) return;
+    
+    const { from, to } = loadingDotsPositionRef.current;
+    const dots = '.'.repeat(count);
+    const loadingText = `Generating${dots}`;
+    
+    // Replace the current paragraph with loading text
+    editor.commands.deleteRange({ from, to });
+    editor.commands.insertContentAt(from, loadingText);
+    
+    // Update the position reference for the next update
+    loadingDotsPositionRef.current = { 
+      from, 
+      to: from + loadingText.length 
+    };
+  };
+  
+  /**
+   * Stop loading animation and restore editor state
+   */
+  const stopLoadingAnimation = () => {
+    if (!editor) return;
+    
+    // Clear the animation interval
+    if (loadingDotsIntervalRef.current) {
+      const { from, to } = loadingDotsPositionRef.current;
+      editor.commands.deleteRange({ from, to });
+
+      clearInterval(loadingDotsIntervalRef.current);
+      loadingDotsIntervalRef.current = null;
+    }
+    
+    // Make editor editable again
+    editor.setEditable(true);
+    setIsEditorReadOnly(false);
+  };
 
   /**
    * Open AI command dialog with specified command type
@@ -65,17 +142,22 @@ export function useAICommandManager(editor: Editor | null) {
             const loadingToastId = toast.loading('AI is generating content...');
             
             // Make sure the paragraph is selected before generating content
-            // This ensures the selection is properly set for replacement
             editor.commands.setTextSelection({ 
               from: paragraphStart, 
               to: paragraphEnd 
             });
             
+            // Start loading animation with dots
+            startLoadingAnimation(paragraphStart, paragraphEnd);
+            
             // Execute the generate command
             handleAiCommandSubmit('generate', { prompt: paragraphText })
               .then((result) => {
                 if (typeof result === 'string') {
-                  // Apply the result by replacing the current selection (which is the paragraph)
+                  // Stop the loading animation
+                  stopLoadingAnimation();
+                  
+                  // Apply the result by replacing the current selection
                   const newSelectionRange = aiService.applyCommandResult('generate', result);
                   
                   // Update the selection to cover the new content if available
@@ -91,6 +173,9 @@ export function useAICommandManager(editor: Editor | null) {
                 }
               })
               .catch((error) => {
+                // Stop the loading animation
+                stopLoadingAnimation();
+                
                 console.error('Error generating content:', error);
                 
                 // Show error toast
@@ -259,6 +344,9 @@ export function useAICommandManager(editor: Editor | null) {
     
     console.log('Accept result for command type:', commandType);
     try {
+      // Stop any loading animation if it's running
+      stopLoadingAnimation();
+      
       // For all command types, restore the user's original selection if available
       if (selectionRange) {
         editor.commands.setTextSelection({ from: selectionRange.from, to: selectionRange.to });
@@ -285,6 +373,8 @@ export function useAICommandManager(editor: Editor | null) {
       setAiDialogOpen(false);
     } catch (error) {
       console.error('❌ Error accepting AI command result:', error);
+      // Make sure to stop loading animation even if there's an error
+      stopLoadingAnimation();
     }
   };
 
@@ -303,6 +393,7 @@ export function useAICommandManager(editor: Editor | null) {
     aiCommandLoading,
     selectedText, // Include the selected text
     aiService, // Expose the AICommandService instance
+    isEditorReadOnly, // Expose the editor readonly state
     openAiCommandDialog,
     closeAiCommandDialog,
     handleAiCommandSubmit,
