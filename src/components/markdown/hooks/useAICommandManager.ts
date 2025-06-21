@@ -64,12 +64,27 @@ export function useAICommandManager(editor: Editor | null) {
             // Create loading toast
             const loadingToastId = toast.loading('AI is generating content...');
             
+            // Make sure the paragraph is selected before generating content
+            // This ensures the selection is properly set for replacement
+            editor.commands.setTextSelection({ 
+              from: paragraphStart, 
+              to: paragraphEnd 
+            });
+            
             // Execute the generate command
             handleAiCommandSubmit('generate', { prompt: paragraphText })
               .then((result) => {
                 if (typeof result === 'string') {
-                  // Apply the result
-                  handleAcceptResult('generate', result);
+                  // Apply the result by replacing the current selection (which is the paragraph)
+                  const newSelectionRange = aiService.applyCommandResult('generate', result);
+                  
+                  // Update the selection to cover the new content if available
+                  if (newSelectionRange) {
+                    editor.commands.setTextSelection({
+                      from: newSelectionRange.from,
+                      to: newSelectionRange.to
+                    });
+                  }
                   
                   // Show success toast
                   toast.success('Content generated successfully', { id: loadingToastId });
