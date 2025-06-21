@@ -23,10 +23,13 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
   // Refs and state for sticky toolbar behavior
   const toolbarRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<HTMLDivElement>(null);
+  const editorObserverRef = useRef<HTMLDivElement>(null);
   const [isSticky, setIsSticky] = useState(false);
+  const [isEditorVisible, setIsEditorVisible] = useState(true);
   const [toolbarHeight, setToolbarHeight] = useState(0);
   
-  // Set up intersection observer to detect when toolbar should become sticky
+  // Set up intersection observers to detect when toolbar should become sticky
+  // and when editor is visible
   useEffect(() => {
     if (!toolbarRef.current || !observerRef.current) return;
     
@@ -34,16 +37,32 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
     const toolbar = toolbarRef.current;
     setToolbarHeight(toolbar.offsetHeight);
     
-    // Create intersection observer with rootMargin to trigger slightly before the element is out of view
-    // This helps prevent the flashing effect
-    const observer = new IntersectionObserver(
+    // Use a single state update function to prevent race conditions
+    const updateStickyState = (isTopInView: boolean, isEditorInView: boolean) => {
+      // Only show sticky toolbar when:
+      // 1. Top sentinel is out of view (scrolled past the original toolbar position)
+      // 2. AND editor is at least partially visible
+      // 3. AND we're not already in the correct state (to prevent unnecessary renders)
+      
+      const shouldBeSticky = !isTopInView && isEditorInView;
+      
+      if (shouldBeSticky !== isSticky) {
+        // Use RAF to ensure smooth transitions and prevent flashing
+        requestAnimationFrame(() => {
+          setIsSticky(shouldBeSticky);
+        });
+      }
+    };
+    
+    // Track current visibility states
+    let isTopVisible = true;
+    let isEditorVisible = true;
+    
+    // Create intersection observer for the top sentinel element
+    const topObserver = new IntersectionObserver(
       ([entry]) => {
-        // Add a small delay to prevent rapid toggling
-        if (entry.isIntersecting && isSticky) {
-          setTimeout(() => setIsSticky(false), 50);
-        } else if (!entry.isIntersecting && !isSticky) {
-          setTimeout(() => setIsSticky(true), 50);
-        }
+        isTopVisible = entry.isIntersecting;
+        updateStickyState(isTopVisible, isEditorVisible);
       },
       { 
         threshold: 0,
@@ -51,8 +70,26 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
       }
     );
     
-    // Observe the sentinel element instead of the toolbar itself
-    observer.observe(observerRef.current);
+    // Create intersection observer for the editor container
+    const editorObserver = new IntersectionObserver(
+      ([entry]) => {
+        isEditorVisible = entry.isIntersecting;
+        updateStickyState(isTopVisible, isEditorVisible);
+      },
+      {
+        threshold: 0, // Even a small part of the editor being visible counts
+        rootMargin: '0px' 
+      }
+    );
+    
+    // Observe the sentinel elements
+    topObserver.observe(observerRef.current);
+    
+    // Find the editor container to observe
+    const editorContainer = document.getElementById('markdown-editor-container');
+    if (editorContainer) {
+      editorObserver.observe(editorContainer);
+    }
     
     // Handle window resize to recalculate heights
     const handleResize = () => {
@@ -64,7 +101,8 @@ export const FixedToolbar: React.FC<FixedToolbarProps> = ({
     window.addEventListener('resize', handleResize);
     
     return () => {
-      observer.disconnect();
+      topObserver.disconnect();
+      editorObserver.disconnect();
       window.removeEventListener('resize', handleResize);
     };
   }, [isSticky]);
